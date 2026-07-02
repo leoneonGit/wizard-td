@@ -182,9 +182,19 @@ function render(): void {
 }
 
 // boot: load 3D assets, then start the loop
-initRenderer3d(canvas, state).then(() => {
-  startLoop(update, render, () => state.speed);
-});
+initRenderer3d(canvas, state)
+  .then(() => {
+    startLoop(update, render, () => state.speed);
+  })
+  .catch((err) => {
+    console.error('renderer failed to initialize', err);
+    const wrap = canvas.parentElement!;
+    const msg = document.createElement('div');
+    msg.style.cssText =
+      'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ff9db5;font-size:15px;text-align:center;padding:20px;';
+    msg.textContent = `Failed to load game assets: ${err?.message ?? err}. Try refreshing.`;
+    wrap.appendChild(msg);
+  });
 
 // debug/test handles (read-only inspection)
 Object.defineProperty(window, '__game', { get: () => state });

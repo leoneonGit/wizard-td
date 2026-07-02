@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { assetUrl } from '../engine/assetUrl';
 import type { ElementId } from '../game/types';
 
 export interface CharacterAsset {
@@ -16,12 +17,12 @@ export interface CharacterAsset {
 }
 
 const MODELS: Record<string, string> = {
-  mage: '/models/Mage.glb',
-  knight: '/models/Knight.glb',
-  skel_mage: '/models/Skeleton_Mage.glb',
-  skel_minion: '/models/Skeleton_Minion.glb',
-  skel_rogue: '/models/Skeleton_Rogue.glb',
-  skel_warrior: '/models/Skeleton_Warrior.glb',
+  mage: assetUrl('models/Mage.glb'),
+  knight: assetUrl('models/Knight.glb'),
+  skel_mage: assetUrl('models/Skeleton_Mage.glb'),
+  skel_minion: assetUrl('models/Skeleton_Minion.glb'),
+  skel_rogue: assetUrl('models/Skeleton_Rogue.glb'),
+  skel_warrior: assetUrl('models/Skeleton_Warrior.glb'),
 };
 
 const assets = new Map<string, CharacterAsset>();

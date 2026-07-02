@@ -359,7 +359,7 @@ document.getElementById('btn-play')!.addEventListener('click', () => {
     return;
   }
   saveCustomMap(map);
-  location.href = `/?map=${encodeURIComponent(map.id)}`;
+  location.href = `./index.html?map=${encodeURIComponent(map.id)}`;
 });
 
 document.getElementById('btn-export')!.addEventListener('click', () => {

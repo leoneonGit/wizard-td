@@ -1,17 +1,18 @@
 import { COLS, ROWS } from '../engine/grid';
 import { MAPS } from '../data/maps';
+import { assetUrl } from '../engine/assetUrl';
 import type { MapDef } from './types';
 
 /** Prop model registry — files under public/models/props/. height = world units tall. */
 export const PROP_MODELS: Record<string, { file: string; height: number; label: string }> = {
-  tree_a: { file: '/models/props/tree_single_A.gltf', height: 1.6, label: 'Tree' },
-  tree_b: { file: '/models/props/tree_single_B.gltf', height: 1.9, label: 'Pine' },
-  rock_a: { file: '/models/props/rock_single_A.gltf', height: 0.6, label: 'Rock' },
-  rock_c: { file: '/models/props/rock_single_C.gltf', height: 0.8, label: 'Boulder' },
-  barrel: { file: '/models/props/barrel_large.glb', height: 0.9, label: 'Barrel' },
-  crates: { file: '/models/props/box_stacked.glb', height: 1.1, label: 'Crates' },
-  chest: { file: '/models/props/chest.glb', height: 0.7, label: 'Chest' },
-  barrels: { file: '/models/props/barrel_small_stack.glb', height: 0.9, label: 'Barrels' },
+  tree_a: { file: assetUrl('models/props/tree_single_A.gltf'), height: 1.6, label: 'Tree' },
+  tree_b: { file: assetUrl('models/props/tree_single_B.gltf'), height: 1.9, label: 'Pine' },
+  rock_a: { file: assetUrl('models/props/rock_single_A.gltf'), height: 0.6, label: 'Rock' },
+  rock_c: { file: assetUrl('models/props/rock_single_C.gltf'), height: 0.8, label: 'Boulder' },
+  barrel: { file: assetUrl('models/props/barrel_large.glb'), height: 0.9, label: 'Barrel' },
+  crates: { file: assetUrl('models/props/box_stacked.glb'), height: 1.1, label: 'Crates' },
+  chest: { file: assetUrl('models/props/chest.glb'), height: 0.7, label: 'Chest' },
+  barrels: { file: assetUrl('models/props/barrel_small_stack.glb'), height: 0.9, label: 'Barrels' },
 };
 
 const LS_KEY = 'wizardtd.maps';

@@ -1,5 +1,6 @@
 import { findWizard, type GameState } from '../game/state';
 import { sellValue } from '../game/economy';
+import { assetUrl } from '../engine/assetUrl';
 import type { TargetMode, Wizard } from '../game/types';
 
 const MODES: TargetMode[] = ['first', 'last', 'strong', 'close'];
@@ -89,7 +90,7 @@ function build(state: GameState, w: Wizard): void {
     const row = document.createElement('div');
     row.className = 'tp-upgrade';
     const iconTier = next ? tier : path.tiers.length - 1;
-    const iconImg = `<img class="tp-upg-icon" src="/icons/upg_${w.def.id}_${p}_${iconTier}.png" onerror="this.style.display='none'" alt="" />`;
+    const iconImg = `<img class="tp-upg-icon" src="${assetUrl(`icons/upg_${w.def.id}_${p}_${iconTier}.png`)}" onerror="this.style.display='none'" alt="" />`;
     if (!next) {
       row.classList.add('maxed');
       row.innerHTML = `

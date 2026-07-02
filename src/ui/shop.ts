@@ -1,5 +1,6 @@
 import { ELEMENTS } from '../data/elements';
 import { WIZARDS, SHOP_ORDER } from '../data/wizards';
+import { assetUrl } from '../engine/assetUrl';
 import type { GameState } from '../game/state';
 
 const cards = new Map<string, HTMLElement>();
@@ -14,7 +15,7 @@ export function initShop(onPick: (typeId: string) => void): void {
     card.className = 'shop-card';
     card.innerHTML = `
       <div class="shop-icon" style="background:${el.color}22;border:2px solid ${el.color}">
-        <img src="/icons/portrait_${def.id}.png" onerror="this.remove()" alt="" /><span>${def.icon}</span>
+        <img src="${assetUrl(`icons/portrait_${def.id}.png`)}" onerror="this.remove()" alt="" /><span>${def.icon}</span>
       </div>
       <div class="shop-info">
         <div class="shop-name">${def.name}</div>

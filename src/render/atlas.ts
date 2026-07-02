@@ -25,11 +25,12 @@ let anims: Record<string, AnimDef> = {};
 
 export async function loadAtlas(): Promise<void> {
   try {
-    const res = await fetch('/atlas.json');
+    const base = import.meta.env.BASE_URL;
+    const res = await fetch(`${base}atlas.json`);
     if (!res.ok) return; // no atlas generated yet — placeholders take over
     const json = (await res.json()) as { frames: Record<string, Frame>; anims?: Record<string, AnimDef> };
     const img = new Image();
-    img.src = '/atlas.png';
+    img.src = `${base}atlas.png`;
     await img.decode();
     frames = json.frames;
     anims = json.anims ?? {};
