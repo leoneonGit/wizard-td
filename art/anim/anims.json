@@ -1,0 +1,74 @@
+{
+  "enemy_grunt_walk": {
+    "fps": 20,
+    "mode": "loop",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.6
+    }
+  },
+  "enemy_runner_walk": {
+    "fps": 24,
+    "mode": "loop",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.6
+    }
+  },
+  "enemy_knight_walk": {
+    "fps": 18,
+    "mode": "loop",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.6
+    }
+  },
+  "enemy_shade_walk": {
+    "fps": 20,
+    "mode": "loop",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.6
+    }
+  },
+  "enemy_golem_walk": {
+    "fps": 14,
+    "mode": "loop",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.62
+    }
+  },
+  "enemy_golemling_walk": {
+    "fps": 18,
+    "mode": "loop",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.6
+    }
+  },
+  "wizard_fire_idle": {
+    "fps": 12,
+    "mode": "pingpong",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.68
+    }
+  },
+  "wizard_ice_idle": {
+    "fps": 12,
+    "mode": "pingpong",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.68
+    }
+  },
+  "wizard_lightning_idle": {
+    "fps": 12,
+    "mode": "pingpong",
+    "anchor": {
+      "x": 0.5,
+      "y": 0.68
+    }
+  }
+}

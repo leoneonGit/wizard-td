@@ -1,0 +1,25 @@
+{
+  "name": "wizard-td",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "gen-art": "node tools/gen-sprites.ts",
+    "gen-anim": "node tools/gen-anim.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "@types/three": "^0.185.0",
+    "sharp": "^0.35.3",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  }
+}
