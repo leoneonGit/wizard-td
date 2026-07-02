@@ -1,0 +1,1839 @@
+{
+  "frames": {
+    "enemy_golem": {
+      "x": 2,
+      "y": 2,
+      "w": 320,
+      "h": 320,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "wizard_fire": {
+      "x": 324,
+      "y": 2,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice": {
+      "x": 582,
+      "y": 2,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning": {
+      "x": 840,
+      "y": 2,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "enemy_grunt": {
+      "x": 1098,
+      "y": 2,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner": {
+      "x": 1356,
+      "y": 2,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight": {
+      "x": 1614,
+      "y": 2,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade": {
+      "x": 2,
+      "y": 324,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling": {
+      "x": 260,
+      "y": 324,
+      "w": 256,
+      "h": 256,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golem_walk_0": {
+      "x": 518,
+      "y": 324,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_1": {
+      "x": 720,
+      "y": 324,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_2": {
+      "x": 922,
+      "y": 324,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_3": {
+      "x": 1124,
+      "y": 324,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_4": {
+      "x": 1326,
+      "y": 324,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_5": {
+      "x": 1528,
+      "y": 324,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_6": {
+      "x": 1730,
+      "y": 324,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_7": {
+      "x": 2,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_8": {
+      "x": 204,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_9": {
+      "x": 406,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_10": {
+      "x": 608,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_11": {
+      "x": 810,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_12": {
+      "x": 1012,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_13": {
+      "x": 1214,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_14": {
+      "x": 1416,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_15": {
+      "x": 1618,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_16": {
+      "x": 1820,
+      "y": 582,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_17": {
+      "x": 2,
+      "y": 784,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_18": {
+      "x": 204,
+      "y": 784,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_19": {
+      "x": 406,
+      "y": 784,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_20": {
+      "x": 608,
+      "y": 784,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_21": {
+      "x": 810,
+      "y": 784,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_22": {
+      "x": 1012,
+      "y": 784,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "enemy_golem_walk_23": {
+      "x": 1214,
+      "y": 784,
+      "w": 200,
+      "h": 200,
+      "ax": 0.5,
+      "ay": 0.62
+    },
+    "wizard_fire_idle_0": {
+      "x": 1416,
+      "y": 784,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_1": {
+      "x": 1594,
+      "y": 784,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_2": {
+      "x": 1772,
+      "y": 784,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_3": {
+      "x": 2,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_4": {
+      "x": 180,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_5": {
+      "x": 358,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_6": {
+      "x": 536,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_7": {
+      "x": 714,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_8": {
+      "x": 892,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_9": {
+      "x": 1070,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_10": {
+      "x": 1248,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_11": {
+      "x": 1426,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_12": {
+      "x": 1604,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_13": {
+      "x": 1782,
+      "y": 986,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_14": {
+      "x": 2,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_15": {
+      "x": 180,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_16": {
+      "x": 358,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_17": {
+      "x": 536,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_18": {
+      "x": 714,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_19": {
+      "x": 892,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_20": {
+      "x": 1070,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_21": {
+      "x": 1248,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_22": {
+      "x": 1426,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_fire_idle_23": {
+      "x": 1604,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_0": {
+      "x": 1782,
+      "y": 1164,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_1": {
+      "x": 2,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_2": {
+      "x": 180,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_3": {
+      "x": 358,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_4": {
+      "x": 536,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_5": {
+      "x": 714,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_6": {
+      "x": 892,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_7": {
+      "x": 1070,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_8": {
+      "x": 1248,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_9": {
+      "x": 1426,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_10": {
+      "x": 1604,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_11": {
+      "x": 1782,
+      "y": 1342,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_12": {
+      "x": 2,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_13": {
+      "x": 180,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_14": {
+      "x": 358,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_15": {
+      "x": 536,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_16": {
+      "x": 714,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_17": {
+      "x": 892,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_18": {
+      "x": 1070,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_19": {
+      "x": 1248,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_20": {
+      "x": 1426,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_21": {
+      "x": 1604,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_22": {
+      "x": 1782,
+      "y": 1520,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_ice_idle_23": {
+      "x": 2,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_0": {
+      "x": 180,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_1": {
+      "x": 358,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_2": {
+      "x": 536,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_3": {
+      "x": 714,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_4": {
+      "x": 892,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_5": {
+      "x": 1070,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_6": {
+      "x": 1248,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_7": {
+      "x": 1426,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_8": {
+      "x": 1604,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_9": {
+      "x": 1782,
+      "y": 1698,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_10": {
+      "x": 2,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_11": {
+      "x": 180,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_12": {
+      "x": 358,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_13": {
+      "x": 536,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_14": {
+      "x": 714,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_15": {
+      "x": 892,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_16": {
+      "x": 1070,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_17": {
+      "x": 1248,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_18": {
+      "x": 1426,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_19": {
+      "x": 1604,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_20": {
+      "x": 1782,
+      "y": 1876,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_21": {
+      "x": 2,
+      "y": 2054,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_22": {
+      "x": 180,
+      "y": 2054,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "wizard_lightning_idle_23": {
+      "x": 358,
+      "y": 2054,
+      "w": 176,
+      "h": 176,
+      "ax": 0.5,
+      "ay": 0.68
+    },
+    "enemy_grunt_walk_0": {
+      "x": 536,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_1": {
+      "x": 698,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_2": {
+      "x": 860,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_3": {
+      "x": 1022,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_4": {
+      "x": 1184,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_5": {
+      "x": 1346,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_6": {
+      "x": 1508,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_7": {
+      "x": 1670,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_8": {
+      "x": 1832,
+      "y": 2054,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_9": {
+      "x": 2,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_10": {
+      "x": 164,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_11": {
+      "x": 326,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_12": {
+      "x": 488,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_13": {
+      "x": 650,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_14": {
+      "x": 812,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_15": {
+      "x": 974,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_16": {
+      "x": 1136,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_17": {
+      "x": 1298,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_18": {
+      "x": 1460,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_19": {
+      "x": 1622,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_20": {
+      "x": 1784,
+      "y": 2232,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_grunt_walk_21": {
+      "x": 2,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_0": {
+      "x": 164,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_1": {
+      "x": 326,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_2": {
+      "x": 488,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_3": {
+      "x": 650,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_4": {
+      "x": 812,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_5": {
+      "x": 974,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_6": {
+      "x": 1136,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_7": {
+      "x": 1298,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_8": {
+      "x": 1460,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_9": {
+      "x": 1622,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_10": {
+      "x": 1784,
+      "y": 2394,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_11": {
+      "x": 2,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_12": {
+      "x": 164,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_runner_walk_13": {
+      "x": 326,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_0": {
+      "x": 488,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_1": {
+      "x": 650,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_2": {
+      "x": 812,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_3": {
+      "x": 974,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_4": {
+      "x": 1136,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_5": {
+      "x": 1298,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_6": {
+      "x": 1460,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_7": {
+      "x": 1622,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_8": {
+      "x": 1784,
+      "y": 2556,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_9": {
+      "x": 2,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_10": {
+      "x": 164,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_11": {
+      "x": 326,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_12": {
+      "x": 488,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_13": {
+      "x": 650,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_14": {
+      "x": 812,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_15": {
+      "x": 974,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_16": {
+      "x": 1136,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_17": {
+      "x": 1298,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_18": {
+      "x": 1460,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_19": {
+      "x": 1622,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_20": {
+      "x": 1784,
+      "y": 2718,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_21": {
+      "x": 2,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_knight_walk_22": {
+      "x": 164,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_0": {
+      "x": 326,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_1": {
+      "x": 488,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_2": {
+      "x": 650,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_3": {
+      "x": 812,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_4": {
+      "x": 974,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_5": {
+      "x": 1136,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_6": {
+      "x": 1298,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_7": {
+      "x": 1460,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_8": {
+      "x": 1622,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_9": {
+      "x": 1784,
+      "y": 2880,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_10": {
+      "x": 2,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_11": {
+      "x": 164,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_12": {
+      "x": 326,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_shade_walk_13": {
+      "x": 488,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_0": {
+      "x": 650,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_1": {
+      "x": 812,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_2": {
+      "x": 974,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_3": {
+      "x": 1136,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_4": {
+      "x": 1298,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_5": {
+      "x": 1460,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_6": {
+      "x": 1622,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_7": {
+      "x": 1784,
+      "y": 3042,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_8": {
+      "x": 2,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_9": {
+      "x": 164,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_10": {
+      "x": 326,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_11": {
+      "x": 488,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_12": {
+      "x": 650,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_13": {
+      "x": 812,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_14": {
+      "x": 974,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_15": {
+      "x": 1136,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_16": {
+      "x": 1298,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "enemy_golemling_walk_17": {
+      "x": 1460,
+      "y": 3204,
+      "w": 160,
+      "h": 160,
+      "ax": 0.5,
+      "ay": 0.6
+    },
+    "icon_fire": {
+      "x": 1622,
+      "y": 3204,
+      "w": 128,
+      "h": 128,
+      "ax": 0.5,
+      "ay": 0.5
+    },
+    "icon_ice": {
+      "x": 1752,
+      "y": 3204,
+      "w": 128,
+      "h": 128,
+      "ax": 0.5,
+      "ay": 0.5
+    },
+    "icon_lightning": {
+      "x": 1882,
+      "y": 3204,
+      "w": 128,
+      "h": 128,
+      "ax": 0.5,
+      "ay": 0.5
+    }
+  },
+  "anims": {
+    "enemy_grunt_walk": {
+      "frames": [
+        "enemy_grunt_walk_0",
+        "enemy_grunt_walk_1",
+        "enemy_grunt_walk_2",
+        "enemy_grunt_walk_3",
+        "enemy_grunt_walk_4",
+        "enemy_grunt_walk_5",
+        "enemy_grunt_walk_6",
+        "enemy_grunt_walk_7",
+        "enemy_grunt_walk_8",
+        "enemy_grunt_walk_9",
+        "enemy_grunt_walk_10",
+        "enemy_grunt_walk_11",
+        "enemy_grunt_walk_12",
+        "enemy_grunt_walk_13",
+        "enemy_grunt_walk_14",
+        "enemy_grunt_walk_15",
+        "enemy_grunt_walk_16",
+        "enemy_grunt_walk_17",
+        "enemy_grunt_walk_18",
+        "enemy_grunt_walk_19",
+        "enemy_grunt_walk_20",
+        "enemy_grunt_walk_21"
+      ],
+      "fps": 20,
+      "mode": "loop"
+    },
+    "enemy_runner_walk": {
+      "frames": [
+        "enemy_runner_walk_0",
+        "enemy_runner_walk_1",
+        "enemy_runner_walk_2",
+        "enemy_runner_walk_3",
+        "enemy_runner_walk_4",
+        "enemy_runner_walk_5",
+        "enemy_runner_walk_6",
+        "enemy_runner_walk_7",
+        "enemy_runner_walk_8",
+        "enemy_runner_walk_9",
+        "enemy_runner_walk_10",
+        "enemy_runner_walk_11",
+        "enemy_runner_walk_12",
+        "enemy_runner_walk_13"
+      ],
+      "fps": 24,
+      "mode": "loop"
+    },
+    "enemy_knight_walk": {
+      "frames": [
+        "enemy_knight_walk_0",
+        "enemy_knight_walk_1",
+        "enemy_knight_walk_2",
+        "enemy_knight_walk_3",
+        "enemy_knight_walk_4",
+        "enemy_knight_walk_5",
+        "enemy_knight_walk_6",
+        "enemy_knight_walk_7",
+        "enemy_knight_walk_8",
+        "enemy_knight_walk_9",
+        "enemy_knight_walk_10",
+        "enemy_knight_walk_11",
+        "enemy_knight_walk_12",
+        "enemy_knight_walk_13",
+        "enemy_knight_walk_14",
+        "enemy_knight_walk_15",
+        "enemy_knight_walk_16",
+        "enemy_knight_walk_17",
+        "enemy_knight_walk_18",
+        "enemy_knight_walk_19",
+        "enemy_knight_walk_20",
+        "enemy_knight_walk_21",
+        "enemy_knight_walk_22"
+      ],
+      "fps": 18,
+      "mode": "loop"
+    },
+    "enemy_shade_walk": {
+      "frames": [
+        "enemy_shade_walk_0",
+        "enemy_shade_walk_1",
+        "enemy_shade_walk_2",
+        "enemy_shade_walk_3",
+        "enemy_shade_walk_4",
+        "enemy_shade_walk_5",
+        "enemy_shade_walk_6",
+        "enemy_shade_walk_7",
+        "enemy_shade_walk_8",
+        "enemy_shade_walk_9",
+        "enemy_shade_walk_10",
+        "enemy_shade_walk_11",
+        "enemy_shade_walk_12",
+        "enemy_shade_walk_13"
+      ],
+      "fps": 20,
+      "mode": "loop"
+    },
+    "enemy_golem_walk": {
+      "frames": [
+        "enemy_golem_walk_0",
+        "enemy_golem_walk_1",
+        "enemy_golem_walk_2",
+        "enemy_golem_walk_3",
+        "enemy_golem_walk_4",
+        "enemy_golem_walk_5",
+        "enemy_golem_walk_6",
+        "enemy_golem_walk_7",
+        "enemy_golem_walk_8",
+        "enemy_golem_walk_9",
+        "enemy_golem_walk_10",
+        "enemy_golem_walk_11",
+        "enemy_golem_walk_12",
+        "enemy_golem_walk_13",
+        "enemy_golem_walk_14",
+        "enemy_golem_walk_15",
+        "enemy_golem_walk_16",
+        "enemy_golem_walk_17",
+        "enemy_golem_walk_18",
+        "enemy_golem_walk_19",
+        "enemy_golem_walk_20",
+        "enemy_golem_walk_21",
+        "enemy_golem_walk_22",
+        "enemy_golem_walk_23"
+      ],
+      "fps": 14,
+      "mode": "loop"
+    },
+    "enemy_golemling_walk": {
+      "frames": [
+        "enemy_golemling_walk_0",
+        "enemy_golemling_walk_1",
+        "enemy_golemling_walk_2",
+        "enemy_golemling_walk_3",
+        "enemy_golemling_walk_4",
+        "enemy_golemling_walk_5",
+        "enemy_golemling_walk_6",
+        "enemy_golemling_walk_7",
+        "enemy_golemling_walk_8",
+        "enemy_golemling_walk_9",
+        "enemy_golemling_walk_10",
+        "enemy_golemling_walk_11",
+        "enemy_golemling_walk_12",
+        "enemy_golemling_walk_13",
+        "enemy_golemling_walk_14",
+        "enemy_golemling_walk_15",
+        "enemy_golemling_walk_16",
+        "enemy_golemling_walk_17"
+      ],
+      "fps": 18,
+      "mode": "loop"
+    },
+    "wizard_fire_idle": {
+      "frames": [
+        "wizard_fire_idle_0",
+        "wizard_fire_idle_1",
+        "wizard_fire_idle_2",
+        "wizard_fire_idle_3",
+        "wizard_fire_idle_4",
+        "wizard_fire_idle_5",
+        "wizard_fire_idle_6",
+        "wizard_fire_idle_7",
+        "wizard_fire_idle_8",
+        "wizard_fire_idle_9",
+        "wizard_fire_idle_10",
+        "wizard_fire_idle_11",
+        "wizard_fire_idle_12",
+        "wizard_fire_idle_13",
+        "wizard_fire_idle_14",
+        "wizard_fire_idle_15",
+        "wizard_fire_idle_16",
+        "wizard_fire_idle_17",
+        "wizard_fire_idle_18",
+        "wizard_fire_idle_19",
+        "wizard_fire_idle_20",
+        "wizard_fire_idle_21",
+        "wizard_fire_idle_22",
+        "wizard_fire_idle_23"
+      ],
+      "fps": 12,
+      "mode": "pingpong"
+    },
+    "wizard_ice_idle": {
+      "frames": [
+        "wizard_ice_idle_0",
+        "wizard_ice_idle_1",
+        "wizard_ice_idle_2",
+        "wizard_ice_idle_3",
+        "wizard_ice_idle_4",
+        "wizard_ice_idle_5",
+        "wizard_ice_idle_6",
+        "wizard_ice_idle_7",
+        "wizard_ice_idle_8",
+        "wizard_ice_idle_9",
+        "wizard_ice_idle_10",
+        "wizard_ice_idle_11",
+        "wizard_ice_idle_12",
+        "wizard_ice_idle_13",
+        "wizard_ice_idle_14",
+        "wizard_ice_idle_15",
+        "wizard_ice_idle_16",
+        "wizard_ice_idle_17",
+        "wizard_ice_idle_18",
+        "wizard_ice_idle_19",
+        "wizard_ice_idle_20",
+        "wizard_ice_idle_21",
+        "wizard_ice_idle_22",
+        "wizard_ice_idle_23"
+      ],
+      "fps": 12,
+      "mode": "pingpong"
+    },
+    "wizard_lightning_idle": {
+      "frames": [
+        "wizard_lightning_idle_0",
+        "wizard_lightning_idle_1",
+        "wizard_lightning_idle_2",
+        "wizard_lightning_idle_3",
+        "wizard_lightning_idle_4",
+        "wizard_lightning_idle_5",
+        "wizard_lightning_idle_6",
+        "wizard_lightning_idle_7",
+        "wizard_lightning_idle_8",
+        "wizard_lightning_idle_9",
+        "wizard_lightning_idle_10",
+        "wizard_lightning_idle_11",
+        "wizard_lightning_idle_12",
+        "wizard_lightning_idle_13",
+        "wizard_lightning_idle_14",
+        "wizard_lightning_idle_15",
+        "wizard_lightning_idle_16",
+        "wizard_lightning_idle_17",
+        "wizard_lightning_idle_18",
+        "wizard_lightning_idle_19",
+        "wizard_lightning_idle_20",
+        "wizard_lightning_idle_21",
+        "wizard_lightning_idle_22",
+        "wizard_lightning_idle_23"
+      ],
+      "fps": 12,
+      "mode": "pingpong"
+    }
+  }
+}
