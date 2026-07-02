@@ -98,6 +98,8 @@ export interface UnitLook {
   tintStrength?: number;
   emissive?: THREE.Color;
   mage?: MageStyle;
+  /** translucent, glossy "made of water" materials (Water Mage) */
+  watery?: boolean;
 }
 
 export const WIZARD_LOOKS: Record<ElementId, UnitLook> = {
@@ -128,10 +130,11 @@ export const WIZARD_LOOKS: Record<ElementId, UnitLook> = {
   },
   water: {
     model: 'mage', height: 1.45,
-    tint: new THREE.Color('#2f7fd4'), tintStrength: 0.6,
+    tint: new THREE.Color('#26c2e8'), tintStrength: 0.55,
+    watery: true, // translucent liquid look — clearly distinct from opaque Frost
     mage: {
       hat: { sx: 1.15, sy: 0.85, sz: 1.15, rotX: 0.35 }, // brim drooped over the eyes
-      hatEmissive: new THREE.Color('#6db4ff'),
+      hatEmissive: new THREE.Color('#7fe8ff'),
     },
   },
   wind: {

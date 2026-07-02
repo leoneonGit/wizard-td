@@ -65,3 +65,17 @@ export const WAVES: WaveDef[] = [
 
 export const ROUND_BONUS_BASE = 25;
 export const ROUND_BONUS_PER_ROUND = 3;
+
+// ---------------------------------------------------------------- elite waves
+import type { WaveModifier } from '../game/types';
+
+export const ELITE_MODIFIERS: WaveModifier[] = [
+  { id: 'enraged', name: 'Enraged', desc: '+40% speed', speedMult: 1.4 },
+  { id: 'stoneskin', name: 'Stoneskin', desc: '+60% health', hpMult: 1.6 },
+  { id: 'slippery', name: 'Slippery', desc: 'Immune to Wet', immune: ['wet'] },
+  { id: 'fireproof', name: 'Fireproof', desc: 'Immune to Burn', immune: ['burn'] },
+  { id: 'steadfast', name: 'Steadfast', desc: 'Immune to knockback', gustImmune: true },
+];
+
+export const ELITE_CHANCE = 0.22;
+export const ELITE_MIN_ROUND = 3; // 0-based: wave 4+

@@ -20,7 +20,7 @@ export function initHud(onStart: () => void): void {
 }
 
 export function updateHud(state: GameState): void {
-  const key = `${state.gold}|${state.lives}|${state.round}|${state.phase}`;
+  const key = `${state.gold}|${state.lives}|${state.round}|${state.phase}|${state.waveModifier?.id ?? ''}`;
   if (key === lastKey) return;
   lastKey = key;
 
@@ -34,7 +34,12 @@ export function updateHud(state: GameState): void {
     elWavePreview.innerHTML = previewWave(state.round);
   } else if (state.phase === 'wave') {
     btnStart.disabled = true;
-    btnStart.textContent = `Wave ${state.round + 1} — Defend!`;
+    btnStart.textContent = state.waveModifier
+      ? `W${state.round + 1} ★ELITE: ${state.waveModifier.name} (${state.waveModifier.desc})`
+      : `Wave ${state.round + 1} — Defend!`;
+  } else if (state.phase === 'draft') {
+    btnStart.disabled = true;
+    btnStart.textContent = 'Choose a card…';
   } else {
     btnStart.disabled = true;
     btnStart.textContent = state.phase === 'won' ? 'Victory!' : 'Defeat';

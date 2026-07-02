@@ -3,16 +3,17 @@ import { MAPS } from '../data/maps';
 import { assetUrl } from '../engine/assetUrl';
 import type { MapDef } from './types';
 
-/** Prop model registry — files under public/models/props/. height = world units tall. */
-export const PROP_MODELS: Record<string, { file: string; height: number; label: string }> = {
-  tree_a: { file: assetUrl('models/props/tree_single_A.gltf'), height: 1.6, label: 'Tree' },
-  tree_b: { file: assetUrl('models/props/tree_single_B.gltf'), height: 1.9, label: 'Pine' },
-  rock_a: { file: assetUrl('models/props/rock_single_A.gltf'), height: 0.6, label: 'Rock' },
-  rock_c: { file: assetUrl('models/props/rock_single_C.gltf'), height: 0.8, label: 'Boulder' },
-  barrel: { file: assetUrl('models/props/barrel_large.glb'), height: 0.9, label: 'Barrel' },
-  crates: { file: assetUrl('models/props/box_stacked.glb'), height: 1.1, label: 'Crates' },
-  chest: { file: assetUrl('models/props/chest.glb'), height: 0.7, label: 'Chest' },
-  barrels: { file: assetUrl('models/props/barrel_small_stack.glb'), height: 0.9, label: 'Barrels' },
+/** Prop model registry — files under public/models/props/. height = world units tall.
+ *  blockRadius (board px) = line-of-sight blocking circle; mages can't shoot through props. */
+export const PROP_MODELS: Record<string, { file: string; height: number; label: string; blockRadius: number }> = {
+  tree_a: { file: assetUrl('models/props/tree_single_A.gltf'), height: 1.6, label: 'Tree', blockRadius: 16 },
+  tree_b: { file: assetUrl('models/props/tree_single_B.gltf'), height: 1.9, label: 'Pine', blockRadius: 15 },
+  rock_a: { file: assetUrl('models/props/rock_single_A.gltf'), height: 0.6, label: 'Rock', blockRadius: 12 },
+  rock_c: { file: assetUrl('models/props/rock_single_C.gltf'), height: 0.8, label: 'Boulder', blockRadius: 16 },
+  barrel: { file: assetUrl('models/props/barrel_large.glb'), height: 0.9, label: 'Barrel', blockRadius: 10 },
+  crates: { file: assetUrl('models/props/box_stacked.glb'), height: 1.1, label: 'Crates', blockRadius: 14 },
+  chest: { file: assetUrl('models/props/chest.glb'), height: 0.7, label: 'Chest', blockRadius: 9 },
+  barrels: { file: assetUrl('models/props/barrel_small_stack.glb'), height: 0.9, label: 'Barrels', blockRadius: 12 },
 };
 
 const LS_KEY = 'wizardtd.maps';
@@ -84,8 +85,30 @@ export function validateMap(map: MapDef): string[] {
   }
   for (const p of map.props ?? []) {
     if (!PROP_MODELS[p.model]) issues.push(`Unknown prop model "${p.model}".`);
+    else if (propOverlapsRoad(map, p.x, p.y, PROP_MODELS[p.model].blockRadius * p.scale)) {
+      issues.push(`A ${PROP_MODELS[p.model].label} overlaps the road — move it aside.`);
+    }
   }
   return issues;
+}
+
+/** Distance from a point to the road polyline (board px) vs ribbon + blocker radius. */
+export function propOverlapsRoad(map: MapDef, x: number, y: number, blockRadius: number): boolean {
+  const CELLPX = 40;
+  const pts = map.waypoints.map(([cx, cy]) => ({ x: cx * CELLPX, y: cy * CELLPX }));
+  const ROAD_HALF = 20;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / len2));
+    const px = a.x + t * dx;
+    const py = a.y + t * dy;
+    if (Math.hypot(x - px, y - py) < ROAD_HALF + blockRadius) return true;
+  }
+  return false;
 }
 
 export function exportMapJson(map: MapDef): string {

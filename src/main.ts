@@ -4,7 +4,8 @@ import { WIZARDS, SHOP_ORDER } from './data/wizards';
 import { createGame, computeStats, findWizard, isBuildable, makeWizard, wizardAt, type GameState } from './game/state';
 import { updateWizards, updateProjectiles, updateEnemies, updateClouds } from './game/combat';
 import { startWave, updateWave } from './game/waves';
-import { canAfford, spend, sellWizard } from './game/economy';
+import { canAfford, spend, sellWizard, towerCost } from './game/economy';
+import { initDraft, updateDraft } from './ui/draft';
 import { initRenderer3d, draw3d, pickBoardPoint } from './render3d/renderer3d';
 import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
@@ -13,12 +14,18 @@ import { initShop, updateShop } from './ui/shop';
 import { initTowerPanel, updateTowerPanel } from './ui/towerPanel';
 import { initScreens, updateScreens } from './ui/screens';
 import { listMaps, loadMap } from './game/mapio';
+import { loadRunSave, restoreRun, clearRunSave, saveRun } from './game/save';
 
 // map selection via ?map=<id> (built-in or editor-made)
 const requestedMap = new URLSearchParams(location.search).get('map');
 const activeMap = (requestedMap && loadMap(requestedMap)) || undefined;
 
-let state: GameState = createGame(activeMap);
+// resume a saved run when it matches the requested map (or no map was requested)
+const runSave = loadRunSave();
+const resumed =
+  runSave && (!requestedMap || requestedMap === runSave.mapId) ? restoreRun(runSave) : null;
+
+let state: GameState = resumed ?? createGame(activeMap);
 
 const canvas = document.getElementById('board') as HTMLCanvasElement;
 
@@ -47,14 +54,16 @@ canvas.addEventListener('click', (e) => {
 
   if (state.placingType) {
     const def = WIZARDS[state.placingType];
-    if (isBuildable(state, cx, cy, def) && canAfford(state, def.cost)) {
-      spend(state, def.cost);
+    const cost = towerCost(state, def.cost);
+    if (isBuildable(state, cx, cy, def) && canAfford(state, cost)) {
+      spend(state, cost);
       const w = makeWizard(state, def, cx, cy);
+      w.invested = cost;
       state.wizards.push(w);
       fx.burst(w.x, w.y, def.color, 14, 120, 3);
       sfx.place();
       // keep placing if still affordable (BTD-style rapid building) unless shift not held
-      if (!e.shiftKey || !canAfford(state, def.cost)) state.placingType = null;
+      if (!e.shiftKey || !canAfford(state, towerCost(state, def.cost))) state.placingType = null;
       state.selectedWizardId = w.id;
     }
     return;
@@ -94,7 +103,23 @@ function pickShopItem(typeId: string): void {
 
 initShop(pickShopItem);
 initHud(() => startWave(state));
+initDraft(() => {
+  saveRun(state); // checkpoint after every draft decision
+  if (state.autoplay) state.autoplayTimer = 1.2;
+});
+
+// "New Run" clears the save and starts fresh on the current map
+document.getElementById('btn-newrun')?.addEventListener('click', () => {
+  clearRunSave();
+  state = createGame(activeMap ?? (resumed ? state.map : undefined));
+  fx.clear();
+  sfx.click();
+});
+if (resumed) {
+  fx.floater(480, 120, `▶ Run resumed — Wave ${resumed.round + 1}`, '#7dff9b', 15);
+}
 initScreens(() => {
+  clearRunSave();
   state = createGame(activeMap);
   fx.clear();
 });
@@ -161,7 +186,7 @@ btnMute.addEventListener('click', () => {
 // ---------------------------------------------------------------- loop
 
 function update(dt: number): void {
-  if (state.phase === 'won' || state.phase === 'lost') {
+  if (state.phase === 'won' || state.phase === 'lost' || state.phase === 'draft') {
     fx.update(dt);
     return;
   }
@@ -178,6 +203,7 @@ function render(): void {
   updateHud(state);
   updateShop(state);
   updateTowerPanel(state);
+  updateDraft(state);
   updateScreens(state);
 }
 

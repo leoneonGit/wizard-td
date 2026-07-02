@@ -5,6 +5,11 @@ export function canAfford(state: GameState, cost: number): boolean {
   return state.gold >= cost;
 }
 
+/** Tower placement cost after drafted discounts. */
+export function towerCost(state: GameState, baseCost: number): number {
+  return Math.round(baseCost * (1 - state.towerDiscountPct / 100));
+}
+
 export function spend(state: GameState, cost: number): boolean {
   if (!canAfford(state, cost)) return false;
   state.gold -= cost;

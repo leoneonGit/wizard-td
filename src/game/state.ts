@@ -1,8 +1,13 @@
-import { computeBlockedCells, cellKey, cellCenter } from '../engine/grid';
+import { computeBlockedCells, cellKey, cellCenter, pixelToCell } from '../engine/grid';
+import { makeRng } from '../engine/rng';
 import { MAPS, DEFAULT_MAP } from '../data/maps';
 import { WAVES } from '../data/waves';
+import { PROP_MODELS } from './mapio';
 import { Track } from './path';
-import type { Cloud, Enemy, MapDef, Phase, Projectile, TargetMode, Wizard, WizardDef, WizardStats } from './types';
+import type {
+  CardDef, Cloud, Enemy, MapDef, Phase, Projectile, ReactionMods, RunStats,
+  TargetMode, WaveModifier, Wizard, WizardDef, WizardStats,
+} from './types';
 
 export interface PendingSpawn {
   t: number; // wave-relative time
@@ -24,6 +29,22 @@ export interface GameState {
   water: Set<number>; // cellKeys of water cells
   clouds: Cloud[];
   cloudTracks: Track[];
+  /** props that block line of sight (board px + radius) */
+  blockers: { x: number; y: number; r: number }[];
+
+  // roguelite run state
+  seed: number;
+  rng: () => number;
+  draftMods: CardDef[];
+  pendingDraft: CardDef[] | null;
+  /** true when the pending draft came from an elite clear (rare-only) */
+  eliteDraft: boolean;
+  reaction: ReactionMods;
+  bountyBonus: number;
+  towerDiscountPct: number;
+  waveModifier: WaveModifier | null;
+  lastEliteRound: number;
+  stats: RunStats;
 
   enemies: Enemy[];
   wizards: Wizard[];
@@ -45,12 +66,41 @@ export const START_GOLD = 230;
 export const START_LIVES = 25;
 export const SELL_REFUND = 0.7;
 
-export function createGame(map: MapDef = MAPS[DEFAULT_MAP]): GameState {
+export const DEFAULT_REACTION: ReactionMods = {
+  conductMult: 1.6,
+  shatterMult: 2.0,
+  chainBonus: 1,
+  freezeDuration: 1.1,
+  evaporateBurst: 10,
+};
+
+export function freshStats(): RunStats {
+  return {
+    kills: 0,
+    leaks: 0,
+    wavesCleared: 0,
+    dmgByElement: { fire: 0, ice: 0, lightning: 0, water: 0, wind: 0 },
+    reactions: { conduct: 0, shatter: 0, evaporate: 0, frozen: 0 },
+    cardIds: [],
+  };
+}
+
+export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): GameState {
   const track = new Track(map);
   // cloud paths are closed loops: append the first waypoint so posAt wraps smoothly
   const cloudTracks = (map.cloudPaths ?? []).map(
     (pts) => new Track({ id: '', name: '', waypoints: [...pts, pts[0]] }),
   );
+  const blockers = (map.props ?? []).map((p) => ({
+    x: p.x,
+    y: p.y,
+    r: (PROP_MODELS[p.model]?.blockRadius ?? 12) * p.scale,
+  }));
+  const blocked = computeBlockedCells(track);
+  for (const b of blockers) {
+    const { cx, cy } = pixelToCell(b.x, b.y);
+    blocked.add(cellKey(cx, cy)); // no wizards inside trees
+  }
   return {
     phase: 'build',
     gold: START_GOLD,
@@ -61,8 +111,20 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP]): GameState {
     autoplayTimer: 0,
     map,
     track,
-    blocked: computeBlockedCells(track),
+    blocked,
     water: new Set((map.water ?? []).map(([cx, cy]) => cellKey(cx, cy))),
+    blockers,
+    seed,
+    rng: makeRng(seed),
+    draftMods: [],
+    pendingDraft: null,
+    eliteDraft: false,
+    reaction: { ...DEFAULT_REACTION },
+    bountyBonus: 0,
+    towerDiscountPct: 0,
+    waveModifier: null,
+    lastEliteRound: -5,
+    stats: freshStats(),
     // two clouds per path, staggered half a lap apart — keeps wind uptime reasonable
     clouds: cloudTracks.flatMap((t, i) =>
       [0, t.total / 2].map((d) => {
@@ -89,8 +151,23 @@ export function totalWaves(): number {
   return WAVES.length;
 }
 
-/** Recompute a wizard's effective stats from base def + owned upgrade tiers. */
-export function computeStats(def: WizardDef, tiers: [number, number]): WizardStats {
+function applyMod(s: WizardStats, mod: import('./types').StatMods): void {
+  if (mod.damage) s.damage += mod.damage;
+  if (mod.rateMul) s.rate *= mod.rateMul;
+  if (mod.range) s.range += mod.range;
+  if (mod.splash) s.splash += mod.splash;
+  if (mod.chains) s.chains += mod.chains;
+  if (mod.burnDps) s.burnDps += mod.burnDps;
+  if (mod.burnDuration) s.burnDuration += mod.burnDuration;
+  if (mod.chillPct) s.chillPct += mod.chillPct;
+  if (mod.wetDuration) s.wetDuration += mod.wetDuration;
+  if (mod.projSpeed) s.projSpeed += mod.projSpeed;
+  if (mod.soakSlow) s.soakSlow += mod.soakSlow;
+  if (mod.knockback) s.knockback += mod.knockback;
+}
+
+/** Recompute a wizard's effective stats: base def + owned tiers + element-wide drafted cards. */
+export function computeStats(def: WizardDef, tiers: [number, number], draftMods: CardDef[] = []): WizardStats {
   const s: WizardStats = {
     range: def.range,
     rate: def.rate,
@@ -108,22 +185,36 @@ export function computeStats(def: WizardDef, tiers: [number, number]): WizardSta
   };
   for (let p = 0; p < 2; p++) {
     for (let t = 0; t < tiers[p]; t++) {
-      const mod = def.upgrades[p].tiers[t].mod;
-      if (mod.damage) s.damage += mod.damage;
-      if (mod.rateMul) s.rate *= mod.rateMul;
-      if (mod.range) s.range += mod.range;
-      if (mod.splash) s.splash += mod.splash;
-      if (mod.chains) s.chains += mod.chains;
-      if (mod.burnDps) s.burnDps += mod.burnDps;
-      if (mod.burnDuration) s.burnDuration += mod.burnDuration;
-      if (mod.chillPct) s.chillPct += mod.chillPct;
-      if (mod.wetDuration) s.wetDuration += mod.wetDuration;
-      if (mod.projSpeed) s.projSpeed += mod.projSpeed;
-      if (mod.soakSlow) s.soakSlow += mod.soakSlow;
-      if (mod.knockback) s.knockback += mod.knockback;
+      applyMod(s, def.upgrades[p].tiers[t].mod);
+    }
+  }
+  for (const card of draftMods) {
+    if (card.mod && (card.element === def.element || card.element === 'all')) {
+      applyMod(s, card.mod);
     }
   }
   return s;
+}
+
+/** Apply a picked card to the run: mods, reaction buffs, economy, stat recompute. */
+export function applyCard(state: GameState, card: CardDef): void {
+  state.draftMods.push(card);
+  state.stats.cardIds.push(card.id);
+  if (card.reaction) {
+    for (const [k, v] of Object.entries(card.reaction)) {
+      // reaction card values REPLACE the default (they're absolute, e.g. 1.6 -> 2.0),
+      // except additive bonuses (chainBonus/freezeDuration/evaporateBurst are absolute too)
+      (state.reaction as unknown as Record<string, number>)[k] = v as number;
+    }
+  }
+  if (card.econ) {
+    if (card.econ.goldNow) state.gold += card.econ.goldNow;
+    if (card.econ.bountyBonus) state.bountyBonus += card.econ.bountyBonus;
+    if (card.econ.towerDiscountPct) state.towerDiscountPct += card.econ.towerDiscountPct;
+  }
+  for (const w of state.wizards) {
+    w.stats = computeStats(w.def, w.tiers, state.draftMods);
+  }
 }
 
 export function findWizard(state: GameState, id: number | null): Wizard | undefined {
@@ -158,7 +249,41 @@ export function makeWizard(state: GameState, def: WizardDef, cx: number, cy: num
     aim: -Math.PI / 2,
     tiers,
     invested: def.cost,
-    stats: computeStats(def, tiers),
+    stats: computeStats(def, tiers, state.draftMods),
     recoil: 0,
   };
+}
+
+/** Draw `count` distinct cards from the pool with rarity weighting (seeded). */
+export function drawDraft(state: GameState, count = 3, rareOnly = false): CardDef[] {
+  // dynamic import avoided: cards data imported lazily to dodge cycles
+  const { CARDS, RARITY_WEIGHT } = cardsData();
+  const pickedUniques = new Set(state.draftMods.filter((c) => c.unique).map((c) => c.id));
+  let pool = CARDS.filter((c) => !pickedUniques.has(c.id));
+  if (rareOnly) {
+    const rares = pool.filter((c) => c.rarity === 'rare');
+    if (rares.length >= count) pool = rares;
+  }
+  const draft: CardDef[] = [];
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    const total = pool.reduce((sum, c) => sum + RARITY_WEIGHT[c.rarity], 0);
+    let roll = state.rng() * total;
+    let chosen = pool[0];
+    for (const c of pool) {
+      roll -= RARITY_WEIGHT[c.rarity];
+      if (roll <= 0) {
+        chosen = c;
+        break;
+      }
+    }
+    draft.push(chosen);
+    pool = pool.filter((c) => c.id !== chosen.id);
+  }
+  return draft;
+}
+
+// small indirection so state.ts (imported by data-agnostic tests) doesn't hard-cycle with data
+import { CARDS as _CARDS, RARITY_WEIGHT as _WEIGHTS } from '../data/cards';
+function cardsData() {
+  return { CARDS: _CARDS, RARITY_WEIGHT: _WEIGHTS };
 }

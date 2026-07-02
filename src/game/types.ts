@@ -1,7 +1,52 @@
 export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind';
 export type StatusId = 'burn' | 'wet' | 'chill' | 'frozen' | 'shock';
 export type TargetMode = 'first' | 'last' | 'strong' | 'close';
-export type Phase = 'build' | 'wave' | 'won' | 'lost';
+export type Phase = 'build' | 'wave' | 'draft' | 'won' | 'lost';
+
+/** Tunable reaction numbers — defaults live in state, buffed by drafted cards. */
+export interface ReactionMods {
+  conductMult: number;
+  shatterMult: number;
+  chainBonus: number; // extra chain hops granted by Conduct
+  freezeDuration: number;
+  evaporateBurst: number;
+}
+
+export type Rarity = 'common' | 'uncommon' | 'rare';
+
+export interface CardDef {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  element: ElementId | 'all';
+  rarity: Rarity;
+  /** removed from the pool once picked */
+  unique?: boolean;
+  /** element-wide stat boost */
+  mod?: StatMods;
+  reaction?: Partial<ReactionMods>;
+  econ?: { goldNow?: number; bountyBonus?: number; towerDiscountPct?: number };
+}
+
+export interface RunStats {
+  kills: number;
+  leaks: number;
+  wavesCleared: number;
+  dmgByElement: Record<ElementId, number>;
+  reactions: { conduct: number; shatter: number; evaporate: number; frozen: number };
+  cardIds: string[];
+}
+
+export interface WaveModifier {
+  id: string;
+  name: string;
+  desc: string;
+  speedMult?: number;
+  hpMult?: number;
+  immune?: StatusId[];
+  gustImmune?: boolean;
+}
 
 // ---------- data definitions (content, not engine) ----------
 
@@ -122,6 +167,11 @@ export interface Enemy {
   hitFlash: number; // seconds of white flash remaining after taking a hit
   /** wind-gust immunity window (sec remaining) — prevents knockback stunlock */
   gustCd?: number;
+  /** elite-wave status immunities */
+  immunities?: StatusId[];
+  gustImmune?: boolean;
+  /** elite-wave speed multiplier */
+  speedMult?: number;
 }
 
 export interface WizardStats {

@@ -1,14 +1,29 @@
 import { ENEMIES } from '../data/enemies';
-import { WAVES, ROUND_BONUS_BASE, ROUND_BONUS_PER_ROUND } from '../data/waves';
+import {
+  WAVES, ROUND_BONUS_BASE, ROUND_BONUS_PER_ROUND,
+  ELITE_MODIFIERS, ELITE_CHANCE, ELITE_MIN_ROUND,
+} from '../data/waves';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
-import type { GameState } from './state';
+import { drawDraft, type GameState } from './state';
+import { saveRun } from './save';
 
 const AUTOPLAY_DELAY = 1.6;
 
 export function startWave(state: GameState): boolean {
   if (state.phase !== 'build' || state.round >= WAVES.length) return false;
+  saveRun(state); // checkpoint: restoring replays this wave with the current build
   const wave = WAVES[state.round];
+
+  // elite roll (seeded; never two elites back to back)
+  state.waveModifier = null;
+  if (state.round >= ELITE_MIN_ROUND && state.round > state.lastEliteRound + 1) {
+    if (state.rng() < ELITE_CHANCE) {
+      state.waveModifier = ELITE_MODIFIERS[Math.floor(state.rng() * ELITE_MODIFIERS.length)];
+      state.lastEliteRound = state.round;
+      fx.floater(480, 80, `★ ELITE: ${state.waveModifier.name} — ${state.waveModifier.desc}`, '#ffd75e', 15);
+    }
+  }
   state.pendingSpawns = [];
   for (const g of wave) {
     for (let i = 0; i < g.count; i++) {
@@ -40,15 +55,21 @@ export function updateWave(state: GameState, dt: number): void {
 
   // wave cleared?
   if (state.pendingSpawns.length === 0 && state.enemies.length === 0) {
+    const wasElite = state.waveModifier !== null;
+    state.waveModifier = null;
     state.round++;
+    state.stats.wavesCleared++;
     if (state.round >= WAVES.length) {
       state.phase = 'won';
       sfx.win();
     } else {
-      state.phase = 'build';
       const bonus = ROUND_BONUS_BASE + ROUND_BONUS_PER_ROUND * state.round;
       state.gold += bonus;
-      if (state.autoplay) state.autoplayTimer = AUTOPLAY_DELAY;
+      // Slay-the-Spire moment: reveal 3 cards (elite clears draw rare-only)
+      state.pendingDraft = drawDraft(state, 3, wasElite);
+      state.eliteDraft = wasElite;
+      state.phase = 'draft';
+      // autoplay arms only after the player picks (see ui/draft.ts)
     }
   }
 }
@@ -56,11 +77,13 @@ export function updateWave(state: GameState, dt: number): void {
 function spawnEnemy(state: GameState, type: string): void {
   const def = ENEMIES[type];
   const p = state.track.posAt(0);
+  const mod = state.waveModifier;
+  const hp = def.hp * (mod?.hpMult ?? 1);
   state.enemies.push({
     id: state.nextId++,
     def,
-    hp: def.hp,
-    maxHp: def.hp,
+    hp,
+    maxHp: hp,
     dist: 0,
     x: p.x,
     y: p.y,
@@ -69,6 +92,9 @@ function spawnEnemy(state: GameState, type: string): void {
     animT: Math.random() * 2, // desync walk cycles between units
     angle: p.angle,
     hitFlash: 0,
+    speedMult: mod?.speedMult,
+    immunities: mod?.immune,
+    gustImmune: mod?.gustImmune,
   });
   if (def.boss) fx.floater(p.x + 30, p.y - 20, `${def.name}!`, '#ff9db5', 14);
 }

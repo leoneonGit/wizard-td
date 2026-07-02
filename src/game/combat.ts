@@ -1,7 +1,7 @@
 import { ELEMENTS } from '../data/elements';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
-import { pickTarget, enemiesInRange } from './targeting';
+import { pickTarget, enemiesInRange, hasLOS } from './targeting';
 import type { GameState } from './state';
 import type { ElementId, Enemy, Wizard } from './types';
 
@@ -10,12 +10,9 @@ import type { ElementId, Enemy, Wizard } from './types';
  *  Shatter   : Fire hit on CHILL/FROZEN  -> 2.0x dmg, consumes Chill/Frozen
  *  Evaporate : Burn applied on WET (or Wet on BURNing) -> cancels both, small burst
  */
-const CONDUCT_MULT = 1.6;
-const SHATTER_MULT = 2.0;
-const EVAPORATE_BURST = 10;
+// reaction tuning lives in state.reaction (buffable by drafted cards)
 const CHAIN_RANGE = 95;
 const FREEZE_STACKS = 3;
-const FREEZE_DURATION = 1.1;
 const BOSS_FREEZE_FACTOR = 0.35;
 export const CLOUD_RANGE = 165; // px — cloud mages need a cloud this close
 export const CLOUD_SPEED = 26; // px/s drift
@@ -85,24 +82,21 @@ function tideAttack(state: GameState, w: Wizard): void {
   for (const e of enemiesInRange(state, w.x, w.y, w.stats.range)) {
     dealDamage(state, e, w.stats.damage, 'water');
     if (e.hp <= 0) continue;
+    if (e.immunities?.includes('wet')) continue;
     // Wet everything (feeds Conduct); Evaporate rules apply like ice's wetting
     if (e.statuses.burn) {
       delete e.statuses.burn;
+      state.stats.reactions.evaporate++;
       fx.floater(e.x, e.y - 18, 'Evaporate!', '#ffffff', 12);
       sfx.evaporate();
-      dealDamage(state, e, EVAPORATE_BURST, 'water');
+      dealDamage(state, e, state.reaction.evaporateBurst, 'water');
       if (e.hp <= 0) continue;
     } else {
       e.statuses.wet = { t: w.stats.wetDuration };
     }
-    // soak slow: gentle 1-stack chill (also inches enemies toward Freeze with ice support)
-    if (!e.statuses.frozen) {
-      const chill = e.statuses.chill ?? { t: 0, pct: 0, stacks: 0 };
-      chill.stacks = Math.min(FREEZE_STACKS, chill.stacks + 1);
-      chill.pct = Math.max(chill.pct, w.stats.soakSlow);
-      chill.t = SOAK_DURATION;
-      e.statuses.chill = chill;
-    }
+    // soak slow: gentle chill stack (also inches enemies toward Freeze with ice support)
+    applyChillStack(state, e, w.stats.soakSlow);
+    if (e.statuses.chill) e.statuses.chill.t = SOAK_DURATION;
   }
 }
 
@@ -113,7 +107,7 @@ function gustAttack(state: GameState, w: Wizard): void {
   for (const e of enemiesInRange(state, w.x, w.y, w.stats.range)) {
     dealDamage(state, e, w.stats.damage, 'wind');
     if (e.hp <= 0) continue;
-    if ((e.gustCd ?? 0) > 0) continue;
+    if (e.gustImmune || (e.gustCd ?? 0) > 0) continue;
     const kb = w.stats.knockback * (e.def.boss ? BOSS_KNOCKBACK_FACTOR : 1);
     e.dist = Math.max(0, e.dist - kb);
     e.gustCd = GUST_IMMUNITY;
@@ -168,11 +162,12 @@ function resolveChainLightning(state: GameState, w: Wizard, first: Enemy): void 
     // Conduct: wet target takes bonus & extends the chain
     if (cur.statuses.wet) {
       delete cur.statuses.wet;
-      hops += 1;
+      hops += state.reaction.chainBonus;
+      state.stats.reactions.conduct++;
       fx.floater(cur.x, cur.y - 18, 'Conduct!', '#e8c3ff', 13);
       fx.burst(cur.x, cur.y, '#c77dff', 10, 120, 3);
       sfx.conduct();
-      dealDamage(state, cur, dmg * CONDUCT_MULT, 'lightning');
+      dealDamage(state, cur, dmg * state.reaction.conductMult, 'lightning');
     } else {
       dealDamage(state, cur, dmg, 'lightning');
     }
@@ -192,7 +187,7 @@ function nextChainTarget(state: GameState, x: number, y: number, hit: Set<number
   for (const e of state.enemies) {
     if (e.hp <= 0 || hit.has(e.id)) continue;
     const d2 = (e.x - x) ** 2 + (e.y - y) ** 2;
-    if (d2 <= bestD2) {
+    if (d2 <= bestD2 && hasLOS(state, x, y, e.x, e.y)) {
       bestD2 = d2;
       best = e;
     }
@@ -255,7 +250,8 @@ function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number
   if (element === 'fire' && (e.statuses.chill || e.statuses.frozen)) {
     delete e.statuses.chill;
     delete e.statuses.frozen;
-    dmg *= SHATTER_MULT;
+    dmg *= state.reaction.shatterMult;
+    state.stats.reactions.shatter++;
     fx.floater(e.x, e.y - 18, 'Shatter!', '#b3ecff', 13);
     fx.burst(e.x, e.y, '#b3ecff', 12, 140, 3);
     sfx.shatter();
@@ -266,16 +262,21 @@ function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number
 
 // ---------------------------------------------------------------- statuses
 
+function immuneTo(e: Enemy, status: 'burn' | 'wet' | 'chill'): boolean {
+  return e.immunities?.includes(status) ?? false;
+}
+
 function applyStatusesFromWizard(state: GameState, w: Wizard, e: Enemy): void {
   const s = w.stats;
-  if (w.def.element === 'fire' && s.burnDps > 0) {
+  if (w.def.element === 'fire' && s.burnDps > 0 && !immuneTo(e, 'burn')) {
     if (e.statuses.wet) {
       // Evaporate: burn + wet cancel with a burst
       delete e.statuses.wet;
+      state.stats.reactions.evaporate++;
       fx.floater(e.x, e.y - 18, 'Evaporate!', '#ffffff', 12);
       fx.burst(e.x, e.y, '#dddddd', 8, 80, 2.5);
       sfx.evaporate();
-      dealDamage(state, e, EVAPORATE_BURST, 'fire');
+      dealDamage(state, e, state.reaction.evaporateBurst, 'fire');
     } else {
       const cur = e.statuses.burn;
       e.statuses.burn = {
@@ -286,32 +287,38 @@ function applyStatusesFromWizard(state: GameState, w: Wizard, e: Enemy): void {
   }
 
   if (w.def.element === 'ice') {
-    if (e.statuses.burn) {
+    if (e.statuses.burn && !immuneTo(e, 'wet')) {
       // Evaporate (reverse order): wet meets burn
       delete e.statuses.burn;
+      state.stats.reactions.evaporate++;
       fx.floater(e.x, e.y - 18, 'Evaporate!', '#ffffff', 12);
       fx.burst(e.x, e.y, '#dddddd', 8, 80, 2.5);
       sfx.evaporate();
-      dealDamage(state, e, EVAPORATE_BURST, 'ice');
-    } else {
+      dealDamage(state, e, state.reaction.evaporateBurst, 'ice');
+    } else if (!immuneTo(e, 'wet')) {
       e.statuses.wet = { t: s.wetDuration };
     }
     if (e.hp <= 0) return;
-    if (!e.statuses.frozen) {
-      const chill = e.statuses.chill ?? { t: 0, pct: 0, stacks: 0 };
-      chill.stacks = Math.min(FREEZE_STACKS, chill.stacks + 1);
-      chill.pct = s.chillPct;
-      chill.t = 2.5;
-      e.statuses.chill = chill;
-      if (chill.stacks >= FREEZE_STACKS) {
-        delete e.statuses.chill;
-        const dur = e.def.boss ? FREEZE_DURATION * BOSS_FREEZE_FACTOR : FREEZE_DURATION;
-        e.statuses.frozen = { t: dur };
-        fx.floater(e.x, e.y - 18, 'Frozen!', '#e6f9ff', 12);
-        fx.burst(e.x, e.y, '#b3ecff', 10, 100, 3);
-        sfx.freeze();
-      }
-    }
+    applyChillStack(state, e, s.chillPct);
+  }
+}
+
+/** Shared chill/freeze stacking (ice hits + water soak). */
+export function applyChillStack(state: GameState, e: Enemy, pct: number): void {
+  if (e.statuses.frozen || immuneTo(e, 'chill')) return;
+  const chill = e.statuses.chill ?? { t: 0, pct: 0, stacks: 0 };
+  chill.stacks = Math.min(FREEZE_STACKS, chill.stacks + 1);
+  chill.pct = Math.max(chill.pct, pct);
+  chill.t = 2.5;
+  e.statuses.chill = chill;
+  if (chill.stacks >= FREEZE_STACKS) {
+    delete e.statuses.chill;
+    const dur = e.def.boss ? state.reaction.freezeDuration * BOSS_FREEZE_FACTOR : state.reaction.freezeDuration;
+    e.statuses.frozen = { t: dur };
+    state.stats.reactions.frozen++;
+    fx.floater(e.x, e.y - 18, 'Frozen!', '#e6f9ff', 12);
+    fx.burst(e.x, e.y, '#b3ecff', 10, 100, 3);
+    sfx.freeze();
   }
 }
 
@@ -327,6 +334,7 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   const dealt = amount * mult;
   e.hp -= dealt;
   e.hitFlash = 0.12;
+  state.stats.dmgByElement[element] += dealt;
   if (dealt >= 1) {
     const col = mult > 1 ? '#ffe08a' : mult < 1 ? '#8899aa' : '#ffffff';
     fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(dealt)), col, mult > 1 ? 12 : 10);
@@ -335,8 +343,10 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
 }
 
 function kill(state: GameState, e: Enemy): void {
-  state.gold += e.def.bounty;
-  fx.floater(e.x, e.y - 22, `+${e.def.bounty}`, '#ffd75e', 12);
+  const bounty = e.def.bounty + state.bountyBonus;
+  state.gold += bounty;
+  state.stats.kills++;
+  fx.floater(e.x, e.y - 22, `+${bounty}`, '#ffd75e', 12);
   fx.burst(e.x, e.y, e.def.color, 12, 130, 3.5, 0.5);
   fx.ring(e.x, e.y, e.def.color, e.def.boss ? 46 : 24);
   sfx.coin();
@@ -377,7 +387,7 @@ export function updateEnemies(state: GameState, dt: number): void {
     e.animT += factor * dt; // walk cycle slows/freezes with the enemy
     if (e.hitFlash > 0) e.hitFlash -= dt;
     if (e.gustCd && e.gustCd > 0) e.gustCd -= dt;
-    e.dist += e.def.speed * factor * dt;
+    e.dist += e.def.speed * (e.speedMult ?? 1) * factor * dt;
     const p = state.track.posAt(e.dist);
     e.x = p.x;
     e.y = p.y;
@@ -387,6 +397,7 @@ export function updateEnemies(state: GameState, dt: number): void {
     if (e.dist >= state.track.total) {
       e.hp = 0; // no bounty — mark for removal via leak path
       state.lives -= e.def.boss ? 5 : 1;
+      state.stats.leaks++;
       fx.floater(p.x - 20, p.y, e.def.boss ? '-5 ❤' : '-1 ❤', '#ff6b81', 14);
       sfx.leak();
       if (state.lives <= 0) {

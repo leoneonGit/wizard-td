@@ -27,6 +27,7 @@ interface UnitView {
   casting: boolean;
   cheering: boolean;
   becalmed: boolean;
+  watery: boolean;
   prevRecoil: number;
   hpBar?: { bg: THREE.Sprite; fg: THREE.Sprite };
   iceCube?: THREE.Mesh;
@@ -92,7 +93,23 @@ function makeView(look: UnitLook): UnitView {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
     const src = mesh.material as THREE.MeshStandardMaterial;
-    const m = src.clone();
+    let m: THREE.MeshStandardMaterial;
+    if (look.watery) {
+      // liquid look: translucent, glossy, clearcoated.
+      // built fresh (NOT copy()) — copying a Standard source into Physical throws.
+      m = new THREE.MeshPhysicalMaterial({
+        map: src.map ?? null,
+        color: src.color?.clone() ?? new THREE.Color('#ffffff'),
+        transparent: true,
+        opacity: 0.72,
+        roughness: 0.08,
+        metalness: 0.1,
+        clearcoat: 0.6,
+        side: THREE.DoubleSide, // interior visible through transparency
+      });
+    } else {
+      m = src.clone();
+    }
     if (look.tint) {
       let strength = look.tintStrength ?? 0.4;
       if (look.mage) {
@@ -146,6 +163,7 @@ function makeView(look: UnitLook): UnitView {
     casting: false,
     cheering: false,
     becalmed: false,
+    watery: !!look.watery,
     prevRecoil: 0,
     height: look.height,
   };
@@ -327,6 +345,12 @@ function syncWizards(state: GameState, dt: number): void {
     }
     v.prevRecoil = w.recoil;
     v.mixer.update(dt);
+
+    // watery shimmer: opacity gently oscillates
+    if (v.watery) {
+      const op = 0.72 + Math.sin(performance.now() / 380 + w.id) * 0.06;
+      for (const m of v.mats) m.opacity = op;
+    }
   }
 
   for (const [id, v] of wizardViews) {

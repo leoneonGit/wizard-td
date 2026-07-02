@@ -4,7 +4,7 @@ import { Track } from '../game/path';
 import { paintBoardTexture } from '../render3d/ground';
 import {
   PROP_MODELS, listMaps, loadMap, saveCustomMap, deleteCustomMap,
-  validateMap, exportMapJson, importMapJson,
+  validateMap, exportMapJson, importMapJson, propOverlapsRoad,
 } from '../game/mapio';
 import type { MapDef, PropDef } from '../game/types';
 
@@ -198,6 +198,9 @@ canvas.addEventListener('mousedown', (e) => {
     const hit = (map.props ?? []).find((p) => Math.hypot(p.x - x, p.y - y) < 18 * p.scale);
     if (hit) {
       selectedProp = hit;
+    } else if (propOverlapsRoad(map, x, y, PROP_MODELS[activeProp].blockRadius)) {
+      // props block line of sight — they may not sit on the road itself
+      flashHelp('⚠ Props cannot overlap the road.');
     } else {
       const prop: PropDef = { model: activeProp, x: Math.round(x), y: Math.round(y), rot: 0, scale: 1 };
       map.props = map.props ?? [];
@@ -300,6 +303,16 @@ nameInput.addEventListener('input', () => {
   map.name = nameInput.value;
   refreshIssues();
 });
+
+let flashTimer = 0;
+function flashHelp(msg: string): void {
+  const el = document.getElementById('tool-help')!;
+  el.textContent = msg;
+  clearTimeout(flashTimer);
+  flashTimer = window.setTimeout(() => {
+    el.textContent = HELP[tool];
+  }, 1800);
+}
 
 function refreshIssues(): void {
   const issues = validateMap(map);
