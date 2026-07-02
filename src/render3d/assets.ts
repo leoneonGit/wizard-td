@@ -19,21 +19,32 @@ const MODELS: Record<string, string> = {
   mage: assetUrl('models/Mage.glb'),
   knight: assetUrl('models/Knight.glb'),
   goblin: assetUrl('models/Barbarian.glb'), // stocky build reads well as goblin-sized once tinted
+  ranger: assetUrl('models/Rogue_Hooded.glb'), // hooded archer — elf longbow + archer recruits
   skel_mage: assetUrl('models/Skeleton_Mage.glb'),
   skel_minion: assetUrl('models/Skeleton_Minion.glb'),
   skel_rogue: assetUrl('models/Skeleton_Rogue.glb'),
   skel_warrior: assetUrl('models/Skeleton_Warrior.glb'),
 };
 
+/** Static prop pieces grafted onto rigged characters (ent canopies, thrown rock). */
+const ATTACH_MODELS: Record<string, string> = {
+  canopy_a: assetUrl('models/props/tree_single_A.gltf'),
+  canopy_b: assetUrl('models/props/tree_single_B.gltf'),
+  rock: assetUrl('models/props/rock_single_A.gltf'),
+};
+
 /** Per-model attack-clip search order. Default favors the mage's spellcast gesture;
  *  the goblin model shares the same shared KayKit anim library but reads better
- *  throwing/swinging than "casting a spell". */
+ *  throwing/swinging than "casting a spell"; archers should draw and loose. */
 const ATTACK_CLIP_PRIORITY: Record<string, RegExp[]> = {
   default: [/spellcast.*shoot/i, /spellcast/i, /cast/i, /attack/i, /melee/i],
   goblin: [/^throw$/i, /throw/i, /melee.*attack/i, /attack/i],
+  ranger: [/2h_ranged.*shoot/i, /ranged.*shoot/i, /ranged/i, /shoot/i, /throw/i, /attack/i],
+  knight: [/1h_ranged.*shoot/i, /ranged.*shoot/i, /ranged/i, /shoot/i, /throw/i, /attack/i],
 };
 
 const assets = new Map<string, CharacterAsset>();
+const attachments = new Map<string, { scene: THREE.Group; rawHeight: number }>();
 
 function pickClip(clips: THREE.AnimationClip[], patterns: RegExp[], fallback: string): string {
   for (const p of patterns) {
@@ -83,12 +94,31 @@ export async function loadCharacters(): Promise<void> {
       console.log(`[3d] ${key}: ${clips.length} clips (idle=${assets.get(key)!.idle}, walk=${assets.get(key)!.walk}, attack=${assets.get(key)!.attack})`);
     }),
   );
+  // attachment props (non-fatal if any fails — units just render without the garnish)
+  await Promise.all(
+    Object.entries(ATTACH_MODELS).map(async ([key, url]) => {
+      try {
+        const gltf = await loader.loadAsync(url);
+        gltf.scene.traverse((o) => {
+          if ((o as THREE.Mesh).isMesh) o.castShadow = true;
+        });
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        attachments.set(key, { scene: gltf.scene, rawHeight: Math.max(0.001, box.max.y - box.min.y) });
+      } catch (err) {
+        console.warn(`attachment prop failed to load: ${key}`, err);
+      }
+    }),
+  );
 }
 
 export function getAsset(key: string): CharacterAsset {
   const a = assets.get(key);
   if (!a) throw new Error(`asset not loaded: ${key}`);
   return a;
+}
+
+export function getAttachment(key: string): { scene: THREE.Group; rawHeight: number } | undefined {
+  return attachments.get(key);
 }
 
 /** Mage-specific styling: reshape the named Mage_Hat node, toggle held props. */
@@ -104,6 +134,16 @@ export interface GoblinStyle {
   hatEmissive?: THREE.Color;
 }
 
+/** Ent styling: a rigged character turned walking tree — LotR-style tree-folk.
+ *  All gear is stripped, the body is tinted bark, and a leafy canopy is grafted
+ *  onto the head bone so it sways with the idle animation. */
+export interface EntStyle {
+  canopy: 'canopy_a' | 'canopy_b'; // which tree crown to graft on
+  canopyTint?: THREE.Color; // foliage color per subtype
+  canopyScale?: number; // canopy height as a fraction of unit height (default 0.9)
+  rock?: boolean; // Boulder Ent carries a rock, ready to hurl
+}
+
 /** Per-unit model mapping: model key, height (world units), tint. */
 export interface UnitLook {
   model: string;
@@ -113,6 +153,9 @@ export interface UnitLook {
   emissive?: THREE.Color;
   mage?: MageStyle;
   goblin?: GoblinStyle;
+  ent?: EntStyle;
+  /** hide any node whose name matches (strip held weapons the kit doesn't use) */
+  hideRe?: RegExp;
   /** translucent, glossy "made of water" materials (Water Mage) */
   watery?: boolean;
 }
@@ -181,6 +224,53 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     model: 'goblin', height: 1.15,
     tint: new THREE.Color('#6a9c6a'), tintStrength: 0.6,
     goblin: { showShield: true, hatEmissive: new THREE.Color('#f4d98a') }, // shield doubles as the gong
+  },
+
+  // archers — hooded ranger rig for the elves, knight for the human arbalist,
+  // war-painted Barbarian for the orc trapper
+  generic_archer: {
+    model: 'ranger', height: 1.4,
+    tint: new THREE.Color('#8a8494'), tintStrength: 0.5,
+    hideRe: /knife|dagger|sword|crossbow/i,
+  },
+  longbow: {
+    model: 'ranger', height: 1.5,
+    tint: new THREE.Color('#4e8f4e'), tintStrength: 0.55, // forest-green elf
+    emissive: new THREE.Color('#3fae5a'),
+    hideRe: /knife|dagger|sword|crossbow/i,
+  },
+  ballesta: {
+    model: 'knight', height: 1.35,
+    tint: new THREE.Color('#5b7fc9'), tintStrength: 0.5, // indigo man-at-arms
+    hideRe: /sword|shield/i,
+  },
+  bolas: {
+    model: 'goblin', height: 1.3,
+    tint: new THREE.Color('#4a5548'), tintStrength: 0.65, // dark slate war-paint orc
+    goblin: { hatEmissive: new THREE.Color('#c8d6b0') },
+  },
+
+  // trees — ENTS: bark-tinted rigged bodies with grafted canopies. They sway,
+  // turn to face their prey, and hurl with a full arm swing.
+  generic_tree: {
+    model: 'goblin', height: 1.1,
+    tint: new THREE.Color('#6d6357'), tintStrength: 0.8,
+    ent: { canopy: 'canopy_a', canopyScale: 0.75, canopyTint: new THREE.Color('#7a8a6a') },
+  },
+  rootgrasp: {
+    model: 'goblin', height: 1.7,
+    tint: new THREE.Color('#5e4630'), tintStrength: 0.85, // dark ancient bark
+    ent: { canopy: 'canopy_a', canopyTint: new THREE.Color('#3f6b33') },
+  },
+  boulder: {
+    model: 'goblin', height: 1.95,
+    tint: new THREE.Color('#6b543c'), tintStrength: 0.85, // broad old-growth trunk
+    ent: { canopy: 'canopy_a', canopyScale: 1.0, canopyTint: new THREE.Color('#556b3a'), rock: true },
+  },
+  thornspitter: {
+    model: 'goblin', height: 1.35,
+    tint: new THREE.Color('#55663d'), tintStrength: 0.8, // green sappy young wood
+    ent: { canopy: 'canopy_b', canopyScale: 0.8, canopyTint: new THREE.Color('#6fcf5f') },
   },
 };
 

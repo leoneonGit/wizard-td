@@ -66,6 +66,9 @@ function build(state: GameState, w: Wizard): void {
   if (s.chains > 0) statBits.push(`Chains <b>${s.chains}</b>`);
   if (s.burnDps > 0) statBits.push(`Burn <b>${s.burnDps}/s × ${s.burnDuration.toFixed(0)}s</b>`);
   if (s.chillPct > 0) statBits.push(`Chill <b>${Math.round(s.chillPct * 100)}%</b>`);
+  if (w.def.pierce) statBits.push(`<b>Pierces</b>`);
+  if (s.entangleDur > 0) statBits.push(`Root <b>${s.entangleDur.toFixed(1)}s</b>`);
+  if (s.rootSlow > 0) statBits.push(`Slow <b>${Math.round(s.rootSlow * 100)}%</b>`);
 
   panel.innerHTML = `
     <div class="tp-title">${w.def.icon} ${w.def.name}</div>

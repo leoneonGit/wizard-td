@@ -45,6 +45,10 @@ export interface GameState {
   waveModifier: WaveModifier | null;
   lastEliteRound: number;
   stats: RunStats;
+  /** run clock (sec) — drives periodic "frenzy" proc cards */
+  clock: number;
+  /** Soul Harvest-style permanent damage ramp (%), capped by the granting card */
+  killStackPct: number;
 
   enemies: Enemy[];
   wizards: Wizard[];
@@ -125,6 +129,8 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): 
     waveModifier: null,
     lastEliteRound: -5,
     stats: freshStats(),
+    clock: 0,
+    killStackPct: 0,
     // two clouds per path, staggered half a lap apart — keeps wind uptime reasonable
     clouds: cloudTracks.flatMap((t, i) =>
       [0, t.total / 2].map((d) => {
@@ -165,6 +171,8 @@ function applyMod(s: WizardStats, mod: import('./types').StatMods): void {
   if (mod.soakSlow) s.soakSlow += mod.soakSlow;
   if (mod.knockback) s.knockback += mod.knockback;
   if (mod.rattlePct) s.rattlePct += mod.rattlePct;
+  if (mod.entangleDur) s.entangleDur += mod.entangleDur;
+  if (mod.rootSlow) s.rootSlow += mod.rootSlow;
 }
 
 /** Recompute a wizard's effective stats: base def + owned tiers + element-wide drafted cards. */
@@ -184,6 +192,8 @@ export function computeStats(def: WizardDef, tiers: [number, number], draftMods:
     soakSlow: def.auraKind === 'tide' ? 0.2 : 0,
     knockback: def.auraKind === 'gust' ? 70 : 0,
     rattlePct: def.auraKind === 'rattle' ? 0.25 : 0,
+    entangleDur: def.entangles ? 1.0 : 0,
+    rootSlow: def.groundAttack ? 0.25 : 0,
   };
   for (let p = 0; p < 2; p++) {
     for (let t = 0; t < tiers[p]; t++) {
@@ -191,11 +201,19 @@ export function computeStats(def: WizardDef, tiers: [number, number], draftMods:
     }
   }
   for (const card of draftMods) {
-    if (card.mod && (card.element === def.element || card.element === 'all')) {
-      applyMod(s, card.mod);
-    }
+    if (!card.mod) continue;
+    const elementMatch = card.element === def.element || card.element === 'all';
+    const familyMatch = !card.family || card.family === def.family;
+    if (elementMatch && familyMatch) applyMod(s, card.mod);
   }
   return s;
+}
+
+/** Does a card's scope (element + optional family) cover this tower? */
+export function cardAppliesTo(card: CardDef, def: WizardDef): boolean {
+  const elementMatch = card.element === def.element || card.element === 'all';
+  const familyMatch = !card.family || card.family === def.family;
+  return elementMatch && familyMatch;
 }
 
 /** Apply a picked card to the run: mods, reaction buffs, economy, stat recompute. */
@@ -254,6 +272,7 @@ export function makeWizard(state: GameState, def: WizardDef, cx: number, cy: num
     invested: def.cost,
     stats: computeStats(def, tiers, state.draftMods),
     recoil: 0,
+    attackCount: 0,
     family: def.family,
   };
   if (def.isGeneric) {

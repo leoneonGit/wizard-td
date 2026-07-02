@@ -27,6 +27,8 @@ export interface RunSave {
   cardIds: string[];
   wizards: WizardSave[];
   stats: RunStats;
+  /** Soul Harvest ramp — permanent within the run, so it must survive a reload */
+  killStackPct?: number;
 }
 
 export function saveRun(state: GameState): void {
@@ -48,6 +50,7 @@ export function saveRun(state: GameState): void {
       invested: w.invested,
     })),
     stats: state.stats,
+    killStackPct: state.killStackPct,
   };
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(save));
@@ -105,6 +108,7 @@ export function restoreRun(save: RunSave): GameState | null {
   state.round = save.round;
   state.lastEliteRound = save.lastEliteRound;
   state.stats = save.stats;
+  state.killStackPct = save.killStackPct ?? 0;
   // decorrelate future elite/draft rolls from the fresh-boot sequence
   state.rng = makeRng(save.seed + save.round * 101);
   return state;

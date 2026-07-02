@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CELL } from '../engine/grid';
-import { getAsset, WIZARD_LOOKS, ENEMY_LOOKS, type UnitLook } from './assets';
+import { getAsset, getAttachment, WIZARD_LOOKS, ENEMY_LOOKS, type UnitLook } from './assets';
 import type { GameState } from '../game/state';
 import type { Enemy, Wizard } from '../game/types';
 
@@ -13,6 +13,8 @@ function headingToYaw(angle: number): number {
 
 interface UnitView {
   root: THREE.Group;
+  /** WizardDef id the view was built for — specializing swaps the def, so the view rebuilds */
+  defId?: string;
   inner: THREE.Group; // scaled model
   mixer: THREE.AnimationMixer;
   idle: THREE.AnimationAction;
@@ -100,6 +102,56 @@ function makeView(look: UnitLook): UnitView {
     headMeshes = collectMeshes(inner.getObjectByName('Barbarian_Head'));
   }
 
+  // generic gear stripping (archer rigs whose held weapons don't match the kit)
+  if (look.hideRe) {
+    inner.traverse((o) => {
+      if (look.hideRe!.test(o.name)) o.visible = false;
+    });
+  }
+
+  // ent styling: rigged body turned LotR tree-creature — strip ALL gear, bark-tint
+  // everything, and graft a leafy canopy onto the head bone so it sways with the
+  // idle animation. The Boulder Ent additionally palms a rock, ready to hurl.
+  let canopyMeshes = new Set<THREE.Object3D>();
+  let rockMeshes = new Set<THREE.Object3D>();
+  if (look.ent) {
+    for (const name of ['1H_Axe', '2H_Axe', '1H_Axe_Offhand', 'Mug', 'Barbarian_Round_Shield', 'Barbarian_Hat']) {
+      const n = inner.getObjectByName(name);
+      if (n) n.visible = false;
+    }
+    inner.updateMatrixWorld(true);
+    const head = inner.getObjectByName('Barbarian_Head') ?? inner;
+    const canopyAsset = getAttachment(look.ent.canopy);
+    if (canopyAsset) {
+      const canopy = canopyAsset.scene.clone(true);
+      const ws = new THREE.Vector3();
+      head.getWorldScale(ws);
+      const localUnit = 1 / Math.max(1e-6, ws.y); // 1 world unit, in head-local units
+      const targetH = (look.ent.canopyScale ?? 0.9) * look.height;
+      canopy.scale.setScalar(targetH * localUnit / canopyAsset.rawHeight);
+      canopy.position.y = -0.35 * look.height * localUnit; // trunk base sunk into the shoulders
+      head.add(canopy);
+      canopyMeshes = collectMeshes(canopy);
+    }
+    if (look.ent.rock) {
+      const rockAsset = getAttachment('rock');
+      const slot = inner.getObjectByName('handslotr')
+        ?? inner.getObjectByName('handslot.r')
+        ?? inner.getObjectByName('handr')
+        ?? inner.getObjectByName('1H_Axe')?.parent;
+      if (rockAsset && slot) {
+        const rock = rockAsset.scene.clone(true);
+        const ws = new THREE.Vector3();
+        slot.getWorldScale(ws);
+        const localUnit = 1 / Math.max(1e-6, ws.y);
+        const targetH = 0.28 * look.height;
+        rock.scale.setScalar(targetH * localUnit / rockAsset.rawHeight);
+        slot.add(rock);
+        rockMeshes = collectMeshes(rock);
+      }
+    }
+  }
+
   // clone + tint materials per instance so statuses can recolor safely.
   // mages tint robes strongly, hat strongest (w/ accent glow), face barely.
   const mats: THREE.MeshStandardMaterial[] = [];
@@ -124,7 +176,12 @@ function makeView(look: UnitLook): UnitView {
     } else {
       m = src.clone();
     }
-    if (look.tint) {
+    if (canopyMeshes.has(mesh)) {
+      // foliage keeps its leafy identity — tinted toward the subtype's green, never bark
+      if (look.ent?.canopyTint) m.color.lerp(look.ent.canopyTint, 0.5);
+    } else if (rockMeshes.has(mesh)) {
+      // the held rock stays natural stone
+    } else if (look.tint) {
       let strength = look.tintStrength ?? 0.4;
       if (look.mage || look.goblin) {
         if (headMeshes.has(mesh)) strength = 0.08;
@@ -150,6 +207,7 @@ function makeView(look: UnitLook): UnitView {
     return mixer.clipAction(c!);
   };
   const idle = clip(asset.idle);
+  if (look.ent) idle.timeScale = 0.55; // ancient, slow tree-folk sway
   const walk = clip(asset.walk);
   const attack = clip(asset.attack);
   attack.setLoop(THREE.LoopOnce, 1);
@@ -305,8 +363,17 @@ function syncWizards(state: GameState, dt: number): void {
   for (const w of state.wizards) {
     seen.add(w.id);
     let v = wizardViews.get(w.id);
+    if (v && v.defId !== w.def.id) {
+      // specialized: the def swapped under us — rebuild the view (new model/styling),
+      // scaling in from small so the new form visibly "grows" into place
+      sceneRef.remove(v.root);
+      v.root.traverse((o) => disposeMesh(o as THREE.Mesh));
+      wizardViews.delete(w.id);
+      v = undefined;
+    }
     if (!v) {
       v = makeView(WIZARD_LOOKS[w.def.id] ?? WIZARD_LOOKS.generic_wizard);
+      v.defId = w.def.id;
       v.idle.play();
       v.yaw = headingToYaw(w.aim);
       wizardViews.set(w.id, v);

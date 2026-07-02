@@ -2,8 +2,9 @@ import { ELEMENTS } from '../data/elements';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
 import { pickTarget, enemiesInRange, hasLOS } from './targeting';
-import type { GameState } from './state';
-import type { ElementId, Enemy, Wizard } from './types';
+import { attackProcMult, conditionalDamageMult, frenzyRateMul } from './procs';
+import { cardAppliesTo, type GameState } from './state';
+import type { ElementId, Enemy, Projectile, Wizard } from './types';
 
 /** ---- Elemental reactions (the signature mechanic) ----
  *  Conduct   : Lightning hit on WET      -> 1.6x dmg, +1 chain hop, consumes Wet
@@ -19,6 +20,12 @@ export const CLOUD_SPEED = 26; // px/s drift
 const GUST_IMMUNITY = 1.5; // s — no repeat knockback (prevents stunlock)
 const BOSS_KNOCKBACK_FACTOR = 0.25;
 const SOAK_DURATION = 1.5;
+const ENTANGLE_IMMUNITY = 2.5; // s after a root ends before the same enemy can be rooted again
+const BOSS_ENTANGLE_FACTOR = 0.3;
+const PIERCE_OVERSHOOT = 1.4; // bolts fly this far past nominal range
+const PIERCE_HIT_WIDTH = 14; // px — bolt "thickness" added to enemy radius
+const ROOTGRASP_AREA = 30; // px — eruption radius at the target's feet
+const SNARE_DURATION = 1.6;
 
 // ---------------------------------------------------------------- clouds
 
@@ -39,6 +46,8 @@ function cloudNear(state: GameState, w: Wizard): boolean {
 // ---------------------------------------------------------------- wizards
 
 export function updateWizards(state: GameState, dt: number): void {
+  state.clock += dt; // run clock — drives periodic frenzy proc cards
+
   for (const w of state.wizards) {
     if (w.pendingSpecialize) continue; // idle shell — does nothing until specialized
 
@@ -57,11 +66,12 @@ export function updateWizards(state: GameState, dt: number): void {
     // aura casters (water tide / wind gust / gong rattle) need no single target
     if (w.def.auraKind) {
       if (w.cooldown <= 0 && enemiesInRange(state, w.x, w.y, w.stats.range).length > 0) {
-        w.cooldown = w.stats.rate;
+        w.cooldown = w.stats.rate * frenzyRateMul(state, w);
         w.recoil = 0.18;
-        if (w.def.auraKind === 'tide') tideAttack(state, w);
-        else if (w.def.auraKind === 'gust') gustAttack(state, w);
-        else rattleAttack(state, w);
+        const mult = attackProcMult(state, w);
+        if (w.def.auraKind === 'tide') tideAttack(state, w, mult);
+        else if (w.def.auraKind === 'gust') gustAttack(state, w, mult);
+        else rattleAttack(state, w, mult);
       }
       continue;
     }
@@ -70,7 +80,7 @@ export function updateWizards(state: GameState, dt: number): void {
     if (target) {
       w.aim = Math.atan2(target.y - w.y, target.x - w.x);
       if (w.cooldown <= 0) {
-        w.cooldown = w.stats.rate;
+        w.cooldown = w.stats.rate * frenzyRateMul(state, w);
         w.recoil = 0.18;
         attack(state, w, target);
       }
@@ -79,11 +89,11 @@ export function updateWizards(state: GameState, dt: number): void {
 }
 
 /** Water Mage: radial tide — small damage, heavy Wet, soak slow (a 1-stack chill). */
-function tideAttack(state: GameState, w: Wizard): void {
+function tideAttack(state: GameState, w: Wizard, procMult = 1): void {
   sfx.waterPulse();
   fx.ring(w.x, w.y, '#3a86ff', w.stats.range);
   for (const e of enemiesInRange(state, w.x, w.y, w.stats.range)) {
-    dealDamage(state, e, w.stats.damage, 'water');
+    dealDamage(state, e, w.stats.damage * procMult, 'water', w);
     if (e.hp <= 0) continue;
     if (e.immunities?.includes('wet')) continue;
     // Wet everything (feeds Conduct); Evaporate rules apply like ice's wetting
@@ -92,7 +102,7 @@ function tideAttack(state: GameState, w: Wizard): void {
       state.stats.reactions.evaporate++;
       fx.floater(e.x, e.y - 18, 'Evaporate!', '#ffffff', 12);
       sfx.evaporate();
-      dealDamage(state, e, state.reaction.evaporateBurst, 'water');
+      dealDamage(state, e, state.reaction.evaporateBurst, 'water', w);
       if (e.hp <= 0) continue;
     } else {
       e.statuses.wet = { t: w.stats.wetDuration };
@@ -104,11 +114,11 @@ function tideAttack(state: GameState, w: Wizard): void {
 }
 
 /** Cloud Mage: wind gust — pushes enemies BACKWARD along the track. */
-function gustAttack(state: GameState, w: Wizard): void {
+function gustAttack(state: GameState, w: Wizard, procMult = 1): void {
   sfx.windGust();
   fx.ring(w.x, w.y, '#e6f7f1', w.stats.range * 0.7);
   for (const e of enemiesInRange(state, w.x, w.y, w.stats.range)) {
-    dealDamage(state, e, w.stats.damage, 'wind');
+    dealDamage(state, e, w.stats.damage * procMult, 'wind', w);
     if (e.hp <= 0) continue;
     if (e.gustImmune || (e.gustCd ?? 0) > 0) continue;
     const kb = w.stats.knockback * (e.def.boss ? BOSS_KNOCKBACK_FACTOR : 1);
@@ -123,11 +133,11 @@ function gustAttack(state: GameState, w: Wizard): void {
 
 /** Gong Goblin: support pulse — little/no direct damage, marks targets Rattled
  *  (extra damage taken from everything). No elemental interaction by design. */
-function rattleAttack(state: GameState, w: Wizard): void {
+function rattleAttack(state: GameState, w: Wizard, procMult = 1): void {
   sfx.gongPulse();
   fx.ring(w.x, w.y, '#c9a63f', w.stats.range);
   for (const e of enemiesInRange(state, w.x, w.y, w.stats.range)) {
-    if (w.stats.damage > 0) dealDamage(state, e, w.stats.damage, 'physical');
+    if (w.stats.damage > 0) dealDamage(state, e, w.stats.damage * procMult, 'physical', w);
     if (e.hp <= 0) continue;
     const cur = e.statuses.rattled;
     e.statuses.rattled = { t: 3, pct: Math.max(cur?.pct ?? 0, w.stats.rattlePct) };
@@ -145,9 +155,41 @@ function attack(state: GameState, w: Wizard, target: Enemy): void {
   if (w.def.element === 'fire') sfx.fireCast();
   else if (w.def.element === 'ice') sfx.iceCast();
   else if (w.def.element === 'lightning') sfx.boltCast();
+  else if (w.def.family === 'archer') sfx.bowTwang();
+  else if (w.def.family === 'tree') sfx.thud();
+
+  // rhythm/on-kill card engine: every-Nth crits + permanent kill-stack ramp
+  const procMult = attackProcMult(state, w);
 
   if (w.def.element === 'lightning') {
-    resolveChainLightning(state, w, target);
+    resolveChainLightning(state, w, target, procMult);
+  } else if (w.def.groundAttack) {
+    rootgraspAttack(state, w, target, procMult);
+  } else if (w.def.pierce) {
+    // ballesta: a straight-line bolt that damages everything it passes through
+    const dx = target.x - tipX;
+    const dy = target.y - tipY;
+    const d = Math.hypot(dx, dy) || 1;
+    state.projectiles.push({
+      id: state.nextId++,
+      element: w.def.element,
+      x: tipX,
+      y: tipY,
+      speed: w.stats.projSpeed,
+      damage: w.stats.damage * procMult,
+      splash: 0,
+      targetId: -1, // never homes
+      tx: target.x,
+      ty: target.y,
+      wizardId: w.id,
+      pierce: {
+        dirX: dx / d,
+        dirY: dy / d,
+        traveled: 0,
+        maxDist: w.stats.range * PIERCE_OVERSHOOT,
+        hitIds: [],
+      },
+    });
   } else {
     state.projectiles.push({
       id: state.nextId++,
@@ -155,7 +197,7 @@ function attack(state: GameState, w: Wizard, target: Enemy): void {
       x: tipX,
       y: tipY,
       speed: w.stats.projSpeed,
-      damage: w.stats.damage,
+      damage: w.stats.damage * procMult,
       splash: w.stats.splash,
       targetId: target.id,
       tx: target.x,
@@ -165,10 +207,27 @@ function attack(state: GameState, w: Wizard, target: Enemy): void {
   }
 }
 
-function resolveChainLightning(state: GameState, w: Wizard, first: Enemy): void {
+/** Rootgrasp Tree: roots erupt under the target — instant, small area, snare slow.
+ *  The snare is deliberately its own status (physical), never feeding Chill→Freeze. */
+function rootgraspAttack(state: GameState, w: Wizard, target: Enemy, procMult = 1): void {
+  fx.burst(target.x, target.y + 4, '#6a8f4f', 10, 80, 3, 0.4);
+  fx.ring(target.x, target.y, '#4c6b38', ROOTGRASP_AREA);
+  for (const e of state.enemies) {
+    if (e.hp <= 0) continue;
+    const dx = e.x - target.x;
+    const dy = e.y - target.y;
+    if (dx * dx + dy * dy > (ROOTGRASP_AREA + e.def.radius) ** 2) continue;
+    dealDamage(state, e, w.stats.damage * procMult, w.def.element, w);
+    if (e.hp <= 0) continue;
+    const cur = e.statuses.snared;
+    e.statuses.snared = { t: SNARE_DURATION, pct: Math.max(cur?.pct ?? 0, w.stats.rootSlow) };
+  }
+}
+
+function resolveChainLightning(state: GameState, w: Wizard, first: Enemy, procMult = 1): void {
   const el = ELEMENTS.lightning;
   let hops = 1 + w.stats.chains;
-  let dmg = w.stats.damage;
+  let dmg = w.stats.damage * procMult;
   const hit = new Set<number>();
   let cur: Enemy | undefined = first;
   let fromX = w.x;
@@ -184,9 +243,9 @@ function resolveChainLightning(state: GameState, w: Wizard, first: Enemy): void 
       fx.floater(cur.x, cur.y - 18, 'Conduct!', '#e8c3ff', 13);
       fx.burst(cur.x, cur.y, '#c77dff', 10, 120, 3);
       sfx.conduct();
-      dealDamage(state, cur, dmg * state.reaction.conductMult, 'lightning');
+      dealDamage(state, cur, dmg * state.reaction.conductMult, 'lightning', w);
     } else {
-      dealDamage(state, cur, dmg, 'lightning');
+      dealDamage(state, cur, dmg, 'lightning', w);
     }
     applyStatusesFromWizard(state, w, cur);
     hit.add(cur.id);
@@ -216,6 +275,10 @@ function nextChainTarget(state: GameState, x: number, y: number, hit: Set<number
 
 export function updateProjectiles(state: GameState, dt: number): void {
   for (const p of state.projectiles) {
+    if (p.pierce) {
+      updatePierceBolt(state, p, dt);
+      continue;
+    }
     const target = state.enemies.find((e) => e.id === p.targetId && e.hp > 0);
     if (target) {
       p.tx = target.x;
@@ -238,6 +301,33 @@ export function updateProjectiles(state: GameState, dt: number): void {
     }
   }
   state.projectiles = state.projectiles.filter((p) => p.speed >= 0);
+}
+
+/** Ballesta bolt: flies a fixed line, hitting each enemy along it exactly once. */
+function updatePierceBolt(state: GameState, p: Projectile, dt: number): void {
+  const pr = p.pierce!;
+  const step = Math.min(p.speed * dt, pr.maxDist - pr.traveled);
+  p.x += pr.dirX * step;
+  p.y += pr.dirY * step;
+  pr.traveled += step;
+  // keep tx/ty a touch ahead along the line so the renderer can stretch the bolt
+  p.tx = p.x + pr.dirX * 20;
+  p.ty = p.y + pr.dirY * 20;
+
+  const w = state.wizards.find((wz) => wz.id === p.wizardId);
+  for (const e of state.enemies) {
+    if (e.hp <= 0 || pr.hitIds.includes(e.id)) continue;
+    const dx = e.x - p.x;
+    const dy = e.y - p.y;
+    const r = PIERCE_HIT_WIDTH + e.def.radius;
+    if (dx * dx + dy * dy > r * r) continue;
+    pr.hitIds.push(e.id);
+    fx.burst(e.x, e.y, ELEMENTS[p.element].glow, 5, 80, 2.5, 0.3);
+    hitEnemy(state, w, e, p.damage, p.element);
+  }
+
+  if (pr.traveled >= pr.maxDist) p.speed = -1; // spent — flew its full line
+  else if (Math.random() < 0.5) fx.burst(p.x, p.y, ELEMENTS[p.element].glow, 1, 12, 1.5, 0.2);
 }
 
 function impact(state: GameState, p: { x: number; y: number; tx: number; ty: number; element: ElementId; damage: number; splash: number; wizardId: number }, primary: Enemy | undefined): void {
@@ -273,7 +363,7 @@ function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number
     fx.burst(e.x, e.y, '#b3ecff', 12, 140, 3);
     sfx.shatter();
   }
-  dealDamage(state, e, dmg, element);
+  dealDamage(state, e, dmg, element, w);
   if (w && e.hp > 0) applyStatusesFromWizard(state, w, e);
 }
 
@@ -293,7 +383,7 @@ function applyStatusesFromWizard(state: GameState, w: Wizard, e: Enemy): void {
       fx.floater(e.x, e.y - 18, 'Evaporate!', '#ffffff', 12);
       fx.burst(e.x, e.y, '#dddddd', 8, 80, 2.5);
       sfx.evaporate();
-      dealDamage(state, e, state.reaction.evaporateBurst, 'fire');
+      dealDamage(state, e, state.reaction.evaporateBurst, 'fire', w);
     } else {
       const cur = e.statuses.burn;
       e.statuses.burn = {
@@ -301,6 +391,15 @@ function applyStatusesFromWizard(state: GameState, w: Wizard, e: Enemy): void {
         dps: Math.max(cur?.dps ?? 0, s.burnDps),
       };
     }
+  }
+
+  // Orc Trapper bolas: root in place. Pure CC — never touches the elemental economy.
+  if (w.def.entangles && w.stats.entangleDur > 0 && (e.entangleCd ?? 0) <= 0) {
+    const dur = e.def.boss ? w.stats.entangleDur * BOSS_ENTANGLE_FACTOR : w.stats.entangleDur;
+    e.statuses.entangled = { t: dur };
+    e.entangleCd = dur + ENTANGLE_IMMUNITY;
+    fx.floater(e.x, e.y - 14, 'Rooted!', '#8c9c72', 11);
+    fx.burst(e.x, e.y + 6, '#6b7a52', 8, 70, 2.5, 0.4);
   }
 
   if (w.def.element === 'ice') {
@@ -311,7 +410,7 @@ function applyStatusesFromWizard(state: GameState, w: Wizard, e: Enemy): void {
       fx.floater(e.x, e.y - 18, 'Evaporate!', '#ffffff', 12);
       fx.burst(e.x, e.y, '#dddddd', 8, 80, 2.5);
       sfx.evaporate();
-      dealDamage(state, e, state.reaction.evaporateBurst, 'ice');
+      dealDamage(state, e, state.reaction.evaporateBurst, 'ice', w);
     } else if (!immuneTo(e, 'wet')) {
       e.statuses.wet = { t: s.wetDuration };
     }
@@ -341,7 +440,7 @@ export function applyChillStack(state: GameState, e: Enemy, pct: number): void {
 
 // ---------------------------------------------------------------- damage & death
 
-export function dealDamage(state: GameState, e: Enemy, amount: number, element: ElementId): void {
+export function dealDamage(state: GameState, e: Enemy, amount: number, element: ElementId, src?: Wizard): void {
   if (e.hp <= 0) return;
   const mult = e.def.resist[element] ?? 1;
   if (mult === 0) {
@@ -349,7 +448,8 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
     return;
   }
   const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
-  const dealt = amount * mult * rattleMult;
+  const condMult = conditionalDamageMult(state, src, e); // hunter cards: vs status / vs healthy
+  const dealt = amount * mult * rattleMult * condMult;
   e.hp -= dealt;
   e.hitFlash = 0.12;
   state.stats.dmgByElement[element] += dealt;
@@ -357,10 +457,10 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
     const col = mult > 1 ? '#ffe08a' : mult < 1 ? '#8899aa' : '#ffffff';
     fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(dealt)), col, mult > 1 ? 12 : 10);
   }
-  if (e.hp <= 0) kill(state, e);
+  if (e.hp <= 0) kill(state, e, src);
 }
 
-function kill(state: GameState, e: Enemy): void {
+function kill(state: GameState, e: Enemy, src?: Wizard): void {
   const bounty = e.def.bounty + state.bountyBonus;
   state.gold += bounty;
   state.stats.kills++;
@@ -368,6 +468,65 @@ function kill(state: GameState, e: Enemy): void {
   fx.burst(e.x, e.y, e.def.color, 12, 130, 3.5, 0.5);
   fx.ring(e.x, e.y, e.def.color, e.def.boss ? 46 : 24);
   sfx.coin();
+  onKillProcs(state, e, src);
+}
+
+/** Vampire Survivors-style on-kill chain: explosions, bonus gold, permanent ramp, flame spread. */
+function onKillProcs(state: GameState, e: Enemy, src?: Wizard): void {
+  for (const c of state.draftMods) {
+    if (!c.fx) continue;
+    // scoped cards only trigger when the KILLING tower matches; unattributed kills
+    // (burn ticks) trigger only unscoped ('all', no family) cards
+    const scoped = c.element !== 'all' || !!c.family;
+    const attributed = src ? cardAppliesTo(c, src.def) : !scoped;
+
+    // Wildfire is self-scoping (the victim must be burning) — any death counts,
+    // because burn deaths usually have no source tower at all
+    if (c.fx.spreadBurnOnDeath && e.statuses.burn) {
+      let best: Enemy | undefined;
+      let bestD2 = 90 * 90;
+      for (const o of state.enemies) {
+        if (o === e || o.hp <= 0 || o.statuses.burn || o.immunities?.includes('burn')) continue;
+        const d2 = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+        if (d2 <= bestD2) {
+          bestD2 = d2;
+          best = o;
+        }
+      }
+      if (best) {
+        best.statuses.burn = { t: Math.max(e.statuses.burn.t, 1.5), dps: e.statuses.burn.dps };
+        fx.arc(e.x, e.y, best.x, best.y, '#ff7b00');
+        fx.floater(best.x, best.y - 16, 'Wildfire!', '#ff9b4a', 11);
+      }
+    }
+
+    if (!attributed) continue;
+
+    const ex = c.fx.onKillExplode;
+    if (ex) {
+      fx.burst(e.x, e.y, '#ffab5e', 14, 160, 3.5);
+      fx.ring(e.x, e.y, '#ff7b00', ex.radius);
+      for (const o of state.enemies) {
+        if (o === e || o.hp <= 0) continue;
+        const dx = o.x - e.x;
+        const dy = o.y - e.y;
+        if (dx * dx + dy * dy <= (ex.radius + o.def.radius) ** 2) {
+          dealDamage(state, o, ex.damage, 'physical', src); // may chain — corpses explode corpses
+        }
+      }
+    }
+
+    const g = c.fx.onKillGold;
+    if (g && state.rng() < g.chance) {
+      state.gold += g.amount;
+      fx.floater(e.x, e.y - 36, `+${g.amount} bonus`, '#ffd75e', 11);
+    }
+
+    const stk = c.fx.onKillStackDamage;
+    if (stk && state.killStackPct < stk.capPct) {
+      state.killStackPct = Math.min(stk.capPct, state.killStackPct + stk.pct);
+    }
+  }
 }
 
 // ---------------------------------------------------------------- enemies
@@ -399,16 +558,26 @@ export function updateEnemies(state: GameState, dt: number): void {
       st.rattled.t -= dt;
       if (st.rattled.t <= 0) delete st.rattled;
     }
+    if (st.entangled) {
+      st.entangled.t -= dt;
+      if (st.entangled.t <= 0) delete st.entangled;
+    }
+    if (st.snared) {
+      st.snared.t -= dt;
+      if (st.snared.t <= 0) delete st.snared;
+    }
     if (e.hp <= 0) continue;
 
     // movement
     let factor = 1;
-    if (st.frozen) factor = 0;
+    if (st.frozen || st.entangled) factor = 0;
     else if (st.chill) factor = Math.max(0.25, 1 - st.chill.pct * (0.6 + 0.2 * st.chill.stacks));
+    if (factor > 0 && st.snared) factor *= Math.max(0.2, 1 - st.snared.pct); // stacks with chill
 
     e.animT += factor * dt; // walk cycle slows/freezes with the enemy
     if (e.hitFlash > 0) e.hitFlash -= dt;
     if (e.gustCd && e.gustCd > 0) e.gustCd -= dt;
+    if (e.entangleCd && e.entangleCd > 0) e.entangleCd -= dt;
     e.dist += e.def.speed * (e.speedMult ?? 1) * factor * dt;
     const p = state.track.posAt(e.dist);
     e.x = p.x;

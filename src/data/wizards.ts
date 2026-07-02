@@ -306,6 +306,233 @@ export const WIZARDS: Record<string, WizardDef> = {
     ],
   },
 
+  // ---------------- archers (physical precision family: elf sniper / human pierce / orc control) ----------------
+  longbow: {
+    id: 'longbow',
+    name: 'Elf Longbow',
+    element: 'physical',
+    placement: 'ground',
+    family: 'archer',
+    cost: 110,
+    desc: 'Elven marksman. Enormous range, heavy single arrows — the sniper of the realm.',
+    range: 195,
+    rate: 2.0,
+    damage: 34,
+    projSpeed: 560,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#7dc98f',
+    icon: '🏹',
+    upgrades: [
+      {
+        name: 'Marksman',
+        tiers: [
+          { name: 'Heavy Draw', cost: 80, desc: '+12 damage', mod: { damage: 12 } },
+          { name: 'Eagle Eye', cost: 130, desc: '+35 range', mod: { range: 35 } },
+          { name: 'Heartseeker', cost: 320, desc: '+24 damage', mod: { damage: 24 } },
+        ],
+      },
+      {
+        name: 'Fleetness',
+        tiers: [
+          { name: 'Swift Nock', cost: 75, desc: '15% faster shots', mod: { rateMul: 0.85 } },
+          { name: 'Windrunner', cost: 140, desc: '20% faster shots', mod: { rateMul: 0.8 } },
+          { name: 'Arrowstorm', cost: 300, desc: '+10 dmg, 15% faster', mod: { damage: 10, rateMul: 0.85 } },
+        ],
+      },
+    ],
+  },
+
+  ballesta: {
+    id: 'ballesta',
+    name: 'Human Ballesta',
+    element: 'physical',
+    placement: 'ground',
+    family: 'archer',
+    pierce: true,
+    cost: 100,
+    desc: 'Crank-loaded crossbow. Short range, but bolts PIERCE clean through everything in a line.',
+    range: 95,
+    rate: 1.2,
+    damage: 12,
+    projSpeed: 480,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#5b7fc9',
+    icon: '🎯',
+    upgrades: [
+      {
+        name: 'Penetration',
+        tiers: [
+          { name: 'Steel Bolts', cost: 70, desc: '+5 damage', mod: { damage: 5 } },
+          { name: 'Windlass', cost: 130, desc: '20% faster reload', mod: { rateMul: 0.8 } },
+          { name: 'Arbalest', cost: 300, desc: '+12 damage', mod: { damage: 12 } },
+        ],
+      },
+      {
+        name: 'Fieldcraft',
+        tiers: [
+          { name: 'Braced Stock', cost: 65, desc: '+18 range', mod: { range: 18 } },
+          { name: 'Quick Hands', cost: 120, desc: '15% faster reload', mod: { rateMul: 0.85 } },
+          { name: 'Siege Position', cost: 260, desc: '+30 range, +6 dmg', mod: { range: 30, damage: 6 } },
+        ],
+      },
+    ],
+  },
+
+  bolas: {
+    id: 'bolas',
+    name: 'Orc Trapper',
+    element: 'physical',
+    placement: 'ground',
+    family: 'archer',
+    entangles: true,
+    cost: 115,
+    desc: 'Hurls bolas that ENTANGLE — roots enemies in place. Pure lockdown; never disturbs your Freeze combos.',
+    range: 125,
+    rate: 1.8,
+    damage: 6,
+    projSpeed: 320,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#8c9c72',
+    icon: '🪢',
+    upgrades: [
+      {
+        name: 'Snares',
+        tiers: [
+          { name: 'Heavier Weights', cost: 75, desc: 'Entangle +0.4s', mod: { entangleDur: 0.4 } },
+          { name: 'Barbed Cords', cost: 130, desc: '+8 damage', mod: { damage: 8 } },
+          { name: 'Master Trapper', cost: 300, desc: 'Entangle +0.6s', mod: { entangleDur: 0.6 } },
+        ],
+      },
+      {
+        name: 'Warcraft',
+        tiers: [
+          { name: 'Strong Arm', cost: 70, desc: '+25 range', mod: { range: 25 } },
+          { name: 'Rapid Toss', cost: 125, desc: '20% faster throws', mod: { rateMul: 0.8 } },
+          { name: 'Twin Bolas', cost: 280, desc: '25% faster, +5 dmg', mod: { rateMul: 0.75, damage: 5 } },
+        ],
+      },
+    ],
+  },
+
+  // ---------------- trees (stationary living towers; nature's own siegeworks) ----------------
+  rootgrasp: {
+    id: 'rootgrasp',
+    name: 'Rootgrasp Tree',
+    element: 'physical',
+    placement: 'ground',
+    family: 'tree',
+    groundAttack: true,
+    cost: 90,
+    desc: 'Roots erupt beneath enemies — no projectile to dodge, and every strike SLOWS.',
+    range: 110,
+    rate: 1.4,
+    damage: 9,
+    projSpeed: 0,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#6a8f4f',
+    icon: '🌳',
+    upgrades: [
+      {
+        name: 'Deep Roots',
+        tiers: [
+          { name: 'Gnarled Grip', cost: 70, desc: 'Slow +10% stronger', mod: { rootSlow: 0.1 } },
+          { name: 'Thick Taproot', cost: 120, desc: '+6 damage', mod: { damage: 6 } },
+          { name: 'Strangleroot', cost: 280, desc: 'Slow +15%, +6 dmg', mod: { rootSlow: 0.15, damage: 6 } },
+        ],
+      },
+      {
+        name: 'Overgrowth',
+        tiers: [
+          { name: 'Spreading Roots', cost: 75, desc: '+22 range', mod: { range: 22 } },
+          { name: 'Quickened Sap', cost: 130, desc: '20% faster strikes', mod: { rateMul: 0.8 } },
+          { name: 'Ancient Reach', cost: 260, desc: '+30 range, +5 dmg', mod: { range: 30, damage: 5 } },
+        ],
+      },
+    ],
+  },
+
+  boulder: {
+    id: 'boulder',
+    name: 'Boulder Tree',
+    element: 'physical',
+    placement: 'ground',
+    family: 'tree',
+    cost: 105,
+    desc: 'An old ent that hurls boulders. Slow, furious, and the splash flattens whole clumps.',
+    range: 135,
+    rate: 2.6,
+    damage: 24,
+    projSpeed: 210,
+    splash: 46,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#8d7a5e',
+    icon: '🪨',
+    upgrades: [
+      {
+        name: 'Avalanche',
+        tiers: [
+          { name: 'Bigger Rocks', cost: 80, desc: '+10 damage', mod: { damage: 10 } },
+          { name: 'Wide Impact', cost: 140, desc: '+16 splash radius', mod: { splash: 16 } },
+          { name: 'Meteor Toss', cost: 320, desc: '+18 dmg, +12 splash', mod: { damage: 18, splash: 12 } },
+        ],
+      },
+      {
+        name: 'Old Growth',
+        tiers: [
+          { name: 'Long Arms', cost: 70, desc: '+25 range', mod: { range: 25 } },
+          { name: 'Limber Boughs', cost: 130, desc: '20% faster throws', mod: { rateMul: 0.8 } },
+          { name: 'Wrath of Ages', cost: 300, desc: '25% faster throws', mod: { rateMul: 0.75 } },
+        ],
+      },
+    ],
+  },
+
+  thornspitter: {
+    id: 'thornspitter',
+    name: 'Thornspitter',
+    element: 'physical',
+    placement: 'ground',
+    family: 'tree',
+    cost: 95,
+    desc: 'A bristling bush that machine-guns needles — the fastest attacker in the realm. Loves "every Nth shot" cards.',
+    range: 100,
+    rate: 0.25,
+    damage: 3,
+    projSpeed: 450,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#4f8f5c',
+    icon: '🌵',
+    upgrades: [
+      {
+        name: 'Bristles',
+        tiers: [
+          { name: 'Sharper Thorns', cost: 70, desc: '+2 damage', mod: { damage: 2 } },
+          { name: 'Dense Quills', cost: 130, desc: '15% faster spray', mod: { rateMul: 0.85 } },
+          { name: 'Ironwood Barbs', cost: 300, desc: '+4 damage', mod: { damage: 4 } },
+        ],
+      },
+      {
+        name: 'Wildgrowth',
+        tiers: [
+          { name: 'Tall Canes', cost: 65, desc: '+20 range', mod: { range: 20 } },
+          { name: 'Feverish Growth', cost: 125, desc: '15% faster spray', mod: { rateMul: 0.85 } },
+          { name: 'Bramble Storm', cost: 280, desc: '+2 dmg, +20 range', mod: { damage: 2, range: 20 } },
+        ],
+      },
+    ],
+  },
+
   // ---------------- generic shells (shop-purchasable; never actually attack) ----------------
   generic_wizard: {
     id: 'generic_wizard',
@@ -354,10 +581,58 @@ export const WIZARDS: Record<string, WizardDef> = {
       { name: '—', tiers: [] },
     ],
   },
+
+  generic_archer: {
+    id: 'generic_archer',
+    name: 'Archer',
+    element: 'physical',
+    placement: 'ground',
+    family: 'archer',
+    isGeneric: true,
+    cost: 85,
+    desc: 'A fresh recruit with a training bow. Place, then click to specialize into a random draw of marksmen.',
+    range: 0,
+    rate: 0,
+    damage: 0,
+    projSpeed: 0,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#c9a55b',
+    icon: '🏹',
+    upgrades: [
+      { name: '—', tiers: [] },
+      { name: '—', tiers: [] },
+    ],
+  },
+
+  generic_tree: {
+    id: 'generic_tree',
+    name: 'Sapling',
+    element: 'physical',
+    placement: 'ground',
+    family: 'tree',
+    isGeneric: true,
+    cost: 70,
+    desc: 'A drowsy young ent. Place, then click to awaken it into a random draw of tree-folk.',
+    range: 0,
+    rate: 0,
+    damage: 0,
+    projSpeed: 0,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#5f9e57',
+    icon: '🌱',
+    upgrades: [
+      { name: '—', tiers: [] },
+      { name: '—', tiers: [] },
+    ],
+  },
 };
 
 /** Shop only sells the generic shells now — real specializations are reached via the draw. */
-export const SHOP_ORDER = ['generic_wizard', 'generic_goblin'];
+export const SHOP_ORDER = ['generic_wizard', 'generic_goblin', 'generic_archer', 'generic_tree'];
 
 /** All non-generic defs for a given family, in a stable order for the specialize draw. */
 export function specializationsFor(family: TowerFamily): WizardDef[] {

@@ -1,7 +1,7 @@
 import { startLoop } from './engine/loop';
 import { pixelToCell, inBounds } from './engine/grid';
 import { WIZARDS, SHOP_ORDER } from './data/wizards';
-import { createGame, computeStats, findWizard, isBuildable, makeWizard, wizardAt, type GameState } from './game/state';
+import { createGame, computeStats, findWizard, isBuildable, makeWizard, specializeWizard, wizardAt, type GameState } from './game/state';
 import { updateWizards, updateProjectiles, updateEnemies, updateClouds } from './game/combat';
 import { startWave, updateWave } from './game/waves';
 import { canAfford, spend, sellWizard, towerCost } from './game/economy';
@@ -227,7 +227,21 @@ initRenderer3d(canvas, state)
     wrap.appendChild(msg);
   });
 
-// debug/test handles (read-only inspection)
+// debug/test handles (read-only inspection + scripted placement for live verification)
 Object.defineProperty(window, '__game', { get: () => state });
 (window as any).__fx = fx;
 (window as any).__computeStats = computeStats;
+(window as any).__place = (defId: string, cx: number, cy: number) => {
+  const def = WIZARDS[defId];
+  if (!def || !isBuildable(state, cx, cy, def)) return null;
+  const w = makeWizard(state, def, cx, cy);
+  state.wizards.push(w);
+  return w.id;
+};
+(window as any).__specialize = (wizardId: number, defId: string) => {
+  const w = findWizard(state, wizardId);
+  const chosen = w?.specializeOptions?.find((d) => d.id === defId) ?? WIZARDS[defId];
+  if (!w || !chosen) return false;
+  specializeWizard(state, w, chosen);
+  return true;
+};

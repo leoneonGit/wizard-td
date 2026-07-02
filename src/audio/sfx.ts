@@ -171,6 +171,24 @@ export const sfx = {
     osc(c, 'triangle', 266, t, 0.7, env(c, t, 0.1, 0.7));
   },
 
+  bowTwang(): void {
+    const c = gate('bow', 80);
+    if (!c) return;
+    const t = c.currentTime;
+    // plucked string: sharp high transient that drops fast, plus a whoosh of air
+    sweep(c, 'triangle', 900, 320, t, 0.12, env(c, t, 0.35, 0.12));
+    noise(c, t + 0.02, 0.14, env(c, t + 0.02, 0.12, 0.14), { type: 'bandpass', f0: 2200, f1: 900, q: 1.5 });
+  },
+
+  thud(): void {
+    const c = gate('thud', 110);
+    if (!c) return;
+    const t = c.currentTime;
+    // heavy woody impact: low sine punch + knocky filtered noise
+    sweep(c, 'sine', 140, 45, t, 0.22, env(c, t, 0.5, 0.22));
+    noise(c, t, 0.1, env(c, t, 0.25, 0.1), { type: 'lowpass', f0: 500, f1: 120 });
+  },
+
   // ---------------- impacts & reactions ----------------
   hit(): void {
     const c = gate('hit', 70);

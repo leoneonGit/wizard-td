@@ -65,6 +65,16 @@ export function updateWave(state: GameState, dt: number): void {
     } else {
       const bonus = ROUND_BONUS_BASE + ROUND_BONUS_PER_ROUND * state.round;
       state.gold += bonus;
+      // economy-engine cards: interest on gold held at wave end
+      for (const c of state.draftMods) {
+        const it = c.fx?.interest;
+        if (!it) continue;
+        const gain = Math.min(it.cap, Math.floor(state.gold / it.per));
+        if (gain > 0) {
+          state.gold += gain;
+          fx.floater(480, 110, `+${gain} interest 🏦`, '#ffd75e', 13);
+        }
+      }
       // Slay-the-Spire moment: reveal 3 cards (elite clears draw rare-only)
       state.pendingDraft = drawDraft(state, 3, wasElite);
       state.eliteDraft = wasElite;

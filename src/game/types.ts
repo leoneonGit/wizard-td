@@ -1,5 +1,5 @@
 export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physical';
-export type TowerFamily = 'wizard' | 'goblin';
+export type TowerFamily = 'wizard' | 'goblin' | 'archer' | 'tree';
 export type StatusId = 'burn' | 'wet' | 'chill' | 'frozen' | 'shock';
 export type TargetMode = 'first' | 'last' | 'strong' | 'close';
 export type Phase = 'build' | 'wave' | 'draft' | 'won' | 'lost';
@@ -15,19 +15,45 @@ export interface ReactionMods {
 
 export type Rarity = 'common' | 'uncommon' | 'rare';
 
+/** Slay-the-Spire / Vampire-Survivors style triggered abilities granted by cards. */
+export interface ProcFx {
+  /** every Nth attack from matching towers deals mult x damage */
+  critEveryN?: { n: number; mult: number };
+  /** periodic global rhythm: for `duration`s out of every `period`s, matching towers fire at rate*rateMul */
+  frenzy?: { period: number; duration: number; rateMul: number };
+  /** kills detonate: physical AoE at the corpse */
+  onKillExplode?: { damage: number; radius: number };
+  /** kills sometimes drop bonus gold */
+  onKillGold?: { chance: number; amount: number };
+  /** every kill permanently ramps ALL damage this run (capped) */
+  onKillStackDamage?: { pct: number; capPct: number };
+  /** a burning enemy passes its Burn to a nearby enemy when it dies */
+  spreadBurnOnDeath?: boolean;
+  /** matching-element damage amplified vs enemies carrying a status */
+  bonusVsStatus?: { status: 'rattled' | 'wet' | 'chill' | 'frozen' | 'burn' | 'entangled'; mult: number };
+  /** matching-element damage amplified vs near-full-health enemies */
+  bonusVsHealthy?: { threshold: number; mult: number };
+  /** wave-end interest on held gold: +1 per `per` held, capped */
+  interest?: { per: number; cap: number };
+}
+
 export interface CardDef {
   id: string;
   name: string;
   desc: string;
   icon: string;
   element: ElementId | 'all';
+  /** optional extra scope: card only applies to towers of this family */
+  family?: TowerFamily;
   rarity: Rarity;
   /** removed from the pool once picked */
   unique?: boolean;
-  /** element-wide stat boost */
+  /** element/family-wide stat boost */
   mod?: StatMods;
   reaction?: Partial<ReactionMods>;
   econ?: { goldNow?: number; bountyBonus?: number; towerDiscountPct?: number };
+  /** triggered ability */
+  fx?: ProcFx;
 }
 
 export interface RunStats {
@@ -78,6 +104,8 @@ export interface StatMods {
   soakSlow?: number;     // flat add
   knockback?: number;    // flat add (px)
   rattlePct?: number;    // flat add (0.25 -> 0.35 etc)
+  entangleDur?: number;  // flat add (sec)
+  rootSlow?: number;     // flat add (rootgrasp slow strength)
 }
 
 export interface UpgradeTier {
@@ -118,6 +146,12 @@ export interface WizardDef {
   isGeneric?: boolean;
   /** radial support pulse instead of a normal targeted attack (Water/Wind/Gong) */
   auraKind?: 'tide' | 'gust' | 'rattle';
+  /** Ballesta: bolts fly in a straight line, hitting every enemy they pass through */
+  pierce?: boolean;
+  /** Orc Trapper: hits root the target in place (entangled status) */
+  entangles?: boolean;
+  /** Rootgrasp Tree: instant eruption at the target's feet (no projectile), small area */
+  groundAttack?: boolean;
   upgrades: [UpgradePath, UpgradePath];
 }
 
@@ -161,6 +195,10 @@ export interface Statuses {
   shock?: { t: number };
   /** Gong Goblin debuff: extra % damage taken from ALL sources */
   rattled?: { t: number; pct: number };
+  /** Orc Trapper bolas: rooted in place — pure CC, does NOT interact with Freeze/Shatter */
+  entangled?: { t: number };
+  /** Rootgrasp Tree: plain physical slow — deliberately separate from Chill (no Freeze/Shatter feed) */
+  snared?: { t: number; pct: number };
 }
 
 export interface Enemy {
@@ -178,6 +216,8 @@ export interface Enemy {
   hitFlash: number; // seconds of white flash remaining after taking a hit
   /** wind-gust immunity window (sec remaining) — prevents knockback stunlock */
   gustCd?: number;
+  /** entangle immunity window (sec remaining) — prevents permanent rooting */
+  entangleCd?: number;
   /** elite-wave status immunities */
   immunities?: StatusId[];
   gustImmune?: boolean;
@@ -200,6 +240,8 @@ export interface WizardStats {
   soakSlow: number; // water tide slow strength
   knockback: number; // wind gust pushback (px)
   rattlePct: number; // gong: extra damage-taken debuff strength
+  entangleDur: number; // bolas root duration (sec)
+  rootSlow: number; // rootgrasp slow strength
 }
 
 export interface Wizard {
@@ -216,6 +258,8 @@ export interface Wizard {
   invested: number; // total gold spent (for sell refund)
   stats: WizardStats; // cached, recomputed on upgrade
   recoil: number; // cast animation timer
+  /** lifetime attack counter — drives "every Nth attack" proc cards */
+  attackCount: number;
   /** cloud mage with no cloud in range — cannot attack, shown grayed */
   becalmed?: boolean;
   /** true until the player chooses a specialization; def is a zero-stat generic shell */
@@ -246,4 +290,12 @@ export interface Projectile {
   tx: number; // last known target pos
   ty: number;
   wizardId: number;
+  /** ballesta bolt: flies a fixed line, damaging each enemy it passes exactly once */
+  pierce?: {
+    dirX: number;
+    dirY: number;
+    traveled: number;
+    maxDist: number;
+    hitIds: number[];
+  };
 }
