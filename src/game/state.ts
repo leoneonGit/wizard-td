@@ -6,7 +6,7 @@ import { PROP_MODELS } from './mapio';
 import { Track } from './path';
 import type {
   CardDef, Cloud, Enemy, MapDef, Phase, Projectile, ReactionMods, RunStats,
-  TargetMode, WaveModifier, Wizard, WizardDef, WizardStats,
+  TargetMode, TowerFamily, WaveModifier, Wizard, WizardDef, WizardStats,
 } from './types';
 
 export interface PendingSpawn {
@@ -79,7 +79,7 @@ export function freshStats(): RunStats {
     kills: 0,
     leaks: 0,
     wavesCleared: 0,
-    dmgByElement: { fire: 0, ice: 0, lightning: 0, water: 0, wind: 0 },
+    dmgByElement: { fire: 0, ice: 0, lightning: 0, water: 0, wind: 0, physical: 0 },
     reactions: { conduct: 0, shatter: 0, evaporate: 0, frozen: 0 },
     cardIds: [],
   };
@@ -164,6 +164,7 @@ function applyMod(s: WizardStats, mod: import('./types').StatMods): void {
   if (mod.projSpeed) s.projSpeed += mod.projSpeed;
   if (mod.soakSlow) s.soakSlow += mod.soakSlow;
   if (mod.knockback) s.knockback += mod.knockback;
+  if (mod.rattlePct) s.rattlePct += mod.rattlePct;
 }
 
 /** Recompute a wizard's effective stats: base def + owned tiers + element-wide drafted cards. */
@@ -180,8 +181,9 @@ export function computeStats(def: WizardDef, tiers: [number, number], draftMods:
     burnDuration: def.element === 'fire' ? 3 : 0,
     chillPct: def.element === 'ice' ? 0.3 : 0,
     wetDuration: def.element === 'ice' ? 4 : def.element === 'water' ? 5 : 0,
-    soakSlow: def.element === 'water' ? 0.2 : 0,
-    knockback: def.element === 'wind' ? 70 : 0,
+    soakSlow: def.auraKind === 'tide' ? 0.2 : 0,
+    knockback: def.auraKind === 'gust' ? 70 : 0,
+    rattlePct: def.auraKind === 'rattle' ? 0.25 : 0,
   };
   for (let p = 0; p < 2; p++) {
     for (let t = 0; t < tiers[p]; t++) {
@@ -229,6 +231,7 @@ export function wizardAt(state: GameState, cx: number, cy: number): Wizard | und
 export function isBuildable(state: GameState, cx: number, cy: number, def?: WizardDef): boolean {
   const key = cellKey(cx, cy);
   if (state.blocked.has(key) || wizardAt(state, cx, cy)) return false;
+  if (def?.placement === 'any') return true; // generic shells: ground or water both fine
   const isWater = state.water.has(key);
   const wantsWater = def?.placement === 'water';
   return isWater === wantsWater;
@@ -237,7 +240,7 @@ export function isBuildable(state: GameState, cx: number, cy: number, def?: Wiza
 export function makeWizard(state: GameState, def: WizardDef, cx: number, cy: number): Wizard {
   const tiers: [number, number] = [0, 0];
   const c = cellCenter(cx, cy);
-  return {
+  const w: Wizard = {
     id: state.nextId++,
     def,
     cx,
@@ -251,7 +254,62 @@ export function makeWizard(state: GameState, def: WizardDef, cx: number, cy: num
     invested: def.cost,
     stats: computeStats(def, tiers, state.draftMods),
     recoil: 0,
+    family: def.family,
   };
+  if (def.isGeneric) {
+    w.pendingSpecialize = true;
+    const onWater = state.water.has(cellKey(cx, cy));
+    w.specializeOptions = drawSpecialize(state, def.family, onWater);
+  }
+  return w;
+}
+
+/** Resolve a pending generic tower into a real specialization, in place. */
+export function specializeWizard(state: GameState, w: Wizard, chosen: WizardDef): void {
+  w.def = chosen;
+  // invested stays as the generic's placement cost — specializing itself is free
+  w.pendingSpecialize = false;
+  w.specializeOptions = undefined;
+  w.stats = computeStats(chosen, w.tiers, state.draftMods);
+  w.cooldown = 0;
+}
+
+/**
+ * Draw 2-3 distinct specialization options for a generic tower, seeded per-run.
+ * For the wizard family, standing on water GUARANTEES Water among the options;
+ * standing on ground EXCLUDES Water entirely — placement location gates the draw.
+ */
+export function drawSpecialize(state: GameState, family: TowerFamily, onWater: boolean, count = 3): WizardDef[] {
+  const { specializationsFor } = wizardsData();
+  let pool = specializationsFor(family);
+  let guaranteed: WizardDef | undefined;
+  if (family === 'wizard') {
+    if (onWater) {
+      guaranteed = pool.find((d) => d.placement === 'water');
+      pool = pool.filter((d) => d.placement !== 'water');
+    } else {
+      pool = pool.filter((d) => d.placement !== 'water');
+    }
+  }
+  const picks: WizardDef[] = guaranteed ? [guaranteed] : [];
+  const remaining = Math.max(0, count - picks.length);
+  for (let i = 0; i < remaining && pool.length > 0; i++) {
+    const idx = Math.floor(state.rng() * pool.length);
+    picks.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  // shuffle so the guaranteed option isn't always shown first
+  for (let i = picks.length - 1; i > 0; i--) {
+    const j = Math.floor(state.rng() * (i + 1));
+    [picks[i], picks[j]] = [picks[j], picks[i]];
+  }
+  return picks;
+}
+
+// small indirection so state.ts (imported by data-agnostic tests) doesn't hard-cycle with data
+import { specializationsFor as _specializationsFor } from '../data/wizards';
+function wizardsData() {
+  return { specializationsFor: _specializationsFor };
 }
 
 /** Draw `count` distinct cards from the pool with rarity weighting (seeded). */

@@ -40,6 +40,8 @@ function cloudNear(state: GameState, w: Wizard): boolean {
 
 export function updateWizards(state: GameState, dt: number): void {
   for (const w of state.wizards) {
+    if (w.pendingSpecialize) continue; // idle shell — does nothing until specialized
+
     if (w.recoil > 0) w.recoil -= dt;
     if (w.cooldown > 0) w.cooldown -= dt;
 
@@ -52,13 +54,14 @@ export function updateWizards(state: GameState, dt: number): void {
       }
     }
 
-    // aura casters (water tide / wind gust) need no single target
-    if (w.def.element === 'water' || w.def.element === 'wind') {
+    // aura casters (water tide / wind gust / gong rattle) need no single target
+    if (w.def.auraKind) {
       if (w.cooldown <= 0 && enemiesInRange(state, w.x, w.y, w.stats.range).length > 0) {
         w.cooldown = w.stats.rate;
         w.recoil = 0.18;
-        if (w.def.element === 'water') tideAttack(state, w);
-        else gustAttack(state, w);
+        if (w.def.auraKind === 'tide') tideAttack(state, w);
+        else if (w.def.auraKind === 'gust') gustAttack(state, w);
+        else rattleAttack(state, w);
       }
       continue;
     }
@@ -115,6 +118,20 @@ function gustAttack(state: GameState, w: Wizard): void {
     fx.burst(e.x, e.y, '#e6f7f1', 6, 90, 2.5, 0.35);
     e.x = p.x;
     e.y = p.y;
+  }
+}
+
+/** Gong Goblin: support pulse — little/no direct damage, marks targets Rattled
+ *  (extra damage taken from everything). No elemental interaction by design. */
+function rattleAttack(state: GameState, w: Wizard): void {
+  sfx.gongPulse();
+  fx.ring(w.x, w.y, '#c9a63f', w.stats.range);
+  for (const e of enemiesInRange(state, w.x, w.y, w.stats.range)) {
+    if (w.stats.damage > 0) dealDamage(state, e, w.stats.damage, 'physical');
+    if (e.hp <= 0) continue;
+    const cur = e.statuses.rattled;
+    e.statuses.rattled = { t: 3, pct: Math.max(cur?.pct ?? 0, w.stats.rattlePct) };
+    if (!cur) fx.floater(e.x, e.y - 14, 'Rattled!', '#c9a63f', 11);
   }
 }
 
@@ -331,7 +348,8 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
     fx.floater(e.x, e.y - 14, 'Immune!', '#999999', 11);
     return;
   }
-  const dealt = amount * mult;
+  const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
+  const dealt = amount * mult * rattleMult;
   e.hp -= dealt;
   e.hitFlash = 0.12;
   state.stats.dmgByElement[element] += dealt;
@@ -377,6 +395,10 @@ export function updateEnemies(state: GameState, dt: number): void {
       st.frozen.t -= dt;
       if (st.frozen.t <= 0) delete st.frozen;
     }
+    if (st.rattled) {
+      st.rattled.t -= dt;
+      if (st.rattled.t <= 0) delete st.rattled;
+    }
     if (e.hp <= 0) continue;
 
     // movement
@@ -410,9 +432,12 @@ export function updateEnemies(state: GameState, dt: number): void {
   state.enemies = state.enemies.filter((e) => e.hp > 0);
 }
 
-/** Burn ticks bypass reaction logic but still respect resistances; kills pay bounty. */
+/** Burn ticks bypass reaction logic but still respect resistances (and Rattled); kills pay bounty. */
 function dealBurnTick(state: GameState, e: Enemy, amount: number): void {
   const mult = e.def.resist.fire ?? 1;
-  e.hp -= amount * mult;
+  const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
+  const dealt = amount * mult * rattleMult;
+  e.hp -= dealt;
+  state.stats.dmgByElement.fire += dealt;
   if (e.hp <= 0) kill(state, e);
 }

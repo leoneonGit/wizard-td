@@ -6,6 +6,7 @@ import { updateWizards, updateProjectiles, updateEnemies, updateClouds } from '.
 import { startWave, updateWave } from './game/waves';
 import { canAfford, spend, sellWizard, towerCost } from './game/economy';
 import { initDraft, updateDraft } from './ui/draft';
+import { initSpecialize, updateSpecialize } from './ui/specialize';
 import { initRenderer3d, draw3d, pickBoardPoint } from './render3d/renderer3d';
 import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
@@ -107,6 +108,9 @@ initDraft(() => {
   saveRun(state); // checkpoint after every draft decision
   if (state.autoplay) state.autoplayTimer = 1.2;
 });
+initSpecialize(() => {
+  saveRun(state); // checkpoint after every specialize decision
+});
 
 // "New Run" clears the save and starts fresh on the current map
 document.getElementById('btn-newrun')?.addEventListener('click', () => {
@@ -204,6 +208,7 @@ function render(): void {
   updateShop(state);
   updateTowerPanel(state);
   updateDraft(state);
+  updateSpecialize(state);
   updateScreens(state);
 }
 

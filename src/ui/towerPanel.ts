@@ -30,7 +30,7 @@ export function initTowerPanel(handlers: {
 
 export function updateTowerPanel(state: GameState): void {
   const w = findWizard(state, state.selectedWizardId);
-  if (!w) {
+  if (!w || w.pendingSpecialize) {
     if (builtKey !== '') {
       panel.classList.add('hidden');
       builtKey = '';

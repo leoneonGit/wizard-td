@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { assetUrl } from '../engine/assetUrl';
-import type { ElementId } from '../game/types';
 
 export interface CharacterAsset {
   scene: THREE.Group;
@@ -19,10 +18,19 @@ export interface CharacterAsset {
 const MODELS: Record<string, string> = {
   mage: assetUrl('models/Mage.glb'),
   knight: assetUrl('models/Knight.glb'),
+  goblin: assetUrl('models/Barbarian.glb'), // stocky build reads well as goblin-sized once tinted
   skel_mage: assetUrl('models/Skeleton_Mage.glb'),
   skel_minion: assetUrl('models/Skeleton_Minion.glb'),
   skel_rogue: assetUrl('models/Skeleton_Rogue.glb'),
   skel_warrior: assetUrl('models/Skeleton_Warrior.glb'),
+};
+
+/** Per-model attack-clip search order. Default favors the mage's spellcast gesture;
+ *  the goblin model shares the same shared KayKit anim library but reads better
+ *  throwing/swinging than "casting a spell". */
+const ATTACK_CLIP_PRIORITY: Record<string, RegExp[]> = {
+  default: [/spellcast.*shoot/i, /spellcast/i, /cast/i, /attack/i, /melee/i],
+  goblin: [/^throw$/i, /throw/i, /melee.*attack/i, /attack/i],
 };
 
 const assets = new Map<string, CharacterAsset>();
@@ -65,7 +73,7 @@ export async function loadCharacters(): Promise<void> {
         walk: pickClip(clips, [/^walking_a$/i, /walking/i, /walk/i, /running/i], 'Walking_A'),
         attack: pickClip(
           clips,
-          [/spellcast.*shoot/i, /spellcast/i, /cast/i, /attack/i, /melee/i],
+          ATTACK_CLIP_PRIORITY[key] ?? ATTACK_CLIP_PRIORITY.default,
           'Attack',
         ),
         death: pickClipOrNull(clips, [/^death_a$/i, /death/i]),
@@ -90,6 +98,12 @@ export interface MageStyle {
   hatEmissive?: THREE.Color;
 }
 
+/** Goblin-specific styling: the Barbarian rig's round shield doubles nicely as a gong. */
+export interface GoblinStyle {
+  showShield?: boolean; // Gong Goblin only — the shield reads as a hand-carried gong
+  hatEmissive?: THREE.Color;
+}
+
 /** Per-unit model mapping: model key, height (world units), tint. */
 export interface UnitLook {
   model: string;
@@ -98,11 +112,13 @@ export interface UnitLook {
   tintStrength?: number;
   emissive?: THREE.Color;
   mage?: MageStyle;
+  goblin?: GoblinStyle;
   /** translucent, glossy "made of water" materials (Water Mage) */
   watery?: boolean;
 }
 
-export const WIZARD_LOOKS: Record<ElementId, UnitLook> = {
+/** Keyed by WizardDef id (not element — multiple defs, e.g. goblins, can share an element). */
+export const WIZARD_LOOKS: Record<string, UnitLook> = {
   fire: {
     model: 'mage', height: 1.45,
     tint: new THREE.Color('#ff6a1e'), tintStrength: 0.75,
@@ -144,6 +160,27 @@ export const WIZARD_LOOKS: Record<ElementId, UnitLook> = {
       hat: { sx: 1.22, sy: 1.0, sz: 1.22 }, // puffy, cloud-like
       hatEmissive: new THREE.Color('#eafff5'),
     },
+  },
+  // unspecialized shells — neutral, no styling (a pending-icon overlay marks them in 3D)
+  generic_wizard: { model: 'mage', height: 1.45, tint: new THREE.Color('#8a8494'), tintStrength: 0.5 },
+  generic_goblin: { model: 'goblin', height: 1.15, tint: new THREE.Color('#8a8494'), tintStrength: 0.55 },
+
+  // goblins — stocky Barbarian rig, green-tinted, differentiated by accent color + props
+  slingshot: {
+    model: 'goblin', height: 1.15,
+    tint: new THREE.Color('#7da35c'), tintStrength: 0.6,
+    goblin: { hatEmissive: new THREE.Color('#c9e08a') },
+  },
+  dynamite: {
+    model: 'goblin', height: 1.15,
+    tint: new THREE.Color('#8a9c4a'), tintStrength: 0.6,
+    emissive: new THREE.Color('#ff6a1e'), // faint ember glow — always sitting on a lit fuse
+    goblin: { hatEmissive: new THREE.Color('#ffb163') },
+  },
+  gong: {
+    model: 'goblin', height: 1.15,
+    tint: new THREE.Color('#6a9c6a'), tintStrength: 0.6,
+    goblin: { showShield: true, hatEmissive: new THREE.Color('#f4d98a') }, // shield doubles as the gong
   },
 };
 

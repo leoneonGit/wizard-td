@@ -86,6 +86,20 @@ function makeView(look: UnitLook): UnitView {
     headMeshes = collectMeshes(inner.getObjectByName('Mage_Head'));
   }
 
+  // goblin styling: Barbarian rig — strip weapons (none of the goblin kits wield them),
+  // the round shield doubles as the Gong Goblin's hand-carried gong.
+  if (look.goblin) {
+    for (const name of ['1H_Axe', '2H_Axe', '1H_Axe_Offhand', 'Mug']) {
+      const n = inner.getObjectByName(name);
+      if (n) n.visible = false;
+    }
+    const shield = inner.getObjectByName('Barbarian_Round_Shield');
+    if (shield) shield.visible = !!look.goblin.showShield;
+    const hat = inner.getObjectByName('Barbarian_Hat');
+    if (hat) hatMeshes = collectMeshes(hat);
+    headMeshes = collectMeshes(inner.getObjectByName('Barbarian_Head'));
+  }
+
   // clone + tint materials per instance so statuses can recolor safely.
   // mages tint robes strongly, hat strongest (w/ accent glow), face barely.
   const mats: THREE.MeshStandardMaterial[] = [];
@@ -112,14 +126,15 @@ function makeView(look: UnitLook): UnitView {
     }
     if (look.tint) {
       let strength = look.tintStrength ?? 0.4;
-      if (look.mage) {
+      if (look.mage || look.goblin) {
         if (headMeshes.has(mesh)) strength = 0.08;
         else if (hatMeshes.has(mesh)) strength = Math.min(1, strength + 0.25);
       }
       m.color.lerp(look.tint, strength);
     }
-    if (look.mage?.hatEmissive && hatMeshes.has(mesh)) {
-      m.emissive.copy(look.mage.hatEmissive);
+    const accentEmissive = look.mage?.hatEmissive ?? look.goblin?.hatEmissive;
+    if (accentEmissive && hatMeshes.has(mesh)) {
+      m.emissive.copy(accentEmissive);
       m.emissiveIntensity = 0.18;
     } else if (look.emissive) {
       m.emissive.copy(look.emissive);
@@ -291,7 +306,7 @@ function syncWizards(state: GameState, dt: number): void {
     seen.add(w.id);
     let v = wizardViews.get(w.id);
     if (!v) {
-      v = makeView(WIZARD_LOOKS[w.def.element]);
+      v = makeView(WIZARD_LOOKS[w.def.id] ?? WIZARD_LOOKS.generic_wizard);
       v.idle.play();
       v.yaw = headingToYaw(w.aim);
       wizardViews.set(w.id, v);

@@ -161,6 +161,16 @@ export const sfx = {
     noise(c, t, 0.5, env(c, t, 0.4, 0.5), { type: 'bandpass', f0: 300, f1: 1200, q: 0.6 });
   },
 
+  gongPulse(): void {
+    const c = gate('gong', 200);
+    if (!c) return;
+    const t = c.currentTime;
+    // low resonant metallic boom: fundamental + a couple of inharmonic partials
+    osc(c, 'sine', 110, t, 1.1, env(c, t, 0.4, 1.1));
+    osc(c, 'triangle', 187, t, 0.9, env(c, t, 0.18, 0.9));
+    osc(c, 'triangle', 266, t, 0.7, env(c, t, 0.1, 0.7));
+  },
+
   // ---------------- impacts & reactions ----------------
   hit(): void {
     const c = gate('hit', 70);

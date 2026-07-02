@@ -1,4 +1,4 @@
-import type { WizardDef } from '../game/types';
+import type { TowerFamily, WizardDef } from '../game/types';
 
 /**
  * The three slice wizards. Upgrades: 2 paths x 3 tiers each (BTD6-style).
@@ -10,6 +10,7 @@ export const WIZARDS: Record<string, WizardDef> = {
     name: 'Fire Mage',
     element: 'fire',
     placement: 'ground',
+    family: 'wizard',
     cost: 100,
     desc: 'Hurls fireballs. Splash damage, ignites enemies (Burn). Shatters Frozen foes.',
     range: 130,
@@ -46,6 +47,7 @@ export const WIZARDS: Record<string, WizardDef> = {
     name: 'Frost Mage',
     element: 'ice',
     placement: 'ground',
+    family: 'wizard',
     cost: 110,
     desc: 'Chills and Soaks (Wet) enemies; stacked Chill Freezes. Enables Conduct & Shatter.',
     range: 120,
@@ -82,6 +84,7 @@ export const WIZARDS: Record<string, WizardDef> = {
     name: 'Storm Mage',
     element: 'lightning',
     placement: 'ground',
+    family: 'wizard',
     cost: 140,
     desc: 'Chain lightning arcs between enemies. Conducts brutally through Wet targets.',
     range: 145,
@@ -118,6 +121,8 @@ export const WIZARDS: Record<string, WizardDef> = {
     name: 'Water Mage',
     element: 'water',
     placement: 'water',
+    family: 'wizard',
+    auraKind: 'tide',
     cost: 120,
     desc: 'Builds ONLY on water. Pulsing tide Soaks (Wet) and slows everything in range — the reaction engine.',
     range: 115,
@@ -155,6 +160,8 @@ export const WIZARDS: Record<string, WizardDef> = {
     element: 'wind',
     placement: 'ground',
     needsCloud: true,
+    family: 'wizard',
+    auraKind: 'gust',
     cost: 160,
     desc: 'Rides the wind: only attacks while a cloud drifts nearby. Gusts hurl enemies BACKWARD along the path.',
     range: 130,
@@ -185,6 +192,174 @@ export const WIZARDS: Record<string, WizardDef> = {
       },
     ],
   },
+  // ---------------- goblins (physical family; no elemental resistance interplay
+  //                   except Dynamite, which reuses fire's splash+burn kit on purpose) ----------------
+  slingshot: {
+    id: 'slingshot',
+    name: 'Slingshot Goblin',
+    element: 'physical',
+    placement: 'ground',
+    family: 'goblin',
+    cost: 75,
+    desc: 'Cheap, fast, reliable. Physical damage always lands at full strength — no resistances apply.',
+    range: 110,
+    rate: 0.6,
+    damage: 8,
+    projSpeed: 380,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#a08060',
+    icon: '🪨',
+    upgrades: [
+      {
+        name: 'Quickdraw',
+        tiers: [
+          { name: 'Taut Cord', cost: 60, desc: '+3 damage', mod: { damage: 3 } },
+          { name: 'Rapid Sling', cost: 110, desc: '18% faster attacks', mod: { rateMul: 0.82 } },
+          { name: 'Iron Shot', cost: 240, desc: '+7 damage', mod: { damage: 7 } },
+        ],
+      },
+      {
+        name: 'Marksmanship',
+        tiers: [
+          { name: 'Keen Eye', cost: 60, desc: '+20 range', mod: { range: 20 } },
+          { name: 'Steady Hand', cost: 100, desc: '+5 damage', mod: { damage: 5 } },
+          { name: 'Deadeye', cost: 220, desc: '15% faster, +25 range', mod: { rateMul: 0.85, range: 25 } },
+        ],
+      },
+    ],
+  },
+
+  dynamite: {
+    id: 'dynamite',
+    name: 'Dynamite Goblin',
+    element: 'fire',
+    placement: 'ground',
+    family: 'goblin',
+    cost: 95,
+    desc: 'Lobs sputtering dynamite for big splash damage and Burn. Shares fire’s strengths — and its counters.',
+    range: 100,
+    rate: 1.5,
+    damage: 10,
+    projSpeed: 220,
+    splash: 42,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#e0522f',
+    icon: '🧨',
+    upgrades: [
+      {
+        name: 'Bigger Bangs',
+        tiers: [
+          { name: 'Extra Fuse', cost: 65, desc: '+5 damage', mod: { damage: 5 } },
+          { name: 'Shrapnel', cost: 120, desc: '+16 splash radius', mod: { splash: 16 } },
+          { name: 'Volatile Mix', cost: 260, desc: 'Burn +6 dps, +1s', mod: { burnDps: 6, burnDuration: 1 } },
+        ],
+      },
+      {
+        name: 'Munitions',
+        tiers: [
+          { name: 'Quick Fuse', cost: 70, desc: '20% faster throws', mod: { rateMul: 0.8 } },
+          { name: 'Long Toss', cost: 100, desc: '+20 range', mod: { range: 20 } },
+          { name: 'Blasting Cap', cost: 250, desc: '+9 damage, +14 splash', mod: { damage: 9, splash: 14 } },
+        ],
+      },
+    ],
+  },
+
+  gong: {
+    id: 'gong',
+    name: 'Gong Goblin',
+    element: 'physical',
+    placement: 'ground',
+    family: 'goblin',
+    auraKind: 'rattle',
+    cost: 85,
+    desc: 'Support, not a damage dealer. Pulses a Rattling gong that makes nearby foes take extra damage from everything.',
+    range: 105,
+    rate: 3,
+    damage: 0,
+    projSpeed: 0, // radial aura
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#c9a63f',
+    icon: '🔔',
+    upgrades: [
+      {
+        name: 'Resonance',
+        tiers: [
+          { name: 'Bigger Gong', cost: 65, desc: 'Rattled +8% damage taken', mod: { rattlePct: 0.08 } },
+          { name: 'Echo', cost: 110, desc: '+25 range', mod: { range: 25 } },
+          { name: 'Thunderous Peal', cost: 240, desc: 'Rattled +10% damage taken', mod: { rattlePct: 0.1 } },
+        ],
+      },
+      {
+        name: 'Cadence',
+        tiers: [
+          { name: 'Steady Beat', cost: 70, desc: '20% faster pulses', mod: { rateMul: 0.8 } },
+          { name: 'War Rhythm', cost: 110, desc: '+20 range', mod: { range: 20 } },
+          { name: 'Relentless Toll', cost: 230, desc: '25% faster pulses', mod: { rateMul: 0.75 } },
+        ],
+      },
+    ],
+  },
+
+  // ---------------- generic shells (shop-purchasable; never actually attack) ----------------
+  generic_wizard: {
+    id: 'generic_wizard',
+    name: 'Wizard',
+    element: 'physical',
+    placement: 'any', // may stand on water — that's what unlocks Water in the specialize draw
+    family: 'wizard',
+    isGeneric: true,
+    cost: 90,
+    desc: 'An unproven apprentice. Place, then click to specialize into a random draw of elements.',
+    range: 0,
+    rate: 0,
+    damage: 0,
+    projSpeed: 0,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#8a7aff',
+    icon: '🧙',
+    upgrades: [
+      { name: '—', tiers: [] },
+      { name: '—', tiers: [] },
+    ],
+  },
+
+  generic_goblin: {
+    id: 'generic_goblin',
+    name: 'Goblin',
+    element: 'physical',
+    placement: 'ground',
+    family: 'goblin',
+    isGeneric: true,
+    cost: 75,
+    desc: 'A goblin recruit, itching for a job. Place, then click to specialize into a random draw of roles.',
+    range: 0,
+    rate: 0,
+    damage: 0,
+    projSpeed: 0,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#7da35c',
+    icon: '👺',
+    upgrades: [
+      { name: '—', tiers: [] },
+      { name: '—', tiers: [] },
+    ],
+  },
 };
 
-export const SHOP_ORDER = ['fire', 'ice', 'lightning', 'water', 'wind'];
+/** Shop only sells the generic shells now — real specializations are reached via the draw. */
+export const SHOP_ORDER = ['generic_wizard', 'generic_goblin'];
+
+/** All non-generic defs for a given family, in a stable order for the specialize draw. */
+export function specializationsFor(family: TowerFamily): WizardDef[] {
+  return Object.values(WIZARDS).filter((d) => d.family === family && !d.isGeneric);
+}

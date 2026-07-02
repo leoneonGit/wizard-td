@@ -13,4 +13,6 @@ export const ELEMENTS: Record<ElementId, ElementInfo> = {
   lightning: { id: 'lightning', name: 'Lightning', color: '#c77dff', glow: '#e8c3ff' },
   water: { id: 'water', name: 'Water', color: '#3a86ff', glow: '#8fc0ff' },
   wind: { id: 'wind', name: 'Wind', color: '#b8d8d0', glow: '#e6f7f1' },
+  // goblin damage type: always unresisted (no enemy ever sets resist.physical)
+  physical: { id: 'physical', name: 'Physical', color: '#a08060', glow: '#d4b896' },
 };

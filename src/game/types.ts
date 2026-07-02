@@ -1,4 +1,5 @@
-export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind';
+export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physical';
+export type TowerFamily = 'wizard' | 'goblin';
 export type StatusId = 'burn' | 'wet' | 'chill' | 'frozen' | 'shock';
 export type TargetMode = 'first' | 'last' | 'strong' | 'close';
 export type Phase = 'build' | 'wave' | 'draft' | 'won' | 'lost';
@@ -76,6 +77,7 @@ export interface StatMods {
   projSpeed?: number;    // flat add
   soakSlow?: number;     // flat add
   knockback?: number;    // flat add (px)
+  rattlePct?: number;    // flat add (0.25 -> 0.35 etc)
 }
 
 export interface UpgradeTier {
@@ -105,10 +107,17 @@ export interface WizardDef {
   chainFalloff: number; // damage multiplier per hop
   color: string;
   icon: string;
-  /** terrain rule: ground wizards can't stand in water and vice versa */
-  placement: 'ground' | 'water';
+  /** terrain rule: ground wizards can't stand in water and vice versa. 'any' (generic
+   *  shells only) may be placed on either — where you stand gates the specialize draw. */
+  placement: 'ground' | 'water' | 'any';
   /** only attacks while a drifting cloud is within CLOUD_RANGE */
   needsCloud?: boolean;
+  /** which tower family this specialization belongs to (Wizard/Goblin/...) */
+  family: TowerFamily;
+  /** true for the shop-purchasable "unspecialized" shell — never actually fires */
+  isGeneric?: boolean;
+  /** radial support pulse instead of a normal targeted attack (Water/Wind/Gong) */
+  auraKind?: 'tide' | 'gust' | 'rattle';
   upgrades: [UpgradePath, UpgradePath];
 }
 
@@ -150,6 +159,8 @@ export interface Statuses {
   chill?: { t: number; pct: number; stacks: number };
   frozen?: { t: number };
   shock?: { t: number };
+  /** Gong Goblin debuff: extra % damage taken from ALL sources */
+  rattled?: { t: number; pct: number };
 }
 
 export interface Enemy {
@@ -188,6 +199,7 @@ export interface WizardStats {
   wetDuration: number;
   soakSlow: number; // water tide slow strength
   knockback: number; // wind gust pushback (px)
+  rattlePct: number; // gong: extra damage-taken debuff strength
 }
 
 export interface Wizard {
@@ -206,6 +218,12 @@ export interface Wizard {
   recoil: number; // cast animation timer
   /** cloud mage with no cloud in range — cannot attack, shown grayed */
   becalmed?: boolean;
+  /** true until the player chooses a specialization; def is a zero-stat generic shell */
+  pendingSpecialize?: boolean;
+  /** which family this slot belongs to (persists across the def swap on specialize) */
+  family: TowerFamily;
+  /** pre-rolled at placement time so the modal is deterministic/seeded */
+  specializeOptions?: WizardDef[];
 }
 
 /** A drifting cloud (sim entity — cloud mages only work near one). */
