@@ -5,8 +5,9 @@ import { WAVES } from '../data/waves';
 import { PROP_MODELS } from './mapio';
 import { Track } from './path';
 import type {
-  CardDef, Cloud, Enemy, MapDef, Phase, Projectile, ReactionMods, RunStats,
-  TargetMode, TowerFamily, WaveModifier, Wizard, WizardDef, WizardStats,
+  CardDef, Cloud, Enemy, EventDef, MapDef, NodeKind, Phase, Projectile, ReactionMods,
+  RelicDef, RelicSpecial, RunStats, TargetMode, TowerFamily, WaveModifier, Wizard,
+  WizardDef, WizardStats,
 } from './types';
 
 export interface PendingSpawn {
@@ -49,6 +50,20 @@ export interface GameState {
   clock: number;
   /** Soul Harvest-style permanent damage ramp (%), capped by the granting card */
   killStackPct: number;
+
+  // branching map + relics + events
+  relics: RelicDef[];
+  /** node choices offered for the upcoming wave (re-rolled per round) */
+  nextNodes: NodeKind[];
+  nodesForRound: number;
+  nodeChoice: NodeKind;
+  /** what kind of node the RUNNING wave was started as (drives clear rewards) */
+  waveKind: NodeKind;
+  /** wave modifier forced by an event (cursed chest / storm blessing) */
+  forcedModifier: WaveModifier | null;
+  pendingRelicDraft: RelicDef[] | null;
+  pendingEvent: EventDef | null;
+  seenEvents: string[];
 
   enemies: Enemy[];
   wizards: Wizard[];
@@ -131,6 +146,15 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): 
     stats: freshStats(),
     clock: 0,
     killStackPct: 0,
+    relics: [],
+    nextNodes: ['normal'],
+    nodesForRound: -1,
+    nodeChoice: 'normal',
+    waveKind: 'normal',
+    forcedModifier: null,
+    pendingRelicDraft: null,
+    pendingEvent: null,
+    seenEvents: [],
     // two clouds per path, staggered half a lap apart — keeps wind uptime reasonable
     clouds: cloudTracks.flatMap((t, i) =>
       [0, t.total / 2].map((d) => {
@@ -195,6 +219,7 @@ export function computeStats(def: WizardDef, tiers: [number, number], draftMods:
     entangleDur: def.entangles ? 1.0 : 0,
     rootSlow: def.groundAttack ? 0.25 : 0,
   };
+  if (def.baseMods) applyMod(s, def.baseMods); // evolved-form tuning of aura/status bases
   for (let p = 0; p < 2; p++) {
     for (let t = 0; t < tiers[p]; t++) {
       applyMod(s, def.upgrades[p].tiers[t].mod);
@@ -363,4 +388,119 @@ export function drawDraft(state: GameState, count = 3, rareOnly = false): CardDe
 import { CARDS as _CARDS, RARITY_WEIGHT as _WEIGHTS } from '../data/cards';
 function cardsData() {
   return { CARDS: _CARDS, RARITY_WEIGHT: _WEIGHTS };
+}
+
+// ---------------------------------------------------------------- relics
+
+/** Pick up a relic: remember it, and push its hidden-card payload into the engine. */
+export function applyRelic(state: GameState, relic: RelicDef): void {
+  if (state.relics.some((r) => r.id === relic.id)) return;
+  state.relics.push(relic);
+  if (relic.payload) applyCard(state, relic.payload);
+}
+
+export function relicSpecial(state: GameState, special: RelicSpecial): boolean {
+  return state.relics.some((r) => r.special?.includes(special));
+}
+
+/** Draw `count` distinct unowned relics, rarity-weighted (seeded). */
+export function drawRelics(state: GameState, count = 2): RelicDef[] {
+  const owned = new Set(state.relics.map((r) => r.id));
+  let pool = _RELICS.filter((r) => !owned.has(r.id));
+  const picks: RelicDef[] = [];
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    const total = pool.reduce((sum, r) => sum + _RELIC_WEIGHT[r.rarity], 0);
+    let roll = state.rng() * total;
+    let chosen = pool[0];
+    for (const r of pool) {
+      roll -= _RELIC_WEIGHT[r.rarity];
+      if (roll <= 0) {
+        chosen = r;
+        break;
+      }
+    }
+    picks.push(chosen);
+    pool = pool.filter((r) => r.id !== chosen.id);
+  }
+  return picks;
+}
+
+import { RELICS as _RELICS, RELIC_RARITY_WEIGHT as _RELIC_WEIGHT } from '../data/relics';
+
+// ---------------------------------------------------------------- branching map
+
+const NODE_MIN_ROUND = 2; // first two waves are always plain
+const ELITE_MIN = 3;
+
+/** Roll (once per round, seeded) the node choices for the upcoming wave. */
+export function ensureNodes(state: GameState): void {
+  if (state.nodesForRound === state.round) return;
+  state.nodesForRound = state.round;
+  state.nodeChoice = 'normal';
+  const nodes: NodeKind[] = ['normal'];
+  if (state.round >= NODE_MIN_ROUND) {
+    if (state.round >= ELITE_MIN && state.rng() < 0.5) nodes.push('elite');
+    if (state.rng() < 0.35) nodes.push('treasure');
+    if (state.rng() < 0.4 && state.seenEvents.length < eventCount()) nodes.push('event');
+  }
+  state.nextNodes = nodes.slice(0, 3);
+}
+
+// lazy to dodge data cycles
+import { EVENTS as _EVENTS } from '../data/events';
+function eventCount(): number {
+  return _EVENTS.length;
+}
+
+/** Seeded pick of an unseen event; marks it seen. */
+export function drawEvent(state: GameState): EventDef | null {
+  const pool = _EVENTS.filter((e) => !state.seenEvents.includes(e.id));
+  if (pool.length === 0) return null;
+  const e = pool[Math.floor(state.rng() * pool.length)];
+  state.seenEvents.push(e.id);
+  return e;
+}
+
+// ---------------------------------------------------------------- evolutions
+
+export interface EvolveCheck {
+  ok: boolean;
+  cost: number;
+  discounted: boolean;
+  reason?: string;
+}
+
+/** Both upgrade paths maxed → the tower may evolve. Holding the tagged card halves the cost. */
+export function canEvolve(state: GameState, w: Wizard): EvolveCheck | null {
+  const evo = evolutionsData()[w.def.id];
+  if (!evo) return null;
+  const maxed =
+    w.tiers[0] >= w.def.upgrades[0].tiers.length &&
+    w.tiers[1] >= w.def.upgrades[1].tiers.length;
+  const discounted = state.draftMods.some((c) => c.id === evo.cardId);
+  const cost = discounted ? Math.floor(evo.cost / 2) : evo.cost;
+  if (!maxed) return { ok: false, cost, discounted, reason: 'Max both paths first' };
+  if (state.gold < cost) return { ok: false, cost, discounted, reason: 'Not enough gold' };
+  return { ok: true, cost, discounted };
+}
+
+export function evolveWizard(state: GameState, w: Wizard): boolean {
+  const check = canEvolve(state, w);
+  const evo = evolutionsData()[w.def.id];
+  if (!check?.ok || !evo) return false;
+  state.gold -= check.cost;
+  w.invested += check.cost;
+  w.def = wizardById(evo.to);
+  w.tiers = [0, 0]; // evolved forms have no further paths
+  w.stats = computeStats(w.def, w.tiers, state.draftMods);
+  w.cooldown = 0;
+  return true;
+}
+
+import { EVOLUTIONS as _EVOLUTIONS, WIZARDS as _WIZARDS } from '../data/wizards';
+function evolutionsData() {
+  return _EVOLUTIONS;
+}
+function wizardById(id: string): WizardDef {
+  return _WIZARDS[id];
 }

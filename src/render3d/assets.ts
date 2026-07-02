@@ -272,6 +272,92 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     tint: new THREE.Color('#55663d'), tintStrength: 0.8, // green sappy young wood
     ent: { canopy: 'canopy_b', canopyScale: 0.8, canopyTint: new THREE.Color('#6fcf5f') },
   },
+
+  // ---------------- EVOLVED super-forms: bigger, brighter, unmistakable ----------------
+  phoenix: {
+    model: 'mage', height: 1.7,
+    tint: new THREE.Color('#ff8c42'), tintStrength: 0.85,
+    emissive: new THREE.Color('#ff5500'),
+    mage: { hat: { sx: 0.7, sy: 1.9, sz: 0.7, rotX: -0.3 }, hatEmissive: new THREE.Color('#ffb163') },
+  },
+  wintercourt: {
+    model: 'mage', height: 1.7,
+    tint: new THREE.Color('#a8e6ff'), tintStrength: 0.7,
+    emissive: new THREE.Color('#7fd8ff'),
+    mage: { hat: { sx: 1.6, sy: 0.7, sz: 1.6 }, spellbook: true, hatEmissive: new THREE.Color('#ffffff') },
+  },
+  tempest: {
+    model: 'mage', height: 1.7,
+    tint: new THREE.Color('#d9a8ff'), tintStrength: 0.7,
+    emissive: new THREE.Color('#b06bff'),
+    mage: { hat: { sx: 0.95, sy: 1.7, sz: 0.95, rotZ: 0.45 }, hatEmissive: new THREE.Color('#f0dcff') },
+  },
+  tidelord: {
+    model: 'mage', height: 1.7,
+    tint: new THREE.Color('#26c2e8'), tintStrength: 0.6,
+    watery: true,
+    mage: { hat: { sx: 1.3, sy: 1.0, sz: 1.3, rotX: 0.4 }, hatEmissive: new THREE.Color('#bff4ff') },
+  },
+  zephyr: {
+    model: 'mage', height: 1.7,
+    tint: new THREE.Color('#dff2ea'), tintStrength: 0.6,
+    emissive: new THREE.Color('#bcd9ce'),
+    mage: { hat: { sx: 1.4, sy: 1.15, sz: 1.4 }, hatEmissive: new THREE.Color('#ffffff') },
+  },
+  warlord: {
+    model: 'goblin', height: 1.45,
+    tint: new THREE.Color('#7da35c'), tintStrength: 0.7,
+    emissive: new THREE.Color('#c9e08a'),
+    goblin: { hatEmissive: new THREE.Color('#f4ffb0') },
+  },
+  sapperking: {
+    model: 'goblin', height: 1.45,
+    tint: new THREE.Color('#8a9c4a'), tintStrength: 0.7,
+    emissive: new THREE.Color('#ff6a1e'),
+    goblin: { hatEmissive: new THREE.Color('#ffd75e') },
+  },
+  doomgong: {
+    model: 'goblin', height: 1.45,
+    tint: new THREE.Color('#6a9c6a'), tintStrength: 0.7,
+    emissive: new THREE.Color('#f4d98a'),
+    goblin: { showShield: true, hatEmissive: new THREE.Color('#ffd75e') },
+  },
+  stormpiercer: {
+    model: 'ranger', height: 1.75,
+    tint: new THREE.Color('#4e8f4e'), tintStrength: 0.65,
+    emissive: new THREE.Color('#7dff9b'),
+    hideRe: /knife|dagger|sword|crossbow/i,
+  },
+  ironstorm: {
+    model: 'knight', height: 1.55,
+    tint: new THREE.Color('#5b7fc9'), tintStrength: 0.65,
+    emissive: new THREE.Color('#8fb4ff'),
+    hideRe: /sword|shield/i,
+  },
+  chainwarden: {
+    model: 'goblin', height: 1.55,
+    tint: new THREE.Color('#4a5548'), tintStrength: 0.75,
+    emissive: new THREE.Color('#c8d6b0'),
+    goblin: { hatEmissive: new THREE.Color('#e8f2d8') },
+  },
+  elderroot: {
+    model: 'goblin', height: 2.15,
+    tint: new THREE.Color('#4a3624'), tintStrength: 0.9,
+    emissive: new THREE.Color('#3f6b33'),
+    ent: { canopy: 'canopy_a', canopyScale: 1.1, canopyTint: new THREE.Color('#2f5427') },
+  },
+  mountain: {
+    model: 'goblin', height: 2.4,
+    tint: new THREE.Color('#5e4c38'), tintStrength: 0.9,
+    emissive: new THREE.Color('#8d7a5e'),
+    ent: { canopy: 'canopy_a', canopyScale: 1.15, canopyTint: new THREE.Color('#4c6b38'), rock: true },
+  },
+  bramblehydra: {
+    model: 'goblin', height: 1.7,
+    tint: new THREE.Color('#3f6b33'), tintStrength: 0.85,
+    emissive: new THREE.Color('#6fcf5f'),
+    ent: { canopy: 'canopy_b', canopyScale: 1.05, canopyTint: new THREE.Color('#8fff6f') },
+  },
 };
 
 export const ENEMY_LOOKS: Record<string, UnitLook> = {

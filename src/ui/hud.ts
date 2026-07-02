@@ -20,7 +20,7 @@ export function initHud(onStart: () => void): void {
 }
 
 export function updateHud(state: GameState): void {
-  const key = `${state.gold}|${state.lives}|${state.round}|${state.phase}|${state.waveModifier?.id ?? ''}`;
+  const key = `${state.gold}|${state.lives}|${state.round}|${state.phase}|${state.waveModifier?.id ?? ''}|${state.nodeChoice}`;
   if (key === lastKey) return;
   lastKey = key;
 
@@ -30,16 +30,20 @@ export function updateHud(state: GameState): void {
 
   if (state.phase === 'build' && state.round < WAVES.length) {
     btnStart.disabled = false;
-    btnStart.textContent = `Start Wave ${state.round + 1}`;
+    const tag = state.nodeChoice === 'elite' ? ' ★' : state.nodeChoice === 'treasure' ? ' 💎' : '';
+    btnStart.textContent = `Start Wave ${state.round + 1}${tag}`;
     elWavePreview.innerHTML = previewWave(state.round);
   } else if (state.phase === 'wave') {
     btnStart.disabled = true;
     btnStart.textContent = state.waveModifier
-      ? `W${state.round + 1} ★ELITE: ${state.waveModifier.name} (${state.waveModifier.desc})`
+      ? `W${state.round + 1} ★ ${state.waveModifier.name} (${state.waveModifier.desc})`
       : `Wave ${state.round + 1} — Defend!`;
   } else if (state.phase === 'draft') {
     btnStart.disabled = true;
     btnStart.textContent = 'Choose a card…';
+  } else if (state.phase === 'relic') {
+    btnStart.disabled = true;
+    btnStart.textContent = 'Claim your relic…';
   } else {
     btnStart.disabled = true;
     btnStart.textContent = state.phase === 'won' ? 'Victory!' : 'Defeat';

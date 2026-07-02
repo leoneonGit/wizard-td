@@ -1,4 +1,4 @@
-import type { TowerFamily, WizardDef } from '../game/types';
+import type { TowerFamily, UpgradePath, WizardDef } from '../game/types';
 
 /**
  * The three slice wizards. Upgrades: 2 paths x 3 tiers each (BTD6-style).
@@ -636,5 +636,146 @@ export const SHOP_ORDER = ['generic_wizard', 'generic_goblin', 'generic_archer',
 
 /** All non-generic defs for a given family, in a stable order for the specialize draw. */
 export function specializationsFor(family: TowerFamily): WizardDef[] {
-  return Object.values(WIZARDS).filter((d) => d.family === family && !d.isGeneric);
+  return Object.values(WIZARDS).filter((d) => d.family === family && !d.isGeneric && !d.isEvolved);
 }
+
+// ---------------------------------------------------------------- evolutions
+
+const NO_PATHS: [UpgradePath, UpgradePath] = [
+  { name: '—', tiers: [] },
+  { name: '—', tiers: [] },
+];
+
+/** Evolved super-forms: reached by maxing both paths + paying gold (Evolve button).
+ *  Holding the tagged card halves the cost — build synergy pays off literally. */
+export const EVOLUTIONS: Record<string, { to: string; cost: number; cardId: string }> = {
+  fire: { to: 'phoenix', cost: 380, cardId: 'pr_wildfire' },
+  ice: { to: 'wintercourt', cost: 380, cardId: 'pr_executioner' },
+  lightning: { to: 'tempest', cost: 400, cardId: 'rx_conduct2' },
+  water: { to: 'tidelord', cost: 350, cardId: 'pr_soaked' },
+  wind: { to: 'zephyr', cost: 350, cardId: 'rx_evap1' },
+  slingshot: { to: 'warlord', cost: 340, cardId: 'pr_firstblood' },
+  dynamite: { to: 'sapperking', cost: 380, cardId: 'pr_powder' },
+  gong: { to: 'doomgong', cost: 360, cardId: 'pr_opportunist' },
+  longbow: { to: 'stormpiercer', cost: 400, cardId: 'arc_crit1' },
+  ballesta: { to: 'ironstorm', cost: 360, cardId: 'arc_root1' },
+  bolas: { to: 'chainwarden', cost: 350, cardId: 'arc_root1' },
+  rootgrasp: { to: 'elderroot', cost: 360, cardId: 'tre_crit1' },
+  boulder: { to: 'mountain', cost: 400, cardId: 'pr_harvest' },
+  thornspitter: { to: 'bramblehydra', cost: 380, cardId: 'tre_crit1' },
+};
+
+/** Compact helper for evolved defs — they share family/element/placement with the base. */
+function evolved(base: string, def: Partial<WizardDef> & { id: string; name: string; desc: string; icon: string; color: string }): WizardDef {
+  const b = WIZARDS[base];
+  return {
+    element: b.element,
+    placement: b.placement,
+    family: b.family,
+    cost: 0,
+    range: b.range,
+    rate: b.rate,
+    damage: b.damage,
+    projSpeed: b.projSpeed,
+    splash: b.splash,
+    chains: b.chains,
+    chainFalloff: b.chainFalloff,
+    needsCloud: b.needsCloud,
+    auraKind: b.auraKind,
+    pierce: b.pierce,
+    entangles: b.entangles,
+    groundAttack: b.groundAttack,
+    isEvolved: true,
+    upgrades: NO_PATHS,
+    ...def,
+  };
+}
+
+// evolved forms are registered after WIZARDS so the helper can read the bases
+Object.assign(WIZARDS, {
+  phoenix: evolved('fire', {
+    id: 'phoenix', name: 'Phoenix Herald', icon: '🐦‍🔥', color: '#ff8c42',
+    desc: 'EVOLVED. Fire made flesh — victims pass their flames on death, forever.',
+    damage: 26, rate: 0.75, splash: 44, range: 145, projSpeed: 340,
+    baseMods: { burnDps: 5, burnDuration: 1 },
+    innateFx: { spreadBurnOnDeath: true },
+  }),
+  wintercourt: evolved('ice', {
+    id: 'wintercourt', name: 'Winter Court Sage', icon: '👑', color: '#a8e6ff',
+    desc: 'EVOLVED. The deep cold answers — Frozen enemies take +60% from her hand.',
+    damage: 15, rate: 0.6, range: 155, projSpeed: 400,
+    baseMods: { chillPct: 0.15 },
+    innateFx: { bonusVsStatus: { status: 'frozen', mult: 1.6 } },
+  }),
+  tempest: evolved('lightning', {
+    id: 'tempest', name: 'Tempest Lord', icon: '🌩️', color: '#d9a8ff',
+    desc: 'EVOLVED. The storm has opinions. Every 5th bolt is a CRIT; chains run long.',
+    damage: 32, rate: 0.9, range: 165, chains: 4, chainFalloff: 0.8,
+    innateFx: { critEveryN: { n: 5, mult: 2 } },
+  }),
+  tidelord: evolved('water', {
+    id: 'tidelord', name: 'Tidelord', icon: '🔱', color: '#26c2e8',
+    desc: 'EVOLVED. The pond obeys. Wet enemies take +50% from the tide.',
+    damage: 11, rate: 0.8, range: 150,
+    baseMods: { soakSlow: 0.1, wetDuration: 2 },
+    innateFx: { bonusVsStatus: { status: 'wet', mult: 1.5 } },
+  }),
+  zephyr: evolved('wind', {
+    id: 'zephyr', name: 'Zephyr Sovereign', icon: '🌀', color: '#bcd9ce',
+    desc: 'EVOLVED. Commands the wind itself — no cloud required, and the gusts hit like walls.',
+    damage: 9, rate: 1.0, range: 140, needsCloud: false,
+    baseMods: { knockback: 40 },
+  }),
+  warlord: evolved('slingshot', {
+    id: 'warlord', name: 'Goblin Warlord', icon: '👹', color: '#7da35c',
+    desc: 'EVOLVED. His shots pierce through the whole column. The lads cheer every volley.',
+    damage: 18, rate: 0.7, range: 130, pierce: true, projSpeed: 460,
+  }),
+  sapperking: evolved('dynamite', {
+    id: 'sapperking', name: 'Sapper King', icon: '💥', color: '#ffb163',
+    desc: 'EVOLVED. Everything he kills becomes a bomb. Chain reactions are the point.',
+    damage: 32, rate: 1.0, splash: 62, range: 135,
+    innateFx: { onKillExplode: { damage: 26, radius: 52 } },
+  }),
+  doomgong: evolved('gong', {
+    id: 'doomgong', name: 'Gong of Doom', icon: '🛎️', color: '#f4d98a',
+    desc: 'EVOLVED. One strike and the whole field flinches — Rattled +40%, huge reach.',
+    rate: 1.6, range: 160,
+    baseMods: { rattlePct: 0.15 },
+  }),
+  stormpiercer: evolved('longbow', {
+    id: 'stormpiercer', name: 'Stormpiercer', icon: '🏹', color: '#7dc98f',
+    desc: 'EVOLVED. An elven legend. Every 3rd arrow CRITS for double across half the map.',
+    damage: 55, rate: 1.5, range: 240, projSpeed: 650,
+    innateFx: { critEveryN: { n: 3, mult: 2 } },
+  }),
+  ironstorm: evolved('ballesta', {
+    id: 'ironstorm', name: 'Ironstorm Arbalest', icon: '🎯', color: '#5b7fc9',
+    desc: 'EVOLVED. A crank-fed storm of bolts, each punching through the entire line.',
+    damage: 20, rate: 0.65, range: 115, projSpeed: 540,
+  }),
+  chainwarden: evolved('bolas', {
+    id: 'chainwarden', name: 'Warden of Chains', icon: '⛓️', color: '#8c9c72',
+    desc: 'EVOLVED. Longer roots, crueler hits — Entangled enemies take +50% from him.',
+    damage: 12, rate: 1.3, range: 145,
+    baseMods: { entangleDur: 0.5 },
+    innateFx: { bonusVsStatus: { status: 'entangled', mult: 1.5 } },
+  }),
+  elderroot: evolved('rootgrasp', {
+    id: 'elderroot', name: 'Elderroot Colossus', icon: '🌲', color: '#4c6b38',
+    desc: 'EVOLVED. The forest remembers. Wider eruptions, crushing grip.',
+    damage: 17, rate: 1.1, range: 135,
+    baseMods: { rootSlow: 0.15 },
+  }),
+  mountain: evolved('boulder', {
+    id: 'mountain', name: 'The Walking Mountain', icon: '⛰️', color: '#8d7a5e',
+    desc: 'EVOLVED. Every kill splinters into shrapnel. Whole waves vanish under the rubble.',
+    damage: 42, rate: 2.2, splash: 62, range: 150, projSpeed: 240,
+    innateFx: { onKillExplode: { damage: 20, radius: 48 } },
+  }),
+  bramblehydra: evolved('thornspitter', {
+    id: 'bramblehydra', name: 'Bramble Hydra', icon: '🐉', color: '#6fcf5f',
+    desc: 'EVOLVED. Two heads, twice the needles, zero mercy. The ultimate proc machine.',
+    damage: 4, rate: 0.125, range: 115, projSpeed: 500,
+  }),
+} satisfies Record<string, WizardDef>);

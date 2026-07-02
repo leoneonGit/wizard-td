@@ -1,12 +1,15 @@
 import { startLoop } from './engine/loop';
 import { pixelToCell, inBounds } from './engine/grid';
 import { WIZARDS, SHOP_ORDER } from './data/wizards';
-import { createGame, computeStats, findWizard, isBuildable, makeWizard, specializeWizard, wizardAt, type GameState } from './game/state';
+import { createGame, computeStats, evolveWizard, findWizard, isBuildable, makeWizard, specializeWizard, wizardAt, type GameState } from './game/state';
 import { updateWizards, updateProjectiles, updateEnemies, updateClouds } from './game/combat';
 import { startWave, updateWave } from './game/waves';
 import { canAfford, spend, sellWizard, towerCost } from './game/economy';
 import { initDraft, updateDraft } from './ui/draft';
 import { initSpecialize, updateSpecialize } from './ui/specialize';
+import { initRelics, updateRelics } from './ui/relics';
+import { initEvents, updateEvents } from './ui/events';
+import { initNodes, updateNodes } from './ui/nodes';
 import { initRenderer3d, draw3d, pickBoardPoint } from './render3d/renderer3d';
 import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
@@ -111,6 +114,14 @@ initDraft(() => {
 initSpecialize(() => {
   saveRun(state); // checkpoint after every specialize decision
 });
+initRelics(() => {
+  saveRun(state); // checkpoint after claiming a relic
+  if (state.autoplay) state.autoplayTimer = 1.2;
+});
+initEvents(() => {
+  saveRun(state); // checkpoint after every event decision
+});
+initNodes();
 
 // "New Run" clears the save and starts fresh on the current map
 document.getElementById('btn-newrun')?.addEventListener('click', () => {
@@ -159,6 +170,15 @@ initTowerPanel({
     w.mode = mode;
     sfx.click();
   },
+  evolve(w) {
+    const before = w.def.name;
+    if (!evolveWizard(state, w)) return;
+    fx.ring(w.x, w.y, '#ffd75e', 60);
+    fx.burst(w.x, w.y, '#ffd75e', 24, 180, 4, 0.7);
+    fx.floater(w.x, w.y - 34, `${before} → ${w.def.name}!`, '#ffd75e', 15);
+    sfx.win();
+    saveRun(state);
+  },
 });
 
 document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((btn) => {
@@ -190,7 +210,11 @@ btnMute.addEventListener('click', () => {
 // ---------------------------------------------------------------- loop
 
 function update(dt: number): void {
-  if (state.phase === 'won' || state.phase === 'lost' || state.phase === 'draft') {
+  const paused =
+    state.phase === 'won' || state.phase === 'lost' ||
+    state.phase === 'draft' || state.phase === 'relic' ||
+    state.pendingEvent !== null; // an open event vignette also freezes time
+  if (paused) {
     fx.update(dt);
     return;
   }
@@ -209,6 +233,9 @@ function render(): void {
   updateTowerPanel(state);
   updateDraft(state);
   updateSpecialize(state);
+  updateRelics(state);
+  updateEvents(state);
+  updateNodes(state);
   updateScreens(state);
 }
 
@@ -244,4 +271,13 @@ Object.defineProperty(window, '__game', { get: () => state });
   if (!w || !chosen) return false;
   specializeWizard(state, w, chosen);
   return true;
+};
+// manual sim stepping for scripted verification (hidden tabs get timer-throttled hard);
+// renders once at the end so modal/HUD DOM reflects the new state
+(window as any).__step = (seconds: number) => {
+  const dt = 1 / 60;
+  const steps = Math.min(60 * 600, Math.round(seconds / dt));
+  for (let i = 0; i < steps; i++) update(dt);
+  render();
+  return { phase: state.phase, enemies: state.enemies.length, round: state.round };
 };

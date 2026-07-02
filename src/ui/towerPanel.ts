@@ -1,4 +1,4 @@
-import { findWizard, type GameState } from '../game/state';
+import { canEvolve, findWizard, type GameState } from '../game/state';
 import { sellValue } from '../game/economy';
 import { assetUrl } from '../engine/assetUrl';
 import type { TargetMode, Wizard } from '../game/types';
@@ -16,16 +16,19 @@ let builtKey = '';
 let onUpgrade: (w: Wizard, path: 0 | 1) => void;
 let onSell: (w: Wizard) => void;
 let onMode: (w: Wizard, mode: TargetMode) => void;
+let onEvolve: (w: Wizard) => void;
 
 export function initTowerPanel(handlers: {
   upgrade: (w: Wizard, path: 0 | 1) => void;
   sell: (w: Wizard) => void;
   mode: (w: Wizard, mode: TargetMode) => void;
+  evolve: (w: Wizard) => void;
 }): void {
   panel = document.getElementById('tower-panel')!;
   onUpgrade = handlers.upgrade;
   onSell = handlers.sell;
   onMode = handlers.mode;
+  onEvolve = handlers.evolve;
 }
 
 export function updateTowerPanel(state: GameState): void {
@@ -38,7 +41,8 @@ export function updateTowerPanel(state: GameState): void {
     return;
   }
 
-  const key = `${w.id}|${w.tiers[0]}|${w.tiers[1]}|${w.mode}|${affordKey(state, w)}`;
+  const evo = canEvolve(state, w);
+  const key = `${w.id}|${w.def.id}|${w.tiers[0]}|${w.tiers[1]}|${w.mode}|${affordKey(state, w)}|${evo ? `${evo.ok}${evo.cost}` : ''}`;
   if (key === builtKey) return;
   builtKey = key;
   panel.classList.remove('hidden');
@@ -86,29 +90,49 @@ function build(state: GameState, w: Wizard): void {
   panel.querySelector<HTMLButtonElement>('.tp-sell')!.addEventListener('click', () => onSell(w));
 
   const upgWrap = panel.querySelector('#tp-upgrades')!;
-  ([0, 1] as const).forEach((p) => {
-    const path = w.def.upgrades[p];
-    const tier = w.tiers[p];
-    const next = path.tiers[tier];
-    const row = document.createElement('div');
-    row.className = 'tp-upgrade';
-    const iconTier = next ? tier : path.tiers.length - 1;
-    const iconImg = `<img class="tp-upg-icon" src="${assetUrl(`icons/upg_${w.def.id}_${p}_${iconTier}.png`)}" onerror="this.style.display='none'" alt="" />`;
-    if (!next) {
-      row.classList.add('maxed');
-      row.innerHTML = `
-        ${iconImg}<div><div class="tp-upg-name">${path.name} ★MAX</div>
-        <div class="tp-upg-desc">All ${path.tiers.length} tiers owned</div></div>`;
-    } else {
-      const afford = state.gold >= next.cost;
-      if (!afford) row.classList.add('unaffordable');
-      row.innerHTML = `
-        ${iconImg}<div style="flex:1"><div class="tp-upg-name">${path.name} ${tier + 1}/${path.tiers.length}: ${next.name}</div>
-        <div class="tp-upg-desc">${next.desc}</div></div>
-        <div class="tp-upg-cost">${next.cost}</div>`;
-      if (afford) row.addEventListener('click', () => onUpgrade(w, p));
+  if (w.def.isEvolved) {
+    const tag = document.createElement('div');
+    tag.className = 'tp-evolved-tag';
+    tag.textContent = '★ EVOLVED ★';
+    upgWrap.appendChild(tag);
+  } else {
+    ([0, 1] as const).forEach((p) => {
+      const path = w.def.upgrades[p];
+      const tier = w.tiers[p];
+      const next = path.tiers[tier];
+      const row = document.createElement('div');
+      row.className = 'tp-upgrade';
+      const iconTier = next ? tier : path.tiers.length - 1;
+      const iconImg = `<img class="tp-upg-icon" src="${assetUrl(`icons/upg_${w.def.id}_${p}_${iconTier}.png`)}" onerror="this.style.display='none'" alt="" />`;
+      if (!next) {
+        row.classList.add('maxed');
+        row.innerHTML = `
+          ${iconImg}<div><div class="tp-upg-name">${path.name} ★MAX</div>
+          <div class="tp-upg-desc">All ${path.tiers.length} tiers owned</div></div>`;
+      } else {
+        const afford = state.gold >= next.cost;
+        if (!afford) row.classList.add('unaffordable');
+        row.innerHTML = `
+          ${iconImg}<div style="flex:1"><div class="tp-upg-name">${path.name} ${tier + 1}/${path.tiers.length}: ${next.name}</div>
+          <div class="tp-upg-desc">${next.desc}</div></div>
+          <div class="tp-upg-cost">${next.cost}</div>`;
+        if (afford) row.addEventListener('click', () => onUpgrade(w, p));
+      }
+      upgWrap.appendChild(row);
+      upgWrap.appendChild(document.createTextNode(' '));
+    });
+
+    // evolution: appears once the tower is on the path (any tiers owned), unlocks when maxed
+    const evo = canEvolve(state, w);
+    if (evo && (evo.ok || w.tiers[0] + w.tiers[1] > 0)) {
+      const btn = document.createElement('button');
+      btn.className = 'tp-evolve';
+      btn.disabled = !evo.ok;
+      btn.innerHTML = evo.ok
+        ? `⬆ EVOLVE — ${evo.cost} ◉${evo.discounted ? ' (card bonus!)' : ''}`
+        : `⬆ Evolve: ${evo.reason} (${evo.cost} ◉${evo.discounted ? ', card bonus' : ''})`;
+      if (evo.ok) btn.addEventListener('click', () => onEvolve(w));
+      upgWrap.appendChild(btn);
     }
-    upgWrap.appendChild(row);
-    upgWrap.appendChild(document.createTextNode(' '));
-  });
+  }
 }

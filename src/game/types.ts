@@ -2,7 +2,40 @@ export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physi
 export type TowerFamily = 'wizard' | 'goblin' | 'archer' | 'tree';
 export type StatusId = 'burn' | 'wet' | 'chill' | 'frozen' | 'shock';
 export type TargetMode = 'first' | 'last' | 'strong' | 'close';
-export type Phase = 'build' | 'wave' | 'draft' | 'won' | 'lost';
+export type Phase = 'build' | 'wave' | 'draft' | 'relic' | 'won' | 'lost';
+
+/** Branching wave map: what kind of node the player picks for the next wave. */
+export type NodeKind = 'normal' | 'elite' | 'treasure' | 'event';
+
+/** Hooks the hidden-card payload can't express — checked at specific engine sites. */
+export type RelicSpecial = 'spawnChill' | 'draft4' | 'hasteEnemies' | 'killLives';
+
+/** Run-wide artifact (Slay-the-Spire relic). `payload` is a hidden card pushed into
+ *  draftMods so the whole card engine (mods/fx/reaction/econ) works for free. */
+export interface RelicDef {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  rarity: 'uncommon' | 'rare';
+  payload?: CardDef;
+  special?: RelicSpecial[];
+}
+
+/** Between-wave choice vignette. `effect` ids are resolved in game/events logic. */
+export interface EventChoice {
+  label: string;
+  desc: string;
+  effect: string;
+}
+
+export interface EventDef {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  choices: EventChoice[];
+}
 
 /** Tunable reaction numbers — defaults live in state, buffed by drafted cards. */
 export interface ReactionMods {
@@ -73,6 +106,8 @@ export interface WaveModifier {
   hpMult?: number;
   immune?: StatusId[];
   gustImmune?: boolean;
+  /** bounty multiplier for kills during this wave (Storm Blessing event) */
+  bountyMult?: number;
 }
 
 // ---------- data definitions (content, not engine) ----------
@@ -152,6 +187,12 @@ export interface WizardDef {
   entangles?: boolean;
   /** Rootgrasp Tree: instant eruption at the target's feet (no projectile), small area */
   groundAttack?: boolean;
+  /** evolved super-form: excluded from specialize draws, reached via Evolve only */
+  isEvolved?: boolean;
+  /** built-in triggered ability (evolved forms) — scanned by the proc engine like a card */
+  innateFx?: ProcFx;
+  /** flat stat tweaks applied on top of the element/aura bases (evolved-form tuning) */
+  baseMods?: StatMods;
   upgrades: [UpgradePath, UpgradePath];
 }
 

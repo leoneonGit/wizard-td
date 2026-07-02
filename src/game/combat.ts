@@ -3,7 +3,7 @@ import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
 import { pickTarget, enemiesInRange, hasLOS } from './targeting';
 import { attackProcMult, conditionalDamageMult, frenzyRateMul } from './procs';
-import { cardAppliesTo, type GameState } from './state';
+import { cardAppliesTo, relicSpecial, type GameState } from './state';
 import type { ElementId, Enemy, Projectile, Wizard } from './types';
 
 /** ---- Elemental reactions (the signature mechanic) ----
@@ -461,13 +461,18 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
 }
 
 function kill(state: GameState, e: Enemy, src?: Wizard): void {
-  const bounty = e.def.bounty + state.bountyBonus;
+  const bounty = Math.round(e.def.bounty * (state.waveModifier?.bountyMult ?? 1)) + state.bountyBonus;
   state.gold += bounty;
   state.stats.kills++;
   fx.floater(e.x, e.y - 22, `+${bounty}`, '#ffd75e', 12);
   fx.burst(e.x, e.y, e.def.color, 12, 130, 3.5, 0.5);
   fx.ring(e.x, e.y, e.def.color, e.def.boss ? 46 : 24);
   sfx.coin();
+  // Blood Chalice relic: every 40 kills restores a life
+  if (state.stats.kills % 40 === 0 && relicSpecial(state, 'killLives')) {
+    state.lives++;
+    fx.floater(e.x, e.y - 40, '🍷 +1 ❤', '#ff9db5', 14);
+  }
   onKillProcs(state, e, src);
 }
 
@@ -479,53 +484,58 @@ function onKillProcs(state: GameState, e: Enemy, src?: Wizard): void {
     // (burn ticks) trigger only unscoped ('all', no family) cards
     const scoped = c.element !== 'all' || !!c.family;
     const attributed = src ? cardAppliesTo(c, src.def) : !scoped;
+    runKillFx(state, e, src, c.fx, attributed);
+  }
+  // evolved forms carry their own triggered abilities (always attributed to themselves)
+  if (src?.def.innateFx) runKillFx(state, e, src, src.def.innateFx, true);
+}
 
-    // Wildfire is self-scoping (the victim must be burning) — any death counts,
-    // because burn deaths usually have no source tower at all
-    if (c.fx.spreadBurnOnDeath && e.statuses.burn) {
-      let best: Enemy | undefined;
-      let bestD2 = 90 * 90;
-      for (const o of state.enemies) {
-        if (o === e || o.hp <= 0 || o.statuses.burn || o.immunities?.includes('burn')) continue;
-        const d2 = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
-        if (d2 <= bestD2) {
-          bestD2 = d2;
-          best = o;
-        }
-      }
-      if (best) {
-        best.statuses.burn = { t: Math.max(e.statuses.burn.t, 1.5), dps: e.statuses.burn.dps };
-        fx.arc(e.x, e.y, best.x, best.y, '#ff7b00');
-        fx.floater(best.x, best.y - 16, 'Wildfire!', '#ff9b4a', 11);
-      }
-    }
-
-    if (!attributed) continue;
-
-    const ex = c.fx.onKillExplode;
-    if (ex) {
-      fx.burst(e.x, e.y, '#ffab5e', 14, 160, 3.5);
-      fx.ring(e.x, e.y, '#ff7b00', ex.radius);
-      for (const o of state.enemies) {
-        if (o === e || o.hp <= 0) continue;
-        const dx = o.x - e.x;
-        const dy = o.y - e.y;
-        if (dx * dx + dy * dy <= (ex.radius + o.def.radius) ** 2) {
-          dealDamage(state, o, ex.damage, 'physical', src); // may chain — corpses explode corpses
-        }
+function runKillFx(state: GameState, e: Enemy, src: Wizard | undefined, f: import('./types').ProcFx, attributed: boolean): void {
+  // Wildfire is self-scoping (the victim must be burning) — any death counts,
+  // because burn deaths usually have no source tower at all
+  if (f.spreadBurnOnDeath && e.statuses.burn) {
+    let best: Enemy | undefined;
+    let bestD2 = 90 * 90;
+    for (const o of state.enemies) {
+      if (o === e || o.hp <= 0 || o.statuses.burn || o.immunities?.includes('burn')) continue;
+      const d2 = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+      if (d2 <= bestD2) {
+        bestD2 = d2;
+        best = o;
       }
     }
-
-    const g = c.fx.onKillGold;
-    if (g && state.rng() < g.chance) {
-      state.gold += g.amount;
-      fx.floater(e.x, e.y - 36, `+${g.amount} bonus`, '#ffd75e', 11);
+    if (best) {
+      best.statuses.burn = { t: Math.max(e.statuses.burn.t, 1.5), dps: e.statuses.burn.dps };
+      fx.arc(e.x, e.y, best.x, best.y, '#ff7b00');
+      fx.floater(best.x, best.y - 16, 'Wildfire!', '#ff9b4a', 11);
     }
+  }
 
-    const stk = c.fx.onKillStackDamage;
-    if (stk && state.killStackPct < stk.capPct) {
-      state.killStackPct = Math.min(stk.capPct, state.killStackPct + stk.pct);
+  if (!attributed) return;
+
+  const ex = f.onKillExplode;
+  if (ex) {
+    fx.burst(e.x, e.y, '#ffab5e', 14, 160, 3.5);
+    fx.ring(e.x, e.y, '#ff7b00', ex.radius);
+    for (const o of state.enemies) {
+      if (o === e || o.hp <= 0) continue;
+      const dx = o.x - e.x;
+      const dy = o.y - e.y;
+      if (dx * dx + dy * dy <= (ex.radius + o.def.radius) ** 2) {
+        dealDamage(state, o, ex.damage, 'physical', src); // may chain — corpses explode corpses
+      }
     }
+  }
+
+  const g = f.onKillGold;
+  if (g && state.rng() < g.chance) {
+    state.gold += g.amount;
+    fx.floater(e.x, e.y - 36, `+${g.amount} bonus`, '#ffd75e', 11);
+  }
+
+  const stk = f.onKillStackDamage;
+  if (stk && state.killStackPct < stk.capPct) {
+    state.killStackPct = Math.min(stk.capPct, state.killStackPct + stk.pct);
   }
 }
 

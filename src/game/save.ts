@@ -1,9 +1,10 @@
 /** Run persistence: snapshot at build-phase boundaries, restore on boot. */
 import { makeRng } from '../engine/rng';
 import { CARDS } from '../data/cards';
+import { RELICS } from '../data/relics';
 import { WIZARDS } from '../data/wizards';
 import { loadMap } from './mapio';
-import { applyCard, computeStats, createGame, makeWizard, type GameState } from './state';
+import { applyCard, applyRelic, computeStats, createGame, makeWizard, type GameState } from './state';
 import type { RunStats, TargetMode } from './types';
 
 const LS_KEY = 'wizardtd.run';
@@ -29,6 +30,8 @@ export interface RunSave {
   stats: RunStats;
   /** Soul Harvest ramp — permanent within the run, so it must survive a reload */
   killStackPct?: number;
+  relicIds?: string[];
+  seenEvents?: string[];
 }
 
 export function saveRun(state: GameState): void {
@@ -51,6 +54,8 @@ export function saveRun(state: GameState): void {
     })),
     stats: state.stats,
     killStackPct: state.killStackPct,
+    relicIds: state.relics.map((r) => r.id),
+    seenEvents: [...state.seenEvents],
   };
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(save));
@@ -89,6 +94,13 @@ export function restoreRun(save: RunSave): GameState | null {
     const card = CARDS.find((c) => c.id === id);
     if (card) applyCard(state, card);
   }
+
+  // replay relics (pushes their hidden-card payloads too)
+  for (const id of save.relicIds ?? []) {
+    const relic = RELICS.find((r) => r.id === id);
+    if (relic) applyRelic(state, relic);
+  }
+  state.seenEvents = [...(save.seenEvents ?? [])];
 
   // rebuild towers
   for (const ws of save.wizards) {
