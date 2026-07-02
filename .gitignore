@@ -3,3 +3,4 @@ dist/
 art/raw/
 .env
 .env.local
+.github/
