@@ -3,16 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wizard TD</title>
-    <script type="module" crossorigin src="./assets/main-DeitS8Uh.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/mapio-Ds91L4eG.js">
-    <link rel="stylesheet" crossorigin href="./assets/mapio-C60kN0fu.css">
+    <title>Wizard TD</title>
+    <script type="module" crossorigin src="./assets/main-DJTaMe1N.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/mapio-cTcw7Etj.js">
+    <link rel="stylesheet" crossorigin href="./assets/mapio-D-BUrAst.css">
   </head>
   <body>
     <div id="app">
       <div id="board-wrap">
         <canvas id="board" width="960" height="640"></canvas>
         <div id="tower-panel" class="hidden"></div>
+        <div id="draft-modal" class="hidden"></div>
+        <div id="specialize-modal" class="hidden"></div>
         <div id="overlay" class="hidden">
           <div id="overlay-card">
             <h2 id="overlay-title"></h2>
@@ -45,9 +47,10 @@
         <div id="wave-preview"></div>
         <div id="map-row">
           <select id="map-select"></select>
+          <button id="btn-newrun" title="Abandon the saved run and start over">🔄</button>
           <a href="./editor.html" id="editor-link">🗺️ Editor</a>
         </div>
       </aside>
-    </div>
+    </div>
   </body>
 </html>
