@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "gen-art": "node tools/gen-sprites.ts",
-    "gen-anim": "node tools/gen-anim.ts"
+    "gen-anim": "node tools/gen-anim.ts",
+    "deploy": "node tools/deploy.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
