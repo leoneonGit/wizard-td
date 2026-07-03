@@ -34,6 +34,55 @@ export const ENEMIES: Record<string, EnemyDef> = {
     color: '#7a68a6', resist: { fire: 0.75, ice: 0.75 }, boss: true,
   },
 
+  // ---------------- the horde (Phase 8) ----------------
+  // trash orc — and the payload every carrier is stuffed with
+  orcraider: {
+    id: 'orcraider', name: 'Orc Raider', hp: 55, speed: 75, radius: 12, bounty: 6,
+    color: '#5e7a3a', resist: {},
+  },
+  // armored trash: physical coverage matters on ordinary waves now, not just bosses
+  orcbrute: {
+    id: 'orcbrute', name: 'Orc Brute', hp: 260, speed: 46, radius: 15, bounty: 14,
+    color: '#4a5d33', resist: {}, armor: 120,
+  },
+  // the full "think about it" package: crack the shell with physical, then BURST him —
+  // chip damage gets out-healed
+  troll: {
+    id: 'troll', name: 'Troll', hp: 1300, speed: 34, radius: 19, bounty: 60,
+    color: '#6a7d5e', resist: {}, armor: 320, regen: 0.015,
+  },
+  // death-burst carrier: kill it EARLY or fight fresh orcs deep in your territory;
+  // let it reach the gate and it costs 8 lives — it is full of troops
+  warwagon: {
+    id: 'warwagon', name: 'War Wagon', hp: 900, speed: 40, radius: 20, bounty: 45,
+    color: '#7a5c38', resist: {}, vehicle: 'wagon', leakCost: 8,
+    deathSpawns: ['orcraider', 'orcraider', 'orcraider', 'orcraider', 'orcraider'],
+  },
+  // rolling-drop carrier: unloads orcs while it advances — constant pressure
+  siegetower: {
+    id: 'siegetower', name: 'Siege Tower', hp: 1600, speed: 30, radius: 22, bounty: 80,
+    color: '#6b4f30', resist: {}, vehicle: 'tower', leakCost: 10,
+    dropSpawns: { type: 'orcraider', count: 2, period: 5 },
+  },
+  // kill-the-healer-first: his pulses keep the pack alive through your damage
+  orcshaman: {
+    id: 'orcshaman', name: 'Orc Shaman', hp: 140, speed: 60, radius: 11, bounty: 18,
+    color: '#3f8f5c', resist: {},
+    aura: { kind: 'heal', radius: 110, power: 0.03, period: 2 },
+  },
+  // the horde marches to his beat — nearby enemies move 18% faster while he lives
+  wardrummer: {
+    id: 'wardrummer', name: 'War Drummer', hp: 300, speed: 55, radius: 13, bounty: 22,
+    color: '#8a5c3a', resist: {},
+    aura: { kind: 'haste', radius: 120, power: 0.18 },
+  },
+  // slips out of reality for 1.6s of every 5 — punishes single-target tunnel vision
+  wraith: {
+    id: 'wraith', name: 'Wraith', hp: 220, speed: 95, radius: 11, bounty: 20,
+    color: '#9db8c9', resist: {},
+    phase: { period: 5, duration: 1.6 },
+  },
+
   // ---------------- act bosses ----------------
   // Act 1 finale: teaches that ARMOR only cracks under physical fire (goblins/archers/ents)
   warlord: {

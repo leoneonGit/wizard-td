@@ -81,6 +81,13 @@ function hintFor(type: string): string {
     case 'warlord': return ' <i>(BOSS — armor breaks to PHYSICAL only!)</i>';
     case 'pyretitan': return ' <i>(BOSS — fire-immune, cannot be chilled!)</i>';
     case 'colossus': return ' <i>(THE BOSS — armored, fire-hardened, cold-proof)</i>';
+    case 'orcbrute': return ' <i>(armored — physical!)</i>';
+    case 'troll': return ' <i>(armored + REGENERATES — crack, then burst!)</i>';
+    case 'warwagon': return ' <i>(carrier — kill it EARLY, leaks -8!)</i>';
+    case 'siegetower': return ' <i>(unloads orcs as it rolls, leaks -10!)</i>';
+    case 'orcshaman': return ' <i>(HEALER — focus him first!)</i>';
+    case 'wardrummer': return ' <i>(hastens the horde — silence the drums)</i>';
+    case 'wraith': return ' <i>(phases out — spread your damage)</i>';
     default: return '';
   }
 }

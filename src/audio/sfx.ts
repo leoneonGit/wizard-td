@@ -307,6 +307,48 @@ export const sfx = {
     osc(c, 'sawtooth', 523, t + 0.85, 0.9, env(c, t + 0.85, 0.12, 0.9));
   },
 
+  // ---------------- the horde ----------------
+  healChime(): void {
+    const c = gate('heal', 250);
+    if (!c) return;
+    const t = c.currentTime;
+    // soft rising two-note bell — mercy in the middle of a war
+    osc(c, 'sine', vary(880, 0.02), t, 0.25, env(c, t, 0.14, 0.25));
+    osc(c, 'sine', vary(1320, 0.02), t + 0.09, 0.3, env(c, t + 0.09, 0.1, 0.3));
+  },
+
+  drumBeat(): void {
+    const c = gate('drum', 850);
+    if (!c) return;
+    const t = c.currentTime;
+    // war drum: two low toms, marching cadence
+    sweep(c, 'sine', 120, 55, t, 0.18, env(c, t, 0.45, 0.18));
+    sweep(c, 'sine', 110, 50, t + 0.22, 0.18, env(c, t + 0.22, 0.3, 0.18));
+    noise(c, t, 0.05, env(c, t, 0.12, 0.05), { type: 'lowpass', f0: 900 });
+  },
+
+  phaseShimmer(): void {
+    const c = gate('phase', 300);
+    if (!c) return;
+    const t = c.currentTime;
+    // airy shimmer — something slipping between worlds
+    noise(c, t, 0.35, env(c, t, 0.16, 0.35), { type: 'bandpass', f0: 3200, f1: 6800, q: 3 });
+    osc(c, 'sine', vary(2093, 0.05), t, 0.3, env(c, t, 0.05, 0.3));
+  },
+
+  woodCrash(): void {
+    const c = gate('wood', 300);
+    if (!c) return;
+    const t = c.currentTime;
+    // snapping planks: knocky mid noise + low body + a couple of clacks
+    noise(c, t, 0.3, env(c, t, 0.5, 0.3), { type: 'bandpass', f0: 700, f1: 250, q: 1 });
+    sweep(c, 'sine', 110, 45, t, 0.25, env(c, t, 0.4, 0.25));
+    for (let i = 0; i < 2; i++) {
+      const dt = 0.08 + Math.random() * 0.12;
+      noise(c, t + dt, 0.04, env(c, t + dt, 0.2, 0.04), { type: 'bandpass', f0: vary(1400, 0.2), q: 3 });
+    }
+  },
+
   // ---------------- impacts & reactions ----------------
   hit(): void {
     const c = gate('hit', 70);

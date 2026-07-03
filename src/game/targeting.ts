@@ -4,7 +4,7 @@ import type { Enemy, Wizard } from './types';
 export function enemiesInRange(state: GameState, x: number, y: number, range: number): Enemy[] {
   const out: Enemy[] = [];
   for (const e of state.enemies) {
-    if (e.hp <= 0) continue;
+    if (e.hp <= 0 || e.phased) continue; // wraiths slip out of reality — untargetable
     const dx = e.x - x;
     const dy = e.y - y;
     const r = range + e.def.radius;

@@ -112,6 +112,88 @@ export async function loadCharacters(): Promise<void> {
   // procedural weapons — archers finally get their bows
   attachments.set('bow', { scene: makeBow(), rawHeight: 0.9 });
   attachments.set('crossbow', { scene: makeCrossbow(), rawHeight: 0.5 });
+  // procedural war machines — the horde's carriers
+  attachments.set('vehicle_wagon', { scene: makeWagon(), rawHeight: 1.0 });
+  attachments.set('vehicle_tower', { scene: makeSiegeTower(), rawHeight: 2.3 });
+}
+
+const WOOD_DARK = () => new THREE.MeshStandardMaterial({ color: '#4a3826', roughness: 0.85 });
+const WOOD_MID = () => new THREE.MeshStandardMaterial({ color: '#6b4f30', roughness: 0.8 });
+const IRON = () => new THREE.MeshStandardMaterial({ color: '#3a3f47', roughness: 0.5, metalness: 0.6 });
+
+function makeWheel(r: number): THREE.Mesh {
+  const wheel = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.08, 10), IRON());
+  wheel.rotation.z = Math.PI / 2; // axis along X — rolls when moving along Z
+  wheel.name = 'wheel';
+  wheel.castShadow = true;
+  return wheel;
+}
+
+/** LotR-style troop wagon: plank tub on iron wheels, a tarp, a pennant. Faces +Z. */
+function makeWagon(): THREE.Group {
+  const g = new THREE.Group();
+  const tub = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.34, 0.95), WOOD_MID());
+  tub.position.y = 0.42;
+  tub.castShadow = true;
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.08, 1.02), WOOD_DARK());
+  rim.position.y = 0.6;
+  const tarp = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.3, 0.6, 10, 1, false, 0, Math.PI),
+    new THREE.MeshStandardMaterial({ color: '#5e5346', roughness: 0.95, side: THREE.DoubleSide }),
+  );
+  tarp.rotation.z = Math.PI / 2;
+  tarp.rotation.y = Math.PI / 2;
+  tarp.position.set(0, 0.64, -0.15);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 5), WOOD_DARK());
+  mast.position.set(0, 0.95, 0.4);
+  const flag = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.24, 0.14),
+    new THREE.MeshStandardMaterial({ color: '#8a2f2f', side: THREE.DoubleSide, roughness: 0.9 }),
+  );
+  flag.position.set(0.12, 1.1, 0.4);
+  g.add(tub, rim, tarp, mast, flag);
+  for (const [x, z] of [[-0.32, 0.3], [0.32, 0.3], [-0.32, -0.32], [0.32, -0.32]] as const) {
+    const w = makeWheel(0.19);
+    w.position.set(x, 0.19, z);
+    g.add(w);
+  }
+  return g;
+}
+
+/** Rolling siege tower: tall plank keep on wheels, crenellated top, war banner. Faces +Z. */
+function makeSiegeTower(): THREE.Group {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.24, 1.0), WOOD_DARK());
+  base.position.y = 0.34;
+  base.castShadow = true;
+  const keep = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.5, 0.7), WOOD_MID());
+  keep.position.y = 1.2;
+  keep.castShadow = true;
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.07, 0.74), IRON());
+  band.position.y = 1.0;
+  const band2 = band.clone();
+  band2.position.y = 1.6;
+  g.add(base, keep, band, band2);
+  // crenellations
+  for (const [x, z] of [[-0.24, -0.24], [0.24, -0.24], [-0.24, 0.24], [0.24, 0.24]] as const) {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.14), WOOD_DARK());
+    c.position.set(x, 2.03, z);
+    g.add(c);
+  }
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 5), WOOD_DARK());
+  mast.position.y = 2.3;
+  const flag = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.3, 0.18),
+    new THREE.MeshStandardMaterial({ color: '#8a2f2f', side: THREE.DoubleSide, roughness: 0.9 }),
+  );
+  flag.position.set(0.15, 2.42, 0);
+  g.add(mast, flag);
+  for (const [x, z] of [[-0.44, 0.34], [0.44, 0.34], [-0.44, -0.34], [0.44, -0.34]] as const) {
+    const w = makeWheel(0.22);
+    w.position.set(x, 0.22, z);
+    g.add(w);
+  }
+  return g;
 }
 
 /** A recurve bow built from a bent tube + string — reads perfectly at game scale. */
@@ -205,6 +287,10 @@ export interface UnitLook {
   hideRe?: RegExp;
   /** translucent, glossy "made of water" materials (Water Mage) */
   watery?: boolean;
+  /** procedural vehicle attachment key — rendered wheels-and-planks, no rig */
+  vehicle?: string;
+  /** transparent materials whose opacity tracks the wraith's phase state */
+  ghostly?: boolean;
 }
 
 /** Keyed by WizardDef id (not element — multiple defs, e.g. goblins, can share an element). */
@@ -423,6 +509,33 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
   },
   golem: { model: 'skel_warrior', height: 2.6, tint: new THREE.Color('#3d2f5e'), tintStrength: 0.6 },
   golemling: { model: 'skel_warrior', height: 1.45, tint: new THREE.Color('#7a68a6'), tintStrength: 0.5 },
+
+  // the horde (Phase 8)
+  orcraider: { model: 'goblin', height: 1.15, tint: new THREE.Color('#5e7a3a'), tintStrength: 0.55 },
+  orcbrute: { model: 'goblin', height: 1.5, tint: new THREE.Color('#4a5d33'), tintStrength: 0.65 },
+  troll: {
+    model: 'goblin', height: 2.3,
+    tint: new THREE.Color('#6a7d5e'), tintStrength: 0.7,
+    emissive: new THREE.Color('#38553f'),
+  },
+  orcshaman: {
+    model: 'skel_mage', height: 1.2,
+    tint: new THREE.Color('#3f8f5c'), tintStrength: 0.6,
+    emissive: new THREE.Color('#3fae5a'),
+  },
+  wardrummer: {
+    model: 'goblin', height: 1.35,
+    tint: new THREE.Color('#8a5c3a'), tintStrength: 0.6,
+    goblin: { showShield: true }, // the round shield doubles as his war drum
+  },
+  wraith: {
+    model: 'skel_rogue', height: 1.15,
+    tint: new THREE.Color('#9db8c9'), tintStrength: 0.5,
+    emissive: new THREE.Color('#bcd9ff'),
+    ghostly: true,
+  },
+  warwagon: { model: 'goblin', height: 1.0, vehicle: 'vehicle_wagon', tint: new THREE.Color('#7a5c38'), tintStrength: 0.2 },
+  siegetower: { model: 'goblin', height: 2.3, vehicle: 'vehicle_tower', tint: new THREE.Color('#6b4f30'), tintStrength: 0.2 },
 
   // act bosses — huge, tinted, unmistakable
   warlord: {

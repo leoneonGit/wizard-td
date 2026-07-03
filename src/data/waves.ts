@@ -32,15 +32,17 @@ export const ACT_WAVES: WaveDef[][] = [
       { type: 'shade', count: 9, gap: 0.85, delay: 0 },
       { type: 'runner', count: 6, gap: 0.65, delay: 5 },
     ],
-    // mixed pressure
+    // mixed pressure + first ORCS (foreshadowing the horde)
     [
-      { type: 'grunt', count: 12, gap: 0.5, delay: 0 },
-      { type: 'knight', count: 5, gap: 1.1, delay: 3 },
-      { type: 'shade', count: 5, gap: 0.9, delay: 7 },
+      { type: 'grunt', count: 10, gap: 0.5, delay: 0 },
+      { type: 'orcraider', count: 6, gap: 0.7, delay: 2 },
+      { type: 'knight', count: 5, gap: 1.1, delay: 5 },
+      { type: 'shade', count: 5, gap: 0.9, delay: 8 },
     ],
-    // everything, fast
+    // everything, fast — and one BRUTE ("your magic bounces off... bring muscle")
     [
       { type: 'runner', count: 14, gap: 0.42, delay: 0 },
+      { type: 'orcbrute', count: 1, gap: 0, delay: 3 },
       { type: 'knight', count: 6, gap: 1.1, delay: 4 },
       { type: 'shade', count: 5, gap: 0.9, delay: 9 },
     ],
@@ -52,100 +54,107 @@ export const ACT_WAVES: WaveDef[][] = [
     ],
   ],
 
-  // ---------------- ACT 2 — Ashen Fen ----------------
+  // ---------------- ACT 2 — Ashen Fen (the horde arrives) ----------------
   [
     [
-      { type: 'grunt', count: 14, gap: 0.55, delay: 0 },
+      { type: 'orcraider', count: 12, gap: 0.55, delay: 0 },
       { type: 'runner', count: 6, gap: 0.6, delay: 4 },
     ],
     [
       { type: 'shade', count: 10, gap: 0.7, delay: 0 },
-      { type: 'grunt', count: 8, gap: 0.5, delay: 4 },
+      { type: 'orcbrute', count: 2, gap: 3, delay: 4 },
     ],
     [
-      { type: 'knight', count: 9, gap: 0.9, delay: 0 },
-      { type: 'runner', count: 8, gap: 0.5, delay: 4 },
+      { type: 'orcraider', count: 10, gap: 0.5, delay: 0 },
+      { type: 'orcshaman', count: 1, gap: 0, delay: 2 }, // kill the healer FIRST
+      { type: 'knight', count: 6, gap: 0.9, delay: 4 },
     ],
     [{ type: 'runner', count: 24, gap: 0.32, delay: 0 }],
+    // first WAR WAGON — kill it early or fight its orcs deep in your lines
     [
-      { type: 'golemling', count: 2, gap: 5, delay: 0 },
+      { type: 'warwagon', count: 1, gap: 0, delay: 0 },
       { type: 'shade', count: 8, gap: 0.7, delay: 3 },
     ],
     [
       { type: 'knight', count: 8, gap: 0.8, delay: 0 },
-      { type: 'shade', count: 8, gap: 0.7, delay: 4 },
-      { type: 'grunt', count: 10, gap: 0.45, delay: 8 },
+      { type: 'orcshaman', count: 2, gap: 6, delay: 2 },
+      { type: 'orcraider', count: 12, gap: 0.45, delay: 4 },
     ],
     [
-      { type: 'runner', count: 16, gap: 0.4, delay: 0 },
-      { type: 'golemling', count: 1, gap: 0, delay: 6 },
+      { type: 'runner', count: 14, gap: 0.4, delay: 0 },
+      { type: 'orcbrute', count: 3, gap: 2.5, delay: 3 },
+      { type: 'golemling', count: 1, gap: 0, delay: 7 },
     ],
     [
-      { type: 'shade', count: 14, gap: 0.55, delay: 0 },
-      { type: 'knight', count: 6, gap: 1.0, delay: 5 },
+      { type: 'warwagon', count: 2, gap: 9, delay: 0 },
+      { type: 'shade', count: 10, gap: 0.6, delay: 3 },
     ],
     [
-      { type: 'grunt', count: 18, gap: 0.35, delay: 0 },
-      { type: 'runner', count: 12, gap: 0.4, delay: 4 },
-      { type: 'knight', count: 7, gap: 0.9, delay: 8 },
+      { type: 'orcraider', count: 16, gap: 0.35, delay: 0 },
+      { type: 'orcshaman', count: 2, gap: 5, delay: 2 },
+      { type: 'orcbrute', count: 3, gap: 2.2, delay: 5 },
+      { type: 'knight', count: 6, gap: 0.9, delay: 9 },
     ],
     // BOSS: the Pyre Titan — burns cannot touch it, cold slides off
     [
       { type: 'pyretitan', count: 1, gap: 0, delay: 0 },
-      { type: 'shade', count: 8, gap: 1.0, delay: 5 },
-      { type: 'runner', count: 10, gap: 0.5, delay: 9 },
+      { type: 'orcshaman', count: 1, gap: 0, delay: 4 }, // healing the Titan!
+      { type: 'orcraider', count: 10, gap: 0.5, delay: 6 },
     ],
   ],
 
-  // ---------------- ACT 3 — Obsidian Pass ----------------
+  // ---------------- ACT 3 — Obsidian Pass (the full war machine) ----------------
   [
     [
-      { type: 'knight', count: 10, gap: 0.7, delay: 0 },
-      { type: 'shade', count: 8, gap: 0.7, delay: 4 },
+      { type: 'orcraider', count: 14, gap: 0.5, delay: 0 },
+      { type: 'wardrummer', count: 1, gap: 0, delay: 2 }, // the horde marches to his beat
+      { type: 'orcbrute', count: 2, gap: 3, delay: 4 },
     ],
     [
-      { type: 'runner', count: 20, gap: 0.32, delay: 0 },
-      { type: 'grunt', count: 12, gap: 0.4, delay: 4 },
+      { type: 'wraith', count: 6, gap: 1.0, delay: 0 }, // they slip between your shots
+      { type: 'runner', count: 12, gap: 0.4, delay: 4 },
     ],
     [
-      { type: 'golemling', count: 2, gap: 4, delay: 0 },
+      { type: 'troll', count: 1, gap: 0, delay: 0 }, // crack him and BURST — he heals
       { type: 'knight', count: 8, gap: 0.8, delay: 3 },
     ],
     [
-      { type: 'shade', count: 16, gap: 0.5, delay: 0 },
-      { type: 'runner', count: 10, gap: 0.45, delay: 5 },
+      { type: 'siegetower', count: 1, gap: 0, delay: 0 }, // it unloads as it rolls
+      { type: 'shade', count: 10, gap: 0.6, delay: 4 },
     ],
     [
-      { type: 'grunt', count: 22, gap: 0.3, delay: 0 },
-      { type: 'knight', count: 8, gap: 0.8, delay: 5 },
-      { type: 'shade', count: 8, gap: 0.7, delay: 9 },
+      { type: 'orcraider', count: 18, gap: 0.35, delay: 0 },
+      { type: 'orcshaman', count: 2, gap: 5, delay: 2 },
+      { type: 'wardrummer', count: 1, gap: 0, delay: 5 },
+      { type: 'orcbrute', count: 3, gap: 2.5, delay: 6 },
     ],
     [
-      { type: 'golem', count: 1, gap: 0, delay: 0 },
-      { type: 'runner', count: 12, gap: 0.45, delay: 4 },
+      { type: 'troll', count: 2, gap: 8, delay: 0 },
+      { type: 'wraith', count: 6, gap: 0.9, delay: 3 },
     ],
     [
-      { type: 'knight', count: 12, gap: 0.6, delay: 0 },
-      { type: 'golemling', count: 2, gap: 4, delay: 4 },
+      { type: 'siegetower', count: 1, gap: 0, delay: 0 },
+      { type: 'warwagon', count: 1, gap: 0, delay: 8 },
+      { type: 'knight', count: 8, gap: 0.7, delay: 4 },
     ],
     [
-      { type: 'shade', count: 12, gap: 0.5, delay: 0 },
-      { type: 'runner', count: 16, gap: 0.35, delay: 4 },
-      { type: 'knight', count: 8, gap: 0.8, delay: 8 },
+      { type: 'wraith', count: 8, gap: 0.7, delay: 0 },
+      { type: 'orcshaman', count: 2, gap: 5, delay: 2 },
+      { type: 'troll', count: 1, gap: 0, delay: 6 },
+      { type: 'runner', count: 12, gap: 0.4, delay: 8 },
     ],
     [
-      { type: 'grunt', count: 20, gap: 0.3, delay: 0 },
-      { type: 'runner', count: 14, gap: 0.35, delay: 3 },
-      { type: 'knight', count: 9, gap: 0.7, delay: 7 },
-      { type: 'shade', count: 9, gap: 0.6, delay: 11 },
+      { type: 'siegetower', count: 2, gap: 12, delay: 0 },
+      { type: 'wardrummer', count: 2, gap: 8, delay: 2 },
+      { type: 'orcraider', count: 16, gap: 0.35, delay: 4 },
+      { type: 'orcbrute', count: 4, gap: 2.2, delay: 8 },
     ],
-    // THE BOSS: the Dread Colossus — armored, fire-hardened, cold-proof.
-    // Cracking the shell releases its heartlings.
+    // THE BOSS: the Dread Colossus rides with the whole war machine.
     [
       { type: 'colossus', count: 1, gap: 0, delay: 0 },
-      { type: 'knight', count: 6, gap: 1.2, delay: 6 },
-      { type: 'shade', count: 6, gap: 1.0, delay: 10 },
-      { type: 'runner', count: 12, gap: 0.5, delay: 14 },
+      { type: 'orcshaman', count: 2, gap: 6, delay: 4 }, // healers on the Colossus!
+      { type: 'troll', count: 1, gap: 0, delay: 8 },
+      { type: 'wraith', count: 6, gap: 0.8, delay: 12 },
     ],
   ],
 ];

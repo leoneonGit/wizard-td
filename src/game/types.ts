@@ -129,6 +129,20 @@ export interface EnemyDef {
   innateImmune?: StatusId[];
   /** enemy ids spawned when this boss's armor shatters */
   armorBreakSpawns?: string[];
+  /** carrier: enemy ids released at the corpse when this unit dies (War Wagon bursts) */
+  deathSpawns?: string[];
+  /** carrier: units dropped periodically WHILE rolling (Siege Tower drip) */
+  dropSpawns?: { type: string; count: number; period: number };
+  /** self-heal, as a fraction of maxHp per second (Troll) — chip damage stops working */
+  regen?: number;
+  /** support aura: heal pulses or a haste field for nearby allies */
+  aura?: { kind: 'heal' | 'haste'; radius: number; power: number; period?: number };
+  /** Wraith: untargetable for `duration`s out of every `period`s */
+  phase?: { period: number; duration: number };
+  /** lives lost if this reaches the gate (default: boss 5, else 1) — carriers hurt */
+  leakCost?: number;
+  /** rendered as a procedural vehicle instead of a rigged character */
+  vehicle?: 'wagon' | 'tower';
 }
 
 export interface StatMods {
@@ -287,6 +301,16 @@ export interface Enemy {
   entangleCd?: number;
   /** remaining boss armor — see EnemyDef.armor */
   armorHp?: number;
+  /** carrier drip: seconds until the next dropSpawns release */
+  dropCd?: number;
+  /** wraith phase clock (sec, cycles def.phase.period) */
+  phaseT?: number;
+  /** true while untargetable — towers skip this enemy entirely */
+  phased?: boolean;
+  /** shaman heal-pulse cooldown */
+  auraCd?: number;
+  /** transient drummer haste (recomputed every tick; 1 = no drummer nearby) */
+  hasteMul?: number;
   /** elite-wave status immunities */
   immunities?: StatusId[];
   gustImmune?: boolean;

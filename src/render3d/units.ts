@@ -16,12 +16,13 @@ interface UnitView {
   /** WizardDef id the view was built for — specializing swaps the def, so the view rebuilds */
   defId?: string;
   inner: THREE.Group; // scaled model
-  mixer: THREE.AnimationMixer;
-  idle: THREE.AnimationAction;
-  walk: THREE.AnimationAction;
-  attack: THREE.AnimationAction;
-  death: THREE.AnimationAction | null;
-  cheer: THREE.AnimationAction | null;
+  /** absent for vehicles — they roll instead of walking */
+  mixer?: THREE.AnimationMixer;
+  idle?: THREE.AnimationAction;
+  walk?: THREE.AnimationAction;
+  attack?: THREE.AnimationAction;
+  death?: THREE.AnimationAction | null;
+  cheer?: THREE.AnimationAction | null;
   mats: THREE.MeshStandardMaterial[];
   origColors: THREE.Color[];
   baseEmissive: THREE.Color;
@@ -35,6 +36,10 @@ interface UnitView {
   iceCube?: THREE.Mesh;
   /** translucent stone shell shown while a boss's armor holds */
   armorShell?: THREE.Mesh;
+  /** vehicle wheels — spun with movement */
+  wheels?: THREE.Mesh[];
+  /** wraith: opacity follows the phase state */
+  ghostly?: boolean;
   height: number;
 }
 
@@ -58,7 +63,47 @@ export function initUnits(scene: THREE.Scene, exitPos: THREE.Vector3): void {
   exitWorld = exitPos;
 }
 
+/** Vehicles are procedural wheel-and-plank rigs — no skeleton, they roll and rock. */
+function makeVehicleView(look: UnitLook): UnitView {
+  const asset = getAttachment(look.vehicle!);
+  const root = new THREE.Group();
+  const inner = new THREE.Group();
+  root.add(inner);
+  const mats: THREE.MeshStandardMaterial[] = [];
+  const wheels: THREE.Mesh[] = [];
+  if (asset) {
+    const body = asset.scene.clone(true);
+    body.scale.setScalar(look.height / asset.rawHeight);
+    inner.add(body);
+    body.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const m = (mesh.material as THREE.MeshStandardMaterial).clone();
+      if (look.tint) m.color.lerp(look.tint, look.tintStrength ?? 0.25);
+      mesh.material = m;
+      mats.push(m);
+      if (/wheel/i.test(mesh.name)) wheels.push(mesh);
+    });
+  }
+  return {
+    root,
+    inner,
+    mats,
+    origColors: mats.map((m) => m.color.clone()),
+    baseEmissive: new THREE.Color(0x000000),
+    yaw: 0,
+    casting: false,
+    cheering: false,
+    becalmed: false,
+    watery: false,
+    prevRecoil: 0,
+    wheels,
+    height: look.height,
+  };
+}
+
 function makeView(look: UnitLook): UnitView {
+  if (look.vehicle) return makeVehicleView(look);
   const asset = getAsset(look.model);
   const inner = SkeletonUtils.clone(asset.scene) as THREE.Group;
   const s = asset.unitScale * look.height;
@@ -217,6 +262,7 @@ function makeView(look: UnitLook): UnitView {
       m.emissive.copy(look.emissive);
       m.emissiveIntensity = 0.35;
     }
+    if (look.ghostly) m.transparent = true; // wraiths fade with their phase
     mesh.material = m;
     mats.push(m);
   });
@@ -290,9 +336,11 @@ function syncEnemies(state: GameState, dt: number): void {
     seen.add(e.id);
     let v = enemyViews.get(e.id);
     if (!v) {
-      v = makeView(ENEMY_LOOKS[e.def.id] ?? ENEMY_LOOKS.grunt);
+      const look = ENEMY_LOOKS[e.def.id] ?? ENEMY_LOOKS.grunt;
+      v = makeView(look);
+      v.ghostly = look.ghostly;
       makeHpBar(v);
-      v.walk.play();
+      v.walk?.play();
       v.yaw = headingToYaw(e.angle);
       enemyViews.set(e.id, v);
       sceneRef.add(v.root);
@@ -312,8 +360,20 @@ function syncEnemies(state: GameState, dt: number): void {
     let factor = 1;
     if (e.statuses.frozen) factor = 0;
     else if (e.statuses.chill) factor = Math.max(0.25, 1 - e.statuses.chill.pct * (0.6 + 0.2 * e.statuses.chill.stacks));
-    v.walk.timeScale = (e.def.speed / 60) * factor;
-    v.mixer.update(dt);
+    if (v.walk) v.walk.timeScale = (e.def.speed / 60) * factor;
+    v.mixer?.update(dt);
+
+    // vehicles roll: wheels spin with covered distance, the body rocks on the ruts
+    if (v.wheels && v.wheels.length > 0) {
+      for (const wheel of v.wheels) wheel.rotation.x = e.animT * e.def.speed * 0.09;
+      v.inner.rotation.z = Math.sin(e.animT * 5) * 0.02;
+    }
+
+    // wraiths thin out of reality while phased
+    if (v.ghostly) {
+      const target = e.phased ? 0.22 : 0.95;
+      for (const m of v.mats) m.opacity += (target - m.opacity) * Math.min(1, dt * 8);
+    }
 
     // hp bar
     if (v.hpBar) {
@@ -393,7 +453,7 @@ function syncEnemies(state: GameState, dt: number): void {
       enemyViews.delete(id);
       const leaked = v.root.position.distanceTo(exitWorld) < 1.2;
       if (v.death && !leaked) {
-        v.walk.fadeOut(0.08);
+        v.walk?.fadeOut(0.08);
         v.death.reset().setEffectiveTimeScale(1.5).fadeIn(0.05).play();
         if (v.hpBar) v.hpBar.bg.visible = v.hpBar.fg.visible = false;
         dying.push({ view: v, t: DEATH_TIME, mode: 'anim' });
@@ -420,7 +480,7 @@ function syncWizards(state: GameState, dt: number): void {
     if (!v) {
       v = makeView(WIZARD_LOOKS[w.def.id] ?? WIZARD_LOOKS.generic_wizard);
       v.defId = w.def.id;
-      v.idle.play();
+      v.idle?.play();
       v.yaw = headingToYaw(w.aim);
       wizardViews.set(w.id, v);
       sceneRef.add(v.root);
@@ -443,36 +503,36 @@ function syncWizards(state: GameState, dt: number): void {
         m.color.copy(v.origColors[i]);
         if (becalmed) m.color.lerp(new THREE.Color('#777777'), 0.6);
       });
-      v.idle.timeScale = becalmed ? 0.35 : 1;
+      if (v.idle) v.idle.timeScale = becalmed ? 0.35 : 1;
     }
 
     // victory: mages celebrate
     if (state.phase === 'won' && v.cheer && !v.cheering) {
       v.cheering = true;
-      v.idle.fadeOut(0.2);
-      v.attack.fadeOut(0.2);
+      v.idle?.fadeOut(0.2);
+      v.attack?.fadeOut(0.2);
       v.cheer.reset().fadeIn(0.2).play();
     } else if (state.phase !== 'won' && v.cheering) {
       v.cheering = false;
       v.cheer?.fadeOut(0.2);
-      v.idle.reset().fadeIn(0.2).play();
+      v.idle?.reset().fadeIn(0.2).play();
     }
 
     // cast: recoil jumps when the sim fires -> play the spellcast clip once
-    if (!v.cheering && w.recoil > v.prevRecoil + 0.01) {
+    if (!v.cheering && v.attack && w.recoil > v.prevRecoil + 0.01) {
       const clipDur = (v.attack.getClip() as THREE.AnimationClip).duration;
       v.attack.reset();
       v.attack.timeScale = clipDur / Math.min(Math.max(w.stats.rate * 0.85, 0.35), 1.1);
       v.attack.play();
-      v.idle.fadeOut(0.08);
+      v.idle?.fadeOut(0.08);
       v.casting = true;
     }
-    if (v.casting && !v.attack.isRunning()) {
+    if (v.casting && v.attack && !v.attack.isRunning()) {
       v.casting = false;
-      v.idle.reset().fadeIn(0.15).play();
+      v.idle?.reset().fadeIn(0.15).play();
     }
     v.prevRecoil = w.recoil;
-    v.mixer.update(dt);
+    v.mixer?.update(dt);
 
     // watery shimmer: opacity gently oscillates
     if (v.watery) {
@@ -494,7 +554,7 @@ function updateDying(dt: number): void {
     const d = dying[i];
     d.t -= dt;
     if (d.mode === 'anim') {
-      d.view.mixer.update(dt); // let the death clip play out
+      d.view.mixer?.update(dt); // let the death clip play out
       if (d.t < 0.3) {
         // fade into the ground at the end
         const k = Math.max(0.01, d.t / 0.3);

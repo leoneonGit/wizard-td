@@ -276,7 +276,7 @@ function nextChainTarget(state: GameState, x: number, y: number, hit: Set<number
   let best: Enemy | undefined;
   let bestD2 = CHAIN_RANGE * CHAIN_RANGE;
   for (const e of state.enemies) {
-    if (e.hp <= 0 || hit.has(e.id)) continue;
+    if (e.hp <= 0 || e.phased || hit.has(e.id)) continue;
     const d2 = (e.x - x) ** 2 + (e.y - y) ** 2;
     if (d2 <= bestD2 && hasLOS(state, x, y, e.x, e.y)) {
       bestD2 = d2;
@@ -331,7 +331,7 @@ function updatePierceBolt(state: GameState, p: Projectile, dt: number): void {
 
   const w = state.wizards.find((wz) => wz.id === p.wizardId);
   for (const e of state.enemies) {
-    if (e.hp <= 0 || pr.hitIds.includes(e.id)) continue;
+    if (e.hp <= 0 || e.phased || pr.hitIds.includes(e.id)) continue;
     const dx = e.x - p.x;
     const dy = e.y - p.y;
     const r = PIERCE_HIT_WIDTH + e.def.radius;
@@ -500,6 +500,26 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   if (e.hp <= 0) kill(state, e, src);
 }
 
+/** Reinforcement spawn mid-track (armor-break heartlings, carrier payloads). */
+function spawnAtDist(state: GameState, type: string, dist: number): Enemy | null {
+  const def = ENEMY_DEFS[type];
+  if (!def) return null;
+  const scale = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)];
+  const hp = def.hp * scale.hp;
+  const d = Math.max(0, dist);
+  const p = state.track.posAt(d);
+  const e: Enemy = {
+    id: state.nextId++, def, hp, maxHp: hp, dist: d,
+    x: p.x, y: p.y, statuses: {}, wobble: Math.random() * Math.PI * 2,
+    animT: Math.random() * 2, angle: p.angle, hitFlash: 0,
+    speedMult: scale.speed,
+    armorHp: def.armor,
+  };
+  state.enemies.push(e);
+  fx.burst(p.x, p.y, def.color, 10, 120, 3, 0.4);
+  return e;
+}
+
 /** The shell gives — full damage flows from here on, and the Colossus births its heartlings. */
 function breakArmor(state: GameState, e: Enemy): void {
   e.armorHp = 0;
@@ -508,19 +528,7 @@ function breakArmor(state: GameState, e: Enemy): void {
   fx.ring(e.x, e.y, '#cdd7e0', 55);
   sfx.armorBreak();
   for (const id of e.def.armorBreakSpawns ?? []) {
-    const def = ENEMY_DEFS[id];
-    if (!def) continue;
-    const scale = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)];
-    const hp = def.hp * scale.hp;
-    const dist = Math.max(0, e.dist - 20 - Math.random() * 30);
-    const p = state.track.posAt(dist);
-    state.enemies.push({
-      id: state.nextId++, def, hp, maxHp: hp, dist,
-      x: p.x, y: p.y, statuses: {}, wobble: Math.random() * Math.PI * 2,
-      animT: Math.random() * 2, angle: p.angle, hitFlash: 0,
-      speedMult: scale.speed,
-    });
-    fx.burst(p.x, p.y, def.color, 10, 120, 3, 0.4);
+    spawnAtDist(state, id, e.dist - 20 - Math.random() * 30);
   }
 }
 
@@ -537,6 +545,13 @@ function kill(state: GameState, e: Enemy, src?: Wizard): void {
   if (state.stats.kills % 40 === 0 && relicSpecial(state, 'killLives')) {
     state.lives++;
     fx.floater(e.x, e.y - 40, '🍷 +1 ❤', '#ff9db5', 14);
+  }
+  // carriers burst open: the troops inside spill out where the wagon died
+  if (e.def.deathSpawns) {
+    sfx.woodCrash();
+    fx.floater(e.x, e.y - 34, 'The wagon breaks open!', '#e0b070', 13);
+    fx.burst(e.x, e.y, '#7a5c38', 18, 150, 4, 0.6);
+    e.def.deathSpawns.forEach((id, i) => spawnAtDist(state, id, e.dist - 8 - i * 14));
   }
   onKillProcs(state, e, src);
 }
@@ -609,9 +624,74 @@ function runKillFx(state: GameState, e: Enemy, src: Wizard | undefined, f: impor
 // ---------------------------------------------------------------- enemies
 
 export function updateEnemies(state: GameState, dt: number): void {
+  // ---- support auras (two passes: sources first, then everyone moves)
+  for (const e of state.enemies) e.hasteMul = 1;
+  for (const e of state.enemies) {
+    const aura = e.def.aura;
+    if (!aura || e.hp <= 0) continue;
+    if (aura.kind === 'heal') {
+      e.auraCd = (e.auraCd ?? aura.period ?? 2) - dt;
+      if (e.auraCd <= 0) {
+        e.auraCd = aura.period ?? 2;
+        let healed = false;
+        for (const o of state.enemies) {
+          if (o === e || o.hp <= 0 || o.hp >= o.maxHp) continue;
+          const d2 = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+          if (d2 > aura.radius * aura.radius) continue;
+          const amount = o.maxHp * aura.power;
+          o.hp = Math.min(o.maxHp, o.hp + amount);
+          fx.floater(o.x, o.y - 12, `+${Math.round(amount)}`, '#7dff9b', 10);
+          healed = true;
+        }
+        if (healed) {
+          fx.ring(e.x, e.y, '#3fae5a', aura.radius);
+          sfx.healChime();
+        }
+      }
+    } else {
+      // haste: the horde marches to the drum
+      sfx.drumBeat(); // gated internally to the marching cadence
+      for (const o of state.enemies) {
+        if (o === e || o.hp <= 0) continue;
+        const d2 = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+        if (d2 <= aura.radius * aura.radius) {
+          o.hasteMul = Math.max(o.hasteMul ?? 1, 1 + aura.power);
+        }
+      }
+    }
+  }
+
   for (const e of state.enemies) {
     if (e.hp <= 0) continue;
     const st = e.statuses;
+
+    // troll blood: regenerates unless frozen solid — chip damage gets out-healed
+    if (e.def.regen && !st.frozen && e.hp < e.maxHp) {
+      e.hp = Math.min(e.maxHp, e.hp + e.maxHp * e.def.regen * dt);
+    }
+
+    // rolling carriers drip troops as they advance
+    if (e.def.dropSpawns) {
+      e.dropCd = (e.dropCd ?? e.def.dropSpawns.period) - dt;
+      if (e.dropCd <= 0) {
+        e.dropCd = e.def.dropSpawns.period;
+        sfx.woodCrash();
+        fx.floater(e.x, e.y - 30, 'The tower unloads!', '#e0b070', 12);
+        for (let i = 0; i < e.def.dropSpawns.count; i++) {
+          spawnAtDist(state, e.def.dropSpawns.type, e.dist - 18 - i * 14);
+        }
+      }
+    }
+
+    // wraiths slip out of reality on a cycle (phased at the END of each period,
+    // so a fresh spawn is targetable for a few seconds first)
+    if (e.def.phase) {
+      e.phaseT = (e.phaseT ?? 0) + dt;
+      const c = e.phaseT % e.def.phase.period;
+      const wasPhased = e.phased;
+      e.phased = c > e.def.phase.period - e.def.phase.duration;
+      if (e.phased !== wasPhased) sfx.phaseShimmer();
+    }
 
     // tick statuses
     if (st.burn) {
@@ -650,6 +730,7 @@ export function updateEnemies(state: GameState, dt: number): void {
     if (st.frozen || st.entangled) factor = 0;
     else if (st.chill) factor = Math.max(0.25, 1 - st.chill.pct * (0.6 + 0.2 * st.chill.stacks));
     if (factor > 0 && st.snared) factor *= Math.max(0.2, 1 - st.snared.pct); // stacks with chill
+    factor *= e.hasteMul ?? 1; // the war drums
 
     e.animT += factor * dt; // walk cycle slows/freezes with the enemy
     if (e.hitFlash > 0) e.hitFlash -= dt;
@@ -661,12 +742,13 @@ export function updateEnemies(state: GameState, dt: number): void {
     e.y = p.y;
     e.angle = p.angle;
 
-    // leak
+    // leak — carriers full of troops hurt far more than a single creep
     if (e.dist >= state.track.total) {
       e.hp = 0; // no bounty — mark for removal via leak path
-      state.lives -= e.def.boss ? 5 : 1;
+      const cost = e.def.leakCost ?? (e.def.boss ? 5 : 1);
+      state.lives -= cost;
       state.stats.leaks++;
-      fx.floater(p.x - 20, p.y, e.def.boss ? '-5 ❤' : '-1 ❤', '#ff6b81', 14);
+      fx.floater(p.x - 20, p.y, `-${cost} ❤`, '#ff6b81', cost > 1 ? 16 : 14);
       sfx.leak();
       if (state.lives <= 0) {
         state.lives = 0;
