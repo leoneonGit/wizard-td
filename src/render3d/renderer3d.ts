@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BOARD_W, BOARD_H, CELL, pixelToCell, inBounds, cellCenter } from '../engine/grid';
+import { BOARD_W, BOARD_H, CELL, COLS, ROWS, pixelToCell, inBounds, cellCenter } from '../engine/grid';
 import { WIZARDS } from '../data/wizards';
 import { ELEMENTS } from '../data/elements';
 import { isBuildable, findWizard, type GameState } from '../game/state';
@@ -31,12 +31,86 @@ let groundMat: THREE.MeshStandardMaterial;
 let skirtMat: THREE.MeshStandardMaterial;
 let mapGroup: THREE.Group; // everything map-specific: portals, water, clouds, props
 let rangeRing: THREE.Mesh; // selected wizard range
+let gridGroup: THREE.Group; // buildable-grid overlay while placing
+let gridCells: THREE.InstancedMesh;
+let gridKey = '';
 let ghostGroup: THREE.Group; // placement preview
 let ghostRing: THREE.Mesh;
 let ghostCell: THREE.Mesh;
 let ghostBody: THREE.Mesh;
 
 let lastTime = 0;
+
+// ---- board camera view: zoom (1..3) + clamped pan, all in world units ----
+const BASE_HALF_W = W_UNITS / 2 + 0.3;
+const BASE_HALF_H = BASE_HALF_W / (BOARD_W / BOARD_H);
+const CAM_TILT = THREE.MathUtils.degToRad(52);
+const CAM_DIST = 30;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 3;
+let viewZoom = 1;
+let panX = 0;
+let panZ = 0;
+
+/** Re-aim the camera from the current zoom/pan state. */
+function applyView(): void {
+  const center = new THREE.Vector3(W_UNITS / 2 + panX, 0, H_UNITS / 2 - 0.2 + panZ);
+  camera.position.set(center.x, Math.sin(CAM_TILT) * CAM_DIST, center.z + Math.cos(CAM_TILT) * CAM_DIST);
+  camera.lookAt(center);
+  camera.zoom = viewZoom;
+  camera.updateProjectionMatrix();
+}
+
+function clampPan(): void {
+  // keep the visible window inside the board (with the base margin)
+  const maxX = BASE_HALF_W * (1 - 1 / viewZoom);
+  const maxZ = BASE_HALF_H * (1 - 1 / viewZoom);
+  panX = Math.max(-maxX, Math.min(maxX, panX));
+  panZ = Math.max(-maxZ, Math.min(maxZ, panZ));
+}
+
+/** Zoom by a factor, keeping the given canvas point (offset px) fixed on screen. */
+export function zoomView(factor: number, offsetX?: number, offsetY?: number): void {
+  const anchor = offsetX !== undefined && offsetY !== undefined
+    ? pickBoardPoint(offsetX, offsetY)
+    : null;
+  const before = anchor ? { x: anchor.x, y: anchor.y } : null;
+  viewZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewZoom * factor));
+  if (viewZoom <= MIN_ZOOM + 0.001) {
+    panX = 0;
+    panZ = 0;
+  } else if (before && offsetX !== undefined && offsetY !== undefined) {
+    applyView();
+    const after = pickBoardPoint(offsetX, offsetY);
+    if (after) {
+      panX += (before.x - after.x) * PX;
+      panZ += (before.y - after.y) * PX;
+    }
+  }
+  clampPan();
+  applyView();
+}
+
+/** Pan by a screen-pixel delta (drag). */
+export function panView(dxPx: number, dyPx: number): void {
+  const el = renderer.domElement;
+  const worldPerPx = (BASE_HALF_W * 2) / (el.clientWidth || BOARD_W) / viewZoom;
+  panX -= dxPx * worldPerPx;
+  panZ -= dyPx * worldPerPx; // screen-Y maps to board-Z under the tilted ortho view
+  clampPan();
+  applyView();
+}
+
+export function resetView(): void {
+  viewZoom = 1;
+  panX = 0;
+  panZ = 0;
+  applyView();
+}
+
+export function getViewZoom(): number {
+  return viewZoom;
+}
 
 export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState): Promise<void> {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -55,18 +129,14 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   const halfW = W_UNITS / 2 + 0.3;
   const halfH = halfW / aspect;
   camera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, 100);
-  const center = new THREE.Vector3(W_UNITS / 2, 0, H_UNITS / 2 - 0.2);
-  const tilt = THREE.MathUtils.degToRad(52);
-  const dist = 30;
-  camera.position.set(center.x, Math.sin(tilt) * dist, center.z + Math.cos(tilt) * dist);
-  camera.lookAt(center);
+  applyView();
 
   // lights (theme-tinted; retinted on act transitions)
   hemi = new THREE.HemisphereLight('#cfe8ff', '#3a4a30', 1.6);
   scene.add(hemi);
   sun = new THREE.DirectionalLight('#fff4d6', 2.4);
   sun.position.set(W_UNITS * 0.3, 14, H_UNITS * 0.15);
-  sun.target.position.copy(center);
+  sun.target.position.set(W_UNITS / 2, 0, H_UNITS / 2 - 0.2); // board center (pan-independent)
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const s = 15;
@@ -105,6 +175,43 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   rangeRing.position.y = 0.03;
   rangeRing.visible = false;
   scene.add(rangeRing);
+
+  // buildable-grid overlay: the 24x16 lattice + per-cell green/red tint, shown
+  // only while placing — phones can't hover to probe where cells are
+  gridGroup = new THREE.Group();
+  const latticePts: number[] = [];
+  for (let cx = 0; cx <= COLS; cx++) latticePts.push(cx, 0, 0, cx, 0, ROWS);
+  for (let cy = 0; cy <= ROWS; cy++) latticePts.push(0, 0, cy, COLS, 0, cy);
+  const latticeGeo = new THREE.BufferGeometry();
+  latticeGeo.setAttribute('position', new THREE.Float32BufferAttribute(latticePts, 3));
+  const lattice = new THREE.LineSegments(
+    latticeGeo,
+    new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.13, depthWrite: false }),
+  );
+  lattice.position.y = 0.016;
+  gridGroup.add(lattice);
+  gridCells = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(0.92, 0.92),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide }),
+    COLS * ROWS,
+  );
+  {
+    const m4 = new THREE.Matrix4();
+    const rot = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
+    let i = 0;
+    for (let cy = 0; cy < ROWS; cy++) {
+      for (let cx = 0; cx < COLS; cx++) {
+        m4.copy(rot);
+        m4.setPosition(cx + 0.5, 0.012, cy + 0.5);
+        gridCells.setMatrixAt(i, m4);
+        gridCells.setColorAt(i, new THREE.Color('#59c96a'));
+        i++;
+      }
+    }
+  }
+  gridGroup.add(gridCells);
+  gridGroup.visible = false;
+  scene.add(gridGroup);
 
   // placement ghost
   ghostGroup = new THREE.Group();
@@ -342,6 +449,28 @@ export function draw3d(state: GameState): void {
     rangeRing.scale.setScalar(r);
   } else {
     rangeRing.visible = false;
+  }
+
+  // buildable-grid overlay: repaint when the placing def / towers / map change
+  if (state.placingType) {
+    gridGroup.visible = true;
+    const key = `${state.placingType}|${state.wizards.length}|${state.map.id}|${state.act}`;
+    if (key !== gridKey) {
+      gridKey = key;
+      const def = WIZARDS[state.placingType];
+      const green = new THREE.Color('#59c96a');
+      const red = new THREE.Color('#c94d4d');
+      let i = 0;
+      for (let cy = 0; cy < ROWS; cy++) {
+        for (let cx = 0; cx < COLS; cx++) {
+          gridCells.setColorAt(i++, isBuildable(state, cx, cy, def) ? green : red);
+        }
+      }
+      if (gridCells.instanceColor) gridCells.instanceColor.needsUpdate = true;
+    }
+  } else {
+    gridGroup.visible = false;
+    gridKey = '';
   }
 
   // placement ghost

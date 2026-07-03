@@ -571,3 +571,63 @@ button { touch-action: manipulation; }
   #wave-preview { font-size: 10.5px; }
   #map-row { display: none; } /* map/editor management is a desktop activity */
 }
+
+/* ---- board zoom controls + placement confirm (all viewports, board overlay) ---- */
+#zoom-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 6;
+}
+#zoom-controls button {
+  width: 40px;
+  height: 40px;
+  background: rgba(30, 27, 46, 0.85);
+  border: 1px solid #55409e;
+  border-radius: 10px;
+  color: #c9b8ff;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+#zoom-controls button:active { background: #322a52; }
+
+#place-confirm {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 7;
+}
+#place-confirm.hidden { display: none; }
+#pc-build {
+  min-height: 48px;
+  padding: 0 18px;
+  background: linear-gradient(180deg, #3fae5a, #2c8a44);
+  border: 1px solid #7dff9b;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+#pc-build:disabled { background: #3a3347; border-color: #55409e; color: #9a92b5; }
+#pc-cancel {
+  min-width: 48px;
+  min-height: 48px;
+  background: rgba(30, 27, 46, 0.92);
+  border: 1px solid #6e3a5c;
+  border-radius: 12px;
+  color: #ff9db5;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}

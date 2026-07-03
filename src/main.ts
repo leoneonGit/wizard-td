@@ -11,7 +11,7 @@ import { initRelics, updateRelics } from './ui/relics';
 import { initEvents, updateEvents } from './ui/events';
 import { initNodes, updateNodes } from './ui/nodes';
 import { initActClear, updateActClear } from './ui/actclear';
-import { initRenderer3d, draw3d, pickBoardPoint, rebuildMap } from './render3d/renderer3d';
+import { initRenderer3d, draw3d, pickBoardPoint, rebuildMap, zoomView, panView, resetView, getViewZoom } from './render3d/renderer3d';
 import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
 import { music } from './audio/music';
@@ -54,11 +54,34 @@ canvas.addEventListener('mouseleave', () => {
 });
 
 // touch devices place in two taps: first tap parks the ghost (with range ring)
-// on the cell, second tap on the SAME cell confirms — no more 90g mis-drops
+// on the cell, second tap on the SAME cell (or the ✓ button) confirms
 const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
 let pendingPlace: { cx: number; cy: number } | null = null;
 
+/** Shared placement path (tap confirm + the ✓ button). */
+function tryPlaceAt(cx: number, cy: number, keepPlacing = false): boolean {
+  if (!state.placingType) return false;
+  const def = WIZARDS[state.placingType];
+  const cost = towerCost(state, def.cost);
+  if (!isBuildable(state, cx, cy, def) || !canAfford(state, cost)) return false;
+  spend(state, cost);
+  const w = makeWizard(state, def, cx, cy);
+  w.invested = cost;
+  state.wizards.push(w);
+  fx.burst(w.x, w.y, def.color, 14, 120, 3);
+  sfx.place();
+  // keep placing if still affordable (BTD-style rapid building) when asked
+  if (!keepPlacing || !canAfford(state, towerCost(state, def.cost))) state.placingType = null;
+  state.selectedWizardId = w.id;
+  pendingPlace = null;
+  return true;
+}
+
 canvas.addEventListener('click', (e) => {
+  if (suppressClick) {
+    suppressClick = false;
+    return; // that was a pan/pinch, not a tap
+  }
   const p = pickBoardPoint(e.offsetX, e.offsetY);
   if (!p) return;
   const { cx, cy } = pixelToCell(p.x, p.y);
@@ -66,8 +89,6 @@ canvas.addEventListener('click', (e) => {
 
   if (state.placingType) {
     const def = WIZARDS[state.placingType];
-    const cost = towerCost(state, def.cost);
-
     if (coarsePointer) {
       // park/move the ghost on this cell (touch has no hover to preview with)
       state.mouseX = p.x;
@@ -75,27 +96,13 @@ canvas.addEventListener('click', (e) => {
       state.mouseOnBoard = true;
       if (!pendingPlace || pendingPlace.cx !== cx || pendingPlace.cy !== cy) {
         pendingPlace = { cx, cy };
-        if (isBuildable(state, cx, cy, def)) {
-          fx.floater(p.x, p.y - 26, 'tap again to build', '#c9b8ff', 12);
-        } else {
+        if (!isBuildable(state, cx, cy, def)) {
           fx.floater(p.x, p.y - 26, "can't build here", '#ff9db5', 12);
         }
         return;
       }
-      pendingPlace = null; // second tap on the same cell — confirm below
     }
-
-    if (isBuildable(state, cx, cy, def) && canAfford(state, cost)) {
-      spend(state, cost);
-      const w = makeWizard(state, def, cx, cy);
-      w.invested = cost;
-      state.wizards.push(w);
-      fx.burst(w.x, w.y, def.color, 14, 120, 3);
-      sfx.place();
-      // keep placing if still affordable (BTD-style rapid building) unless shift not held
-      if (!e.shiftKey || !canAfford(state, towerCost(state, def.cost))) state.placingType = null;
-      state.selectedWizardId = w.id;
-    }
+    tryPlaceAt(cx, cy, e.shiftKey);
     return;
   }
 
@@ -103,16 +110,111 @@ canvas.addEventListener('click', (e) => {
   state.selectedWizardId = w ? w.id : null;
 });
 
+// ---- board camera gestures: pinch zooms, drag pans (when zoomed), double-tap toggles ----
+const pointers = new Map<number, { x: number; y: number }>();
+let pinchDist = 0;
+let dragMoved = false;
+let suppressClick = false;
+let lastTapT = 0;
+let lastTapX = 0;
+let lastTapY = 0;
+
+canvas.addEventListener('pointerdown', (e) => {
+  pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+  dragMoved = false;
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+  }
+});
+canvas.addEventListener('pointermove', (e) => {
+  const prev = pointers.get(e.pointerId);
+  if (!prev) return; // plain mouse hover — mousemove handles the ghost
+  if (pointers.size === 2) {
+    pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchDist > 0 && d > 0) zoomView(d / pinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    pinchDist = d;
+    suppressClick = true;
+    return;
+  }
+  const dx = e.offsetX - prev.x;
+  const dy = e.offsetY - prev.y;
+  if (Math.abs(dx) + Math.abs(dy) > 6) dragMoved = true;
+  if (dragMoved && getViewZoom() > 1.01) {
+    panView(dx, dy);
+    suppressClick = true;
+  }
+  pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+});
+const endPointer = (e: PointerEvent) => {
+  pointers.delete(e.pointerId);
+  pinchDist = 0;
+};
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+
+// double-tap (touch, not while placing — that's the confirm gesture) toggles zoom
+canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerType !== 'touch' || dragMoved || pointers.size > 0 || state.placingType) return;
+  const now = performance.now();
+  if (now - lastTapT < 300 && Math.hypot(e.offsetX - lastTapX, e.offsetY - lastTapY) < 30) {
+    zoomView(getViewZoom() > 1.5 ? 0.01 : 2.2, e.offsetX, e.offsetY); // tiny factor clamps to 1x
+    suppressClick = true;
+    lastTapT = 0;
+  } else {
+    lastTapT = now;
+    lastTapX = e.offsetX;
+    lastTapY = e.offsetY;
+  }
+});
+
+// scroll wheel zoom for desktop comfort
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  zoomView(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.offsetX, e.offsetY);
+}, { passive: false });
+
+// corner buttons: discoverable zoom for everyone
+document.getElementById('zoom-in')!.addEventListener('click', () => zoomView(1.4));
+document.getElementById('zoom-out')!.addEventListener('click', () => zoomView(1 / 1.4));
+document.getElementById('zoom-reset')!.addEventListener('click', () => resetView());
+
+// ✓ / ✕ placement confirm bar (shown while a two-tap placement is parked)
+const placeConfirm = document.getElementById('place-confirm')!;
+const pcBuild = document.getElementById('pc-build') as HTMLButtonElement;
+document.getElementById('pc-cancel')!.addEventListener('click', () => {
+  pendingPlace = null; // keep placingType — the grid stays up, pick another cell
+});
+pcBuild.addEventListener('click', () => {
+  if (pendingPlace) tryPlaceAt(pendingPlace.cx, pendingPlace.cy);
+});
+
+function updatePlaceConfirm(): void {
+  const show = pendingPlace !== null && state.placingType !== null;
+  placeConfirm.classList.toggle('hidden', !show);
+  if (show && state.placingType) {
+    const def = WIZARDS[state.placingType];
+    const cost = towerCost(state, def.cost);
+    const ok = isBuildable(state, pendingPlace!.cx, pendingPlace!.cy, def) && canAfford(state, cost);
+    pcBuild.disabled = !ok;
+    pcBuild.textContent = ok ? `✓ Build ${def.name} · ${cost} ◉` : '✕ blocked spot';
+  }
+}
+
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   state.placingType = null;
   state.selectedWizardId = null;
+  pendingPlace = null;
 });
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     state.placingType = null;
     state.selectedWizardId = null;
+    pendingPlace = null;
   } else if (e.key === ' ') {
     e.preventDefault();
     startWave(state);
@@ -297,6 +399,7 @@ function render(): void {
     state.phase !== 'wave' ? 0 : state.round === WAVES_PER_ACT - 1 ? 2 : 1,
   );
   draw3d(state);
+  updatePlaceConfirm();
   updateHud(state);
   updateShop(state);
   updateTowerPanel(state);
