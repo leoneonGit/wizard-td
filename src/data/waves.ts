@@ -165,12 +165,12 @@ export const TOTAL_ACTS = ACT_WAVES.length;
 /** Per-act enemy multipliers — the campaign's difficulty spine. */
 export const ACT_SCALING = [
   { hp: 1.0, speed: 1.0, bounty: 1.0 },
-  { hp: 1.9, speed: 1.08, bounty: 1.35 },
-  { hp: 3.2, speed: 1.15, bounty: 1.7 },
+  { hp: 2.0, speed: 1.08, bounty: 1.35 },
+  { hp: 3.4, speed: 1.15, bounty: 1.7 },
 ];
 
 /** Within an act, enemies also toughen a little every wave. */
-export const WAVE_HP_RAMP = 0.06; // hp x (1 + round * 0.06)
+export const WAVE_HP_RAMP = 0.08; // hp x (1 + round * 0.08)
 
 /** Waves for a given act — custom (editor) maps play act 1's list as free-play. */
 export function wavesForAct(act: number): WaveDef[] {

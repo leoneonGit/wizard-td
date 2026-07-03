@@ -49,7 +49,7 @@ export function initFx3d(s: THREE.Scene, cam: THREE.Camera, wrap: HTMLElement): 
   geo.setAttribute('position', posAttr);
   geo.setAttribute('color', colAttr);
   const mat = new THREE.PointsMaterial({
-    size: 0.13,
+    size: 0.15,
     vertexColors: true,
     transparent: true,
     opacity: 0.95,

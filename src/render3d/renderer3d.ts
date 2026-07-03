@@ -117,7 +117,7 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   renderer.setSize(BOARD_W, BOARD_H, false);
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap; // softer contact edges
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
 
@@ -132,7 +132,7 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   applyView();
 
   // lights (theme-tinted; retinted on act transitions)
-  hemi = new THREE.HemisphereLight('#cfe8ff', '#3a4a30', 1.6);
+  hemi = new THREE.HemisphereLight('#cfe8ff', '#3a4a30', 1.7);
   scene.add(hemi);
   sun = new THREE.DirectionalLight('#fff4d6', 2.4);
   sun.position.set(W_UNITS * 0.3, 14, H_UNITS * 0.15);
@@ -284,8 +284,8 @@ async function buildMapScene(state: GameState): Promise<void> {
         color: new THREE.Color(theme.water).lerp(new THREE.Color('#4f9fe4'), 0.4),
         transparent: true,
         opacity: 0.72,
-        roughness: 0.15,
-        metalness: 0.25,
+        roughness: 0.12,
+        metalness: 0.35, // glossier — catches the theme sun
       }),
     );
     quad.rotation.x = -Math.PI / 2;

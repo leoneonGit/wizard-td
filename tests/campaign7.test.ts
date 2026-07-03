@@ -224,6 +224,28 @@ describe('boss armor', () => {
   });
 });
 
+// ---------------------------------------------------------------- boss bite (P11)
+
+describe('boss leak costs', () => {
+  it('act bosses leak for 10, THE Colossus for 25', () => {
+    expect(ENEMIES.warlord.leakCost).toBe(10);
+    expect(ENEMIES.pyretitan.leakCost).toBe(10);
+    expect(ENEMIES.golem.leakCost).toBe(10);
+    expect(ENEMIES.colossus.leakCost).toBe(25);
+    expect(ENEMIES.golemling.leakCost).toBeUndefined(); // mini-boss stays at the default 5
+  });
+
+  it('a leaked warlord drains 10 lives', () => {
+    const state = createGame(MAPS.vale, 60);
+    fx.clear();
+    const boss = addEnemy(state, 'warlord');
+    boss.dist = state.track.total + 1;
+    const lives = state.lives;
+    updateEnemies(state, DT);
+    expect(state.lives).toBe(lives - 10);
+  });
+});
+
 // ---------------------------------------------------------------- save round-trip
 
 describe('campaign save round-trip', () => {

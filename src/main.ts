@@ -431,6 +431,7 @@ initRenderer3d(canvas, state)
 Object.defineProperty(window, '__game', { get: () => state });
 (window as any).__fx = fx;
 (window as any).__computeStats = computeStats;
+(window as any).__audio = { sfx, music };
 (window as any).__place = (defId: string, cx: number, cy: number) => {
   const def = WIZARDS[defId];
   if (!def || !isBuildable(state, cx, cy, def)) return null;

@@ -135,18 +135,66 @@ function makeView(look: UnitLook): UnitView {
     headMeshes = collectMeshes(inner.getObjectByName('Mage_Head'));
   }
 
-  // goblin styling: Barbarian rig — strip weapons (none of the goblin kits wield them),
-  // the round shield doubles as the Gong Goblin's hand-carried gong.
+  // goblin styling: Barbarian rig — strip weapons (the tower goblins throw things;
+  // orc grunts keep theirs), the round shield doubles as the Gong's hand-carried gong.
   if (look.goblin) {
-    for (const name of ['1H_Axe', '2H_Axe', '1H_Axe_Offhand', 'Mug']) {
-      const n = inner.getObjectByName(name);
-      if (n) n.visible = false;
+    if (!look.goblin.keepWeapons) {
+      for (const name of ['1H_Axe', '2H_Axe', '1H_Axe_Offhand', 'Mug']) {
+        const n = inner.getObjectByName(name);
+        if (n) n.visible = false;
+      }
     }
     const shield = inner.getObjectByName('Barbarian_Round_Shield');
     if (shield) shield.visible = !!look.goblin.showShield;
     const hat = inner.getObjectByName('Barbarian_Hat');
     if (hat) hatMeshes = collectMeshes(hat);
-    headMeshes = collectMeshes(inner.getObjectByName('Barbarian_Head'));
+    const head = inner.getObjectByName('Barbarian_Head');
+    headMeshes = collectMeshes(head);
+
+    // goblin-ification: big head, pointy ears, glowing eyes — a proper greenskin
+    if (head) {
+      if (look.goblin.headScale) head.scale.multiplyScalar(look.goblin.headScale);
+      inner.updateMatrixWorld(true);
+      const ws = new THREE.Vector3();
+      head.getWorldScale(ws);
+      const localUnit = 1 / Math.max(1e-6, ws.y); // 1 world unit in head-local units
+
+      if (look.goblin.ears) {
+        const orc = look.goblin.ears === 'orc';
+        const earLen = (orc ? 0.14 : 0.2) * look.height;
+        const skin = new THREE.MeshStandardMaterial({
+          color: (look.goblin.greenFace ?? look.tint ?? new THREE.Color('#4f9e3f')).clone(),
+          roughness: 0.85,
+        });
+        for (const side of [-1, 1]) {
+          const ear = new THREE.Mesh(
+            new THREE.ConeGeometry(0.045 * look.height * localUnit, earLen * localUnit, 6),
+            skin,
+          );
+          ear.position.set(side * 0.095 * look.height * localUnit, -0.04 * look.height * localUnit, 0);
+          ear.rotation.z = -side * 1.25; // tips swept outward and up
+          ear.castShadow = true;
+          head.add(ear);
+        }
+      }
+
+      if (look.goblin.eyes) {
+        const eyeMat = new THREE.MeshStandardMaterial({
+          color: '#201a10',
+          emissive: new THREE.Color('#ffd75e'),
+          emissiveIntensity: 1.1,
+        });
+        for (const side of [-1, 1]) {
+          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026 * look.height * localUnit, 8, 6), eyeMat);
+          eye.position.set(
+            side * 0.038 * look.height * localUnit,
+            -0.045 * look.height * localUnit,
+            0.085 * look.height * localUnit, // KayKit rigs face +Z
+          );
+          head.add(eye);
+        }
+      }
+    }
   }
 
   // generic gear stripping (archer rigs whose held weapons don't match the kit)
@@ -246,6 +294,9 @@ function makeView(look: UnitLook): UnitView {
       if (look.ent?.canopyTint) m.color.lerp(look.ent.canopyTint, 0.5);
     } else if (rockMeshes.has(mesh)) {
       // the held rock stays natural stone
+    } else if (look.goblin?.greenFace && headMeshes.has(mesh)) {
+      // goblins are GREEN — the face takes the full skin tint, not a whisper of it
+      m.color.lerp(look.goblin.greenFace, 0.8);
     } else if (look.tint) {
       let strength = look.tintStrength ?? 0.4;
       if (look.mage || look.goblin) {

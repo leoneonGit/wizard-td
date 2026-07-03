@@ -27,7 +27,7 @@ export const ENEMIES: Record<string, EnemyDef> = {
   },
   golem: {
     id: 'golem', name: 'Obsidian Golem', hp: 2600, speed: 30, radius: 22, bounty: 200,
-    color: '#5e4b8b', resist: { fire: 0.75, ice: 0.75 }, boss: true,
+    color: '#5e4b8b', resist: { fire: 0.75, ice: 0.75 }, boss: true, leakCost: 10,
   },
   golemling: {
     id: 'golemling', name: 'Golemling', hp: 500, speed: 42, radius: 16, bounty: 50,
@@ -86,20 +86,20 @@ export const ENEMIES: Record<string, EnemyDef> = {
   // ---------------- act bosses ----------------
   // Act 1 finale: teaches that ARMOR only cracks under physical fire (goblins/archers/ents)
   warlord: {
-    id: 'warlord', name: 'Ironhide Warlord', hp: 1800, speed: 26, radius: 24, bounty: 250,
-    color: '#6e7b8a', resist: { ice: 0.8 }, boss: true, armor: 700,
+    id: 'warlord', name: 'Ironhide Warlord', hp: 2100, speed: 26, radius: 24, bounty: 250,
+    color: '#6e7b8a', resist: { ice: 0.8 }, boss: true, armor: 700, leakCost: 10,
   },
   // Act 2 finale: burns cannot touch it, cold slides off — lightning/physical/water day
   pyretitan: {
-    id: 'pyretitan', name: 'Pyre Titan', hp: 4200, speed: 24, radius: 26, bounty: 350,
-    color: '#c25a2e', resist: { fire: 0.0, lightning: 1.15 }, boss: true,
+    id: 'pyretitan', name: 'Pyre Titan', hp: 4800, speed: 24, radius: 26, bounty: 350,
+    color: '#c25a2e', resist: { fire: 0.0, lightning: 1.15 }, boss: true, leakCost: 10,
     innateImmune: ['burn', 'chill'],
   },
   // Act 3 finale, THE boss: armored AND fire-hardened AND cold-proof.
   // Cracking the shell releases its heartlings.
   colossus: {
-    id: 'colossus', name: 'Dread Colossus', hp: 7500, speed: 20, radius: 30, bounty: 600,
-    color: '#3d2f5e', resist: { fire: 0.5 }, boss: true, armor: 1600,
+    id: 'colossus', name: 'Dread Colossus', hp: 8600, speed: 20, radius: 30, bounty: 600,
+    color: '#3d2f5e', resist: { fire: 0.5 }, boss: true, armor: 1600, leakCost: 25,
     innateImmune: ['chill'], armorBreakSpawns: ['golemling', 'golemling', 'golemling'],
   },
 };

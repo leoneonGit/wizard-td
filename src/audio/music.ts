@@ -17,7 +17,12 @@ const CHORDS: number[][] = [
   [196.0, 246.94, 293.66], // G
 ];
 const CHORD_LEN = 7.5; // seconds per chord
-const MUSIC_LEVEL = 0.14; // relative to the master bus
+// gain staging: voices (0.12 peak x ~6) x MUSIC_LEVEL x master (~0.5) needs to land
+// around -14dB under the sfx — the original 0.14/0.055 combo was mathematically inaudible
+const MUSIC_LEVEL = 0.5;
+const VOICE_LEVEL = 0.12;
+const BASS_LEVEL = 0.22;
+const DRONE_LEVEL = 0.13;
 
 let started = false;
 let enabled = true;
@@ -45,10 +50,22 @@ export const music = {
     // 2.6s lookahead survives background-tab timer throttling (1s tiers)
     timer = setInterval(() => schedule(bus.ctx), 500);
     schedule(bus.ctx);
+    // catch up immediately when the tab comes back — no silent gap
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && musicGain) {
+        const b = sfx.bus();
+        if (b) {
+          nextChordAt = Math.max(nextChordAt, b.ctx.currentTime + 0.05);
+          nextPulseAt = Math.max(nextPulseAt, b.ctx.currentTime + 0.05);
+          schedule(b.ctx);
+        }
+      }
+    });
   },
 
   setEnabled(on: boolean): void {
     enabled = on;
+    if (on) music.start(); // defensive: the toggle can boot music even if the unlock missed
     const bus = sfx.bus();
     if (musicGain && bus) {
       musicGain.gain.cancelScheduledValues(bus.ctx.currentTime);
@@ -105,8 +122,8 @@ function scheduleChord(ctx: AudioContext, freqs: number[], t: number): void {
       o.detune.value = detune;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(0.055, t + 2.2);
-      g.gain.setValueAtTime(0.055, t + CHORD_LEN - 2.0);
+      g.gain.linearRampToValueAtTime(VOICE_LEVEL, t + 2.2);
+      g.gain.setValueAtTime(VOICE_LEVEL, t + CHORD_LEN - 2.0);
       g.gain.linearRampToValueAtTime(0.0001, t + CHORD_LEN + 0.6);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
@@ -127,7 +144,7 @@ function schedulePulse(ctx: AudioContext, root: number, t: number): void {
   o.frequency.value = root;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.09, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(BASS_LEVEL, t + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
   o.connect(g);
   g.connect(musicGain!);
@@ -148,7 +165,7 @@ function updateDrone(): void {
     lp.frequency.value = 160;
     droneGain = ctx.createGain();
     droneGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    droneGain.gain.linearRampToValueAtTime(0.06, ctx.currentTime + 2.5);
+    droneGain.gain.linearRampToValueAtTime(DRONE_LEVEL, ctx.currentTime + 2.5);
     droneOsc.connect(lp);
     lp.connect(droneGain);
     droneGain.connect(musicGain);

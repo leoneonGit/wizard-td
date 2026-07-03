@@ -86,7 +86,7 @@ export interface GameState {
 }
 
 export const START_GOLD = 230;
-export const START_LIVES = 25;
+export const START_LIVES = 20;
 export const SELL_REFUND = 0.7;
 
 export const DEFAULT_REACTION: ReactionMods = {
