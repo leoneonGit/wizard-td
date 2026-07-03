@@ -57,6 +57,8 @@ export interface GameState {
   nextNodes: NodeKind[];
   nodesForRound: number;
   nodeChoice: NodeKind;
+  /** false while the round's path choice is still owed — the path modal blocks until picked */
+  nodePicked: boolean;
   /** what kind of node the RUNNING wave was started as (drives clear rewards) */
   waveKind: NodeKind;
   /** wave modifier forced by an event (cursed chest / storm blessing) */
@@ -150,6 +152,7 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): 
     nextNodes: ['normal'],
     nodesForRound: -1,
     nodeChoice: 'normal',
+    nodePicked: true,
     waveKind: 'normal',
     forcedModifier: null,
     pendingRelicDraft: null,
@@ -432,18 +435,29 @@ import { RELICS as _RELICS, RELIC_RARITY_WEIGHT as _RELIC_WEIGHT } from '../data
 const NODE_MIN_ROUND = 2; // first two waves are always plain
 const ELITE_MIN = 3;
 
-/** Roll (once per round, seeded) the node choices for the upcoming wave. */
+/** Roll (once per round, seeded) the node choices for the upcoming wave.
+ *  From NODE_MIN_ROUND on, there is ALWAYS a real choice — a round with only
+ *  "normal" reads as a missing feature, not as variance. */
 export function ensureNodes(state: GameState): void {
   if (state.nodesForRound === state.round) return;
   state.nodesForRound = state.round;
   state.nodeChoice = 'normal';
   const nodes: NodeKind[] = ['normal'];
   if (state.round >= NODE_MIN_ROUND) {
+    const eventsLeft = state.seenEvents.length < eventCount();
     if (state.round >= ELITE_MIN && state.rng() < 0.5) nodes.push('elite');
     if (state.rng() < 0.35) nodes.push('treasure');
-    if (state.rng() < 0.4 && state.seenEvents.length < eventCount()) nodes.push('event');
+    if (state.rng() < 0.4 && eventsLeft) nodes.push('event');
+    if (nodes.length === 1) {
+      // guarantee at least one special option per round
+      const fallback: NodeKind[] = state.round >= ELITE_MIN ? ['treasure', 'event', 'elite'] : ['treasure', 'event'];
+      const pool = fallback.filter((n) => n !== 'event' || eventsLeft);
+      nodes.push(pool[Math.floor(state.rng() * pool.length)]);
+    }
   }
   state.nextNodes = nodes.slice(0, 3);
+  // a real choice is owed only when there is more than one option
+  state.nodePicked = state.nextNodes.length <= 1;
 }
 
 // lazy to dodge data cycles

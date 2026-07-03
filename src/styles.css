@@ -265,8 +265,8 @@ body {
   padding: 5px 8px;
 }
 
-/* ---- card draft modal (also relics / events / tower-specialize) ---- */
-#draft-modal, #specialize-modal, #relic-modal, #event-modal {
+/* ---- card draft modal (also relics / events / path / tower-specialize) ---- */
+#draft-modal, #specialize-modal, #relic-modal, #event-modal, #path-modal {
   position: absolute;
   inset: 0;
   background: rgba(10, 8, 20, 0.78);
@@ -276,7 +276,13 @@ body {
   border-radius: 8px;
   z-index: 20;
 }
-#draft-modal.hidden, #specialize-modal.hidden, #relic-modal.hidden, #event-modal.hidden { display: none; }
+#draft-modal.hidden, #specialize-modal.hidden, #relic-modal.hidden, #event-modal.hidden, #path-modal.hidden { display: none; }
+
+.path-card.normal { border-color: #55409e; }
+.path-card.elite { border-color: #ffd75e; }
+.path-card.treasure { border-color: #7fd8ff; }
+.path-card.event { border-color: #ff9db5; }
+.path-card .dc-icon { font-size: 32px; background: #14121f; }
 
 /* ---- event vignette ---- */
 #event-inner { text-align: center; max-width: 520px; }

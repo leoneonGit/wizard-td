@@ -20,7 +20,7 @@ export function initHud(onStart: () => void): void {
 }
 
 export function updateHud(state: GameState): void {
-  const key = `${state.gold}|${state.lives}|${state.round}|${state.phase}|${state.waveModifier?.id ?? ''}|${state.nodeChoice}`;
+  const key = `${state.gold}|${state.lives}|${state.round}|${state.phase}|${state.waveModifier?.id ?? ''}|${state.nodeChoice}|${state.nodePicked}`;
   if (key === lastKey) return;
   lastKey = key;
 
@@ -29,9 +29,10 @@ export function updateHud(state: GameState): void {
   elRound.textContent = `${Math.min(state.round + (state.phase === 'wave' ? 1 : 1), WAVES.length)}/${WAVES.length}`;
 
   if (state.phase === 'build' && state.round < WAVES.length) {
-    btnStart.disabled = false;
+    const choiceDue = !state.nodePicked && state.nextNodes.length > 1;
+    btnStart.disabled = choiceDue;
     const tag = state.nodeChoice === 'elite' ? ' ★' : state.nodeChoice === 'treasure' ? ' 💎' : '';
-    btnStart.textContent = `Start Wave ${state.round + 1}${tag}`;
+    btnStart.textContent = choiceDue ? 'Choose your path…' : `Start Wave ${state.round + 1}${tag}`;
     elWavePreview.innerHTML = previewWave(state.round);
   } else if (state.phase === 'wave') {
     btnStart.disabled = true;

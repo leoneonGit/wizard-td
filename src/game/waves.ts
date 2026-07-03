@@ -17,6 +17,7 @@ const GUARDED: WaveModifier = {
 
 export function startWave(state: GameState): boolean {
   if (state.phase !== 'build' || state.round >= WAVES.length) return false;
+  if (!state.nodePicked && state.nextNodes.length > 1) return false; // path choice owed first
   saveRun(state); // checkpoint: restoring replays this wave with the current build
   const wave = WAVES[state.round];
 

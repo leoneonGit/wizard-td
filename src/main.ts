@@ -1,7 +1,7 @@
 import { startLoop } from './engine/loop';
 import { pixelToCell, inBounds } from './engine/grid';
 import { WIZARDS, SHOP_ORDER } from './data/wizards';
-import { createGame, computeStats, evolveWizard, findWizard, isBuildable, makeWizard, specializeWizard, wizardAt, type GameState } from './game/state';
+import { createGame, computeStats, ensureNodes, evolveWizard, findWizard, isBuildable, makeWizard, specializeWizard, wizardAt, type GameState } from './game/state';
 import { updateWizards, updateProjectiles, updateEnemies, updateClouds } from './game/combat';
 import { startWave, updateWave } from './game/waves';
 import { canAfford, spend, sellWizard, towerCost } from './game/economy';
@@ -210,10 +210,15 @@ btnMute.addEventListener('click', () => {
 // ---------------------------------------------------------------- loop
 
 function update(dt: number): void {
+  // roll the round's path options in the SIM step (not render) — autoplay must see
+  // the fresh "choice owed" state before its timer can ever fire
+  if (state.phase === 'build') ensureNodes(state);
+  const pathChoiceDue = state.phase === 'build' && !state.nodePicked && state.nextNodes.length > 1;
   const paused =
     state.phase === 'won' || state.phase === 'lost' ||
     state.phase === 'draft' || state.phase === 'relic' ||
-    state.pendingEvent !== null; // an open event vignette also freezes time
+    state.pendingEvent !== null || // an open event vignette freezes time
+    pathChoiceDue; // so does the path modal — autoplay must not skip the choice
   if (paused) {
     fx.update(dt);
     return;

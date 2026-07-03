@@ -99,8 +99,9 @@ export function resolveEventChoice(state: GameState, effect: string): void {
       break;
   }
   state.pendingEvent = null;
-  // an event consumes the special node — the wave itself runs as normal
+  // an event consumes the round's path choice — the wave itself runs as normal
   state.nodeChoice = 'normal';
+  state.nodePicked = true;
   state.nextNodes = state.nextNodes.filter((n) => n !== 'event');
 }
 

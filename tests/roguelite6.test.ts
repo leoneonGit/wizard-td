@@ -97,9 +97,34 @@ describe('branching wave map', () => {
     const state = createGame(MAPS.vale, 10);
     ensureNodes(state);
     expect(state.nextNodes).toEqual(['normal']);
+    expect(state.nodePicked).toBe(true); // nothing to choose — nothing owed
     const first = [...state.nextNodes];
     ensureNodes(state);
     expect(state.nextNodes).toEqual(first); // idempotent per round
+  });
+
+  it('from wave 3 on there is ALWAYS a real choice, and it blocks the wave start', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7]) {
+      const state = createGame(MAPS.vale, seed);
+      for (let round = 2; round < 12; round++) {
+        state.round = round;
+        ensureNodes(state);
+        expect(state.nextNodes.length, `seed ${seed} round ${round}`).toBeGreaterThanOrEqual(2);
+        expect(state.nodePicked).toBe(false); // choice owed
+        expect(startWave(state)).toBe(false); // Start refuses until the path is picked
+        state.nodePicked = true;
+      }
+    }
+  });
+
+  it('resolving an event counts as the round’s path choice', () => {
+    const state = createGame(MAPS.vale, 13);
+    state.round = 3;
+    ensureNodes(state);
+    state.nodePicked = false;
+    resolveEventChoice(state, 'skip');
+    expect(state.nodePicked).toBe(true);
+    expect(state.nodeChoice).toBe('normal');
   });
 
   it('elite node forces a modifier and pays a rare draft on clear', () => {
