@@ -53,6 +53,11 @@ canvas.addEventListener('mouseleave', () => {
   state.mouseOnBoard = false;
 });
 
+// touch devices place in two taps: first tap parks the ghost (with range ring)
+// on the cell, second tap on the SAME cell confirms — no more 90g mis-drops
+const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+let pendingPlace: { cx: number; cy: number } | null = null;
+
 canvas.addEventListener('click', (e) => {
   const p = pickBoardPoint(e.offsetX, e.offsetY);
   if (!p) return;
@@ -62,6 +67,24 @@ canvas.addEventListener('click', (e) => {
   if (state.placingType) {
     const def = WIZARDS[state.placingType];
     const cost = towerCost(state, def.cost);
+
+    if (coarsePointer) {
+      // park/move the ghost on this cell (touch has no hover to preview with)
+      state.mouseX = p.x;
+      state.mouseY = p.y;
+      state.mouseOnBoard = true;
+      if (!pendingPlace || pendingPlace.cx !== cx || pendingPlace.cy !== cy) {
+        pendingPlace = { cx, cy };
+        if (isBuildable(state, cx, cy, def)) {
+          fx.floater(p.x, p.y - 26, 'tap again to build', '#c9b8ff', 12);
+        } else {
+          fx.floater(p.x, p.y - 26, "can't build here", '#ff9db5', 12);
+        }
+        return;
+      }
+      pendingPlace = null; // second tap on the same cell — confirm below
+    }
+
     if (isBuildable(state, cx, cy, def) && canAfford(state, cost)) {
       spend(state, cost);
       const w = makeWizard(state, def, cx, cy);
@@ -106,6 +129,7 @@ function pickShopItem(typeId: string): void {
   if (!canAfford(state, def.cost)) return;
   state.placingType = state.placingType === typeId ? null : typeId;
   state.selectedWizardId = null;
+  pendingPlace = null; // fresh pick, fresh two-tap cycle
 }
 
 initShop(pickShopItem);
@@ -191,11 +215,26 @@ initTowerPanel({
   },
 });
 
+function setSpeed(speed: number): void {
+  state.speed = speed;
+  document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((b) =>
+    b.classList.toggle('active', Number(b.dataset.speed) === speed),
+  );
+  qbSpeed.textContent = `${speed}×`;
+}
 document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    state.speed = Number(btn.dataset.speed);
-    document.querySelectorAll('.btn-speed').forEach((b) => b.classList.toggle('active', b === btn));
-  });
+  btn.addEventListener('click', () => setSpeed(Number(btn.dataset.speed)));
+});
+
+// quickbar: speed cycles 1→2→3, auto toggles
+const qbSpeed = document.getElementById('qb-speed') as HTMLButtonElement;
+const qbAuto = document.getElementById('qb-auto') as HTMLButtonElement;
+qbSpeed.addEventListener('click', () => setSpeed(state.speed >= 3 ? 1 : state.speed + 1));
+qbAuto.addEventListener('click', () => {
+  state.autoplay = !state.autoplay;
+  qbAuto.classList.toggle('active', state.autoplay);
+  (document.getElementById('chk-auto') as HTMLInputElement).checked = state.autoplay;
+  if (state.autoplay && state.phase === 'build') state.autoplayTimer = 0.8;
 });
 
 // ---- audio wiring (context unlocks on first user gesture per autoplay policy) ----

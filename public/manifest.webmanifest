@@ -1,0 +1,25 @@
+{
+  "name": "Wizard TD",
+  "short_name": "WizardTD",
+  "description": "A roguelite 3D tower defense: wizards, goblins, archers and ents against the horde.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#14121f",
+  "theme_color": "#14121f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/portrait_fire.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
