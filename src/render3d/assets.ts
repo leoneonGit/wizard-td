@@ -109,6 +109,51 @@ export async function loadCharacters(): Promise<void> {
       }
     }),
   );
+  // procedural weapons — archers finally get their bows
+  attachments.set('bow', { scene: makeBow(), rawHeight: 0.9 });
+  attachments.set('crossbow', { scene: makeCrossbow(), rawHeight: 0.5 });
+}
+
+/** A recurve bow built from a bent tube + string — reads perfectly at game scale. */
+function makeBow(): THREE.Group {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: '#6b4a2f', roughness: 0.75 });
+  const curve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0, -0.45, 0),
+    new THREE.Vector3(0.2, 0, 0),
+    new THREE.Vector3(0, 0.45, 0),
+  );
+  const limb = new THREE.Mesh(new THREE.TubeGeometry(curve, 16, 0.028, 6), wood);
+  limb.castShadow = true;
+  const string = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.007, 0.007, 0.9, 4),
+    new THREE.MeshStandardMaterial({ color: '#e8e2d5', roughness: 0.4 }),
+  );
+  g.add(limb, string);
+  return g;
+}
+
+/** A crank crossbow: stock along the aim axis, short limb across it. */
+function makeCrossbow(): THREE.Group {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: '#5a4630', roughness: 0.75 });
+  const steel = new THREE.MeshStandardMaterial({ color: '#9aa6b5', roughness: 0.4, metalness: 0.5 });
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.06), wood);
+  stock.castShadow = true;
+  const curve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0.18, 0, -0.25),
+    new THREE.Vector3(0.3, 0, 0),
+    new THREE.Vector3(0.18, 0, 0.25),
+  );
+  const limb = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 0.02, 6), steel);
+  const string = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.006, 0.006, 0.5, 4),
+    new THREE.MeshStandardMaterial({ color: '#e8e2d5', roughness: 0.4 }),
+  );
+  string.rotation.x = Math.PI / 2;
+  string.position.x = 0.18;
+  g.add(stock, limb, string);
+  return g;
 }
 
 export function getAsset(key: string): CharacterAsset {
@@ -154,6 +199,8 @@ export interface UnitLook {
   mage?: MageStyle;
   goblin?: GoblinStyle;
   ent?: EntStyle;
+  /** a weapon placed in a hand slot (procedural bow/crossbow, or any attachment key) */
+  held?: { key: string; hand: 'l' | 'r'; scale: number; rotX?: number; rotY?: number; rotZ?: number };
   /** hide any node whose name matches (strip held weapons the kit doesn't use) */
   hideRe?: RegExp;
   /** translucent, glossy "made of water" materials (Water Mage) */
@@ -232,17 +279,20 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     model: 'ranger', height: 1.4,
     tint: new THREE.Color('#8a8494'), tintStrength: 0.5,
     hideRe: /knife|dagger|sword|crossbow/i,
+    held: { key: 'bow', hand: 'l', scale: 0.55 },
   },
   longbow: {
     model: 'ranger', height: 1.5,
     tint: new THREE.Color('#4e8f4e'), tintStrength: 0.55, // forest-green elf
     emissive: new THREE.Color('#3fae5a'),
     hideRe: /knife|dagger|sword|crossbow/i,
+    held: { key: 'bow', hand: 'l', scale: 0.62 },
   },
   ballesta: {
     model: 'knight', height: 1.35,
     tint: new THREE.Color('#5b7fc9'), tintStrength: 0.5, // indigo man-at-arms
     hideRe: /sword|shield/i,
+    held: { key: 'crossbow', hand: 'l', scale: 0.5 },
   },
   bolas: {
     model: 'goblin', height: 1.3,
@@ -327,12 +377,14 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     tint: new THREE.Color('#4e8f4e'), tintStrength: 0.65,
     emissive: new THREE.Color('#7dff9b'),
     hideRe: /knife|dagger|sword|crossbow/i,
+    held: { key: 'bow', hand: 'l', scale: 0.7 },
   },
   ironstorm: {
     model: 'knight', height: 1.55,
     tint: new THREE.Color('#5b7fc9'), tintStrength: 0.65,
     emissive: new THREE.Color('#8fb4ff'),
     hideRe: /sword|shield/i,
+    held: { key: 'crossbow', hand: 'l', scale: 0.58 },
   },
   chainwarden: {
     model: 'goblin', height: 1.55,
@@ -371,4 +423,21 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
   },
   golem: { model: 'skel_warrior', height: 2.6, tint: new THREE.Color('#3d2f5e'), tintStrength: 0.6 },
   golemling: { model: 'skel_warrior', height: 1.45, tint: new THREE.Color('#7a68a6'), tintStrength: 0.5 },
+
+  // act bosses — huge, tinted, unmistakable
+  warlord: {
+    model: 'skel_warrior', height: 3.0,
+    tint: new THREE.Color('#6e7b8a'), tintStrength: 0.55,
+    emissive: new THREE.Color('#8fa2b8'),
+  },
+  pyretitan: {
+    model: 'skel_mage', height: 3.1,
+    tint: new THREE.Color('#c25a2e'), tintStrength: 0.6,
+    emissive: new THREE.Color('#ff5522'),
+  },
+  colossus: {
+    model: 'skel_warrior', height: 3.6,
+    tint: new THREE.Color('#3d2f5e'), tintStrength: 0.7,
+    emissive: new THREE.Color('#b14aed'),
+  },
 };

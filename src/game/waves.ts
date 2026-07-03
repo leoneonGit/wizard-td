@@ -1,11 +1,12 @@
 import { ENEMIES } from '../data/enemies';
 import {
-  WAVES, ROUND_BONUS_BASE, ROUND_BONUS_PER_ROUND, ELITE_MODIFIERS,
+  wavesForAct, ROUND_BONUS_BASE, ROUND_BONUS_PER_ROUND, ELITE_MODIFIERS,
+  ACT_SCALING, WAVE_HP_RAMP, TOTAL_ACTS,
 } from '../data/waves';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
-import { drawDraft, drawRelics, relicSpecial, type GameState } from './state';
-import type { WaveModifier } from './types';
+import { drawDraft, drawRelics, isCampaign, relicSpecial, type GameState } from './state';
+import type { StatusId, WaveModifier } from './types';
 import { saveRun } from './save';
 
 const AUTOPLAY_DELAY = 1.6;
@@ -16,10 +17,11 @@ const GUARDED: WaveModifier = {
 };
 
 export function startWave(state: GameState): boolean {
-  if (state.phase !== 'build' || state.round >= WAVES.length) return false;
+  const waves = wavesForAct(state.act);
+  if (state.phase !== 'build' || state.round >= waves.length) return false;
   if (!state.nodePicked && state.nextNodes.length > 1) return false; // path choice owed first
   saveRun(state); // checkpoint: restoring replays this wave with the current build
-  const wave = WAVES[state.round];
+  const wave = waves[state.round];
 
   // wave flavor comes from the chosen node (or an event's forced modifier)
   state.waveKind = state.nodeChoice;
@@ -32,7 +34,7 @@ export function startWave(state: GameState): boolean {
     }
     fx.floater(480, 80, `★ ${state.waveModifier.name} — ${state.waveModifier.desc}`, '#ffd75e', 15);
   } else if (state.nodeChoice === 'elite') {
-    state.waveModifier = ELITE_MODIFIERS[Math.floor(state.rng() * ELITE_MODIFIERS.length)];
+    state.waveModifier = rollElite(state);
     state.lastEliteRound = state.round;
     fx.floater(480, 80, `★ ELITE: ${state.waveModifier.name} — ${state.waveModifier.desc}`, '#ffd75e', 15);
   } else if (state.nodeChoice === 'treasure') {
@@ -50,6 +52,25 @@ export function startWave(state: GameState): boolean {
   state.phase = 'wave';
   sfx.waveStart();
   return true;
+}
+
+/** Elite modifier roll — act 3 elites stack TWO modifiers at once. */
+function rollElite(state: GameState): WaveModifier {
+  const pick = () => ELITE_MODIFIERS[Math.floor(state.rng() * ELITE_MODIFIERS.length)];
+  const a = pick();
+  if (state.act < 2) return a;
+  let b = pick();
+  for (let i = 0; i < 5 && b.id === a.id; i++) b = pick();
+  if (b.id === a.id) return a;
+  return {
+    id: `${a.id}+${b.id}`,
+    name: `${a.name} ${b.name}`,
+    desc: `${a.desc} & ${b.desc}`,
+    speedMult: (a.speedMult ?? 1) * (b.speedMult ?? 1),
+    hpMult: (a.hpMult ?? 1) * (b.hpMult ?? 1),
+    immune: [...(a.immune ?? []), ...(b.immune ?? [])],
+    gustImmune: a.gustImmune || b.gustImmune,
+  };
 }
 
 export function updateWave(state: GameState, dt: number): void {
@@ -76,9 +97,15 @@ export function updateWave(state: GameState, dt: number): void {
     state.waveKind = 'normal';
     state.round++;
     state.stats.wavesCleared++;
-    if (state.round >= WAVES.length) {
-      state.phase = 'won';
-      sfx.win();
+    if (state.round >= wavesForAct(state.act).length) {
+      if (isCampaign(state) && state.act < TOTAL_ACTS - 1) {
+        // act boss down — the road goes on (ui/actclear.ts handles the crossing)
+        state.phase = 'actClear';
+        sfx.actFanfare();
+      } else {
+        state.phase = 'won';
+        sfx.win();
+      }
     } else {
       const bonus = ROUND_BONUS_BASE + ROUND_BONUS_PER_ROUND * state.round;
       state.gold += bonus;
@@ -113,9 +140,14 @@ function spawnEnemy(state: GameState, type: string): void {
   const def = ENEMIES[type];
   const p = state.track.posAt(0);
   const mod = state.waveModifier;
-  const hp = def.hp * (mod?.hpMult ?? 1);
+  // campaign difficulty spine: per-act multipliers + a within-act ramp (bosses exempt
+  // from the ramp — their numbers are hand-tuned walls already)
+  const scale = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)];
+  const ramp = def.boss ? 1 : 1 + state.round * WAVE_HP_RAMP;
+  const hp = def.hp * (mod?.hpMult ?? 1) * scale.hp * ramp;
   // relic hooks: Cursed Hourglass hastens everything; Frozen Core pre-chills
   const haste = relicSpecial(state, 'hasteEnemies') ? 1.1 : 1;
+  const immunities: StatusId[] = [...(def.innateImmune ?? []), ...(mod?.immune ?? [])];
   state.enemies.push({
     id: state.nextId++,
     def,
@@ -124,16 +156,20 @@ function spawnEnemy(state: GameState, type: string): void {
     dist: 0,
     x: p.x,
     y: p.y,
-    statuses: relicSpecial(state, 'spawnChill') && !mod?.immune?.includes('chill')
+    statuses: relicSpecial(state, 'spawnChill') && !immunities.includes('chill')
       ? { chill: { t: 2.5, pct: 0.15, stacks: 1 } }
       : {},
     wobble: Math.random() * Math.PI * 2,
     animT: Math.random() * 2, // desync walk cycles between units
     angle: p.angle,
     hitFlash: 0,
-    speedMult: (mod?.speedMult ?? 1) * haste,
-    immunities: mod?.immune,
+    speedMult: (mod?.speedMult ?? 1) * haste * scale.speed,
+    immunities: immunities.length > 0 ? immunities : undefined,
     gustImmune: mod?.gustImmune,
+    armorHp: def.armor, // boss shell — physical damage only until it breaks
   });
-  if (def.boss) fx.floater(p.x + 30, p.y - 20, `${def.name}!`, '#ff9db5', 14);
+  if (def.boss) {
+    fx.floater(p.x + 30, p.y - 20, `${def.name}!`, '#ff9db5', 14);
+    if (def.armor || def.hp >= 1500) sfx.bossRoar();
+  }
 }

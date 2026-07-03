@@ -17,9 +17,16 @@ let points: THREE.Points;
 let posAttr: THREE.BufferAttribute;
 let colAttr: THREE.BufferAttribute;
 
-// pooled projectile meshes
-const projPool: THREE.Mesh[] = [];
-let projGeo: THREE.SphereGeometry;
+// pooled projectile meshes, one pool per visual kind (orb/rock/stick/arrow/bolt/needle)
+type ProjKind = 'orb' | 'rock' | 'stick' | 'arrow' | 'bolt' | 'needle';
+const KINDS: ProjKind[] = ['orb', 'rock', 'stick', 'arrow', 'bolt', 'needle'];
+const projPools: Record<ProjKind, THREE.Mesh[]> = { orb: [], rock: [], stick: [], arrow: [], bolt: [], needle: [] };
+let projGeos: Record<ProjKind, THREE.BufferGeometry>;
+/** fixed tints for the physical kinds — orbs take their element's color */
+const KIND_COLOR: Record<ProjKind, string | null> = {
+  orb: null, rock: '#8d8578', stick: '#c8452e', arrow: '#e6d7b0', bolt: '#cdd7e0', needle: '#7fce6a',
+};
+let projSpin = 0;
 
 // per-frame rebuilt lines for lightning arcs
 let arcLines: THREE.Group;
@@ -53,7 +60,14 @@ export function initFx3d(s: THREE.Scene, cam: THREE.Camera, wrap: HTMLElement): 
   points.frustumCulled = false;
   scene.add(points);
 
-  projGeo = new THREE.SphereGeometry(0.11, 10, 8);
+  projGeos = {
+    orb: new THREE.SphereGeometry(0.11, 10, 8),
+    rock: new THREE.DodecahedronGeometry(0.12),
+    stick: new THREE.CylinderGeometry(0.05, 0.05, 0.28, 8).rotateZ(Math.PI / 2),
+    arrow: new THREE.ConeGeometry(0.04, 0.44, 6).rotateZ(-Math.PI / 2),
+    bolt: new THREE.ConeGeometry(0.06, 0.34, 6).rotateZ(-Math.PI / 2),
+    needle: new THREE.ConeGeometry(0.022, 0.22, 5).rotateZ(-Math.PI / 2),
+  };
   arcLines = new THREE.Group();
   scene.add(arcLines);
   ringGroup = new THREE.Group();
@@ -81,29 +95,55 @@ export function syncFx(state: GameState): void {
   colAttr.needsUpdate = true;
   (points.geometry as THREE.BufferGeometry).setDrawRange(0, n);
 
-  // ---- projectiles (pooled emissive comets)
-  while (projPool.length < state.projectiles.length) {
-    const m = new THREE.Mesh(
-      projGeo,
-      new THREE.MeshBasicMaterial({ color: '#ffffff' }),
-    );
-    m.visible = false;
-    scene.add(m);
-    projPool.push(m);
-  }
-  for (let i = 0; i < projPool.length; i++) {
-    const mesh = projPool[i];
-    const p = state.projectiles[i];
-    if (!p) {
-      mesh.visible = false;
-      continue;
+  // ---- projectiles: per-kind pooled meshes with real identity
+  projSpin += 0.22;
+  const used: Record<ProjKind, number> = { orb: 0, rock: 0, stick: 0, arrow: 0, bolt: 0, needle: 0 };
+  for (const p of state.projectiles) {
+    const kind = (p.visual ?? 'orb') as ProjKind;
+    const pool = projPools[kind];
+    let mesh = pool[used[kind]];
+    if (!mesh) {
+      mesh = new THREE.Mesh(projGeos[kind], new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+      scene.add(mesh);
+      pool.push(mesh);
     }
+    used[kind]++;
     mesh.visible = true;
-    mesh.position.set(p.x * PX, FX_Y, p.y * PX);
-    (mesh.material as THREE.MeshBasicMaterial).color.set(ELEMENTS[p.element].color);
+
+    // thrown things (rocks, dynamite) lob a parabola — render-only juice
+    let yOff = 0;
+    if ((kind === 'rock' || kind === 'stick') && p.sx !== undefined && p.sy !== undefined) {
+      const total = Math.hypot(p.tx - p.sx, p.ty - p.sy) || 1;
+      const traveled = Math.hypot(p.x - p.sx, p.y - p.sy);
+      const t = Math.min(1, traveled / total);
+      const arcH = Math.min(0.95, 0.35 + total * PX * 0.05);
+      yOff = Math.sin(t * Math.PI) * arcH;
+    }
+    mesh.position.set(p.x * PX, FX_Y + yOff, p.y * PX);
+
+    const mat = mesh.material as THREE.MeshBasicMaterial;
+    mat.color.set(KIND_COLOR[kind] ?? ELEMENTS[p.element].color);
+
     const dir = Math.atan2(p.ty - p.y, p.tx - p.x);
-    mesh.rotation.y = -dir;
-    mesh.scale.set(1.8, 1, 1); // comet stretch along travel
+    mesh.rotation.set(0, -dir, 0);
+    if (kind === 'orb') {
+      mesh.scale.set(1.8, 1, 1); // comet stretch along travel
+    } else if (kind === 'rock') {
+      mesh.scale.setScalar(1);
+      mesh.rotation.x = projSpin;
+      mesh.rotation.z = projSpin * 0.7;
+    } else if (kind === 'stick') {
+      mesh.scale.setScalar(1);
+      mesh.rotation.z = projSpin * 1.6; // tumbling dynamite
+      // fuse sparks trail off the stick
+      if (Math.random() < 0.5) fx.burst(p.x, p.y, '#ffd75e', 1, 20, 1.5, 0.2);
+    } else {
+      mesh.scale.setScalar(1);
+    }
+  }
+  for (const kind of KINDS) {
+    const pool = projPools[kind];
+    for (let i = used[kind]; i < pool.length; i++) pool[i].visible = false;
   }
 
   // ---- lightning arcs (rebuilt per frame; few of them, short-lived)

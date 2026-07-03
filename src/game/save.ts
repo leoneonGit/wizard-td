@@ -24,6 +24,8 @@ export interface RunSave {
   gold: number;
   lives: number;
   round: number;
+  /** campaign act — the map to restore onto (pre-campaign saves default to 0) */
+  act?: number;
   lastEliteRound: number;
   cardIds: string[];
   wizards: WizardSave[];
@@ -42,6 +44,7 @@ export function saveRun(state: GameState): void {
     gold: state.gold,
     lives: state.lives,
     round: state.round,
+    act: state.act,
     lastEliteRound: state.lastEliteRound,
     cardIds: state.draftMods.map((c) => c.id),
     wizards: state.wizards.map((w) => ({
@@ -121,6 +124,7 @@ export function restoreRun(save: RunSave): GameState | null {
   state.lastEliteRound = save.lastEliteRound;
   state.stats = save.stats;
   state.killStackPct = save.killStackPct ?? 0;
+  state.act = save.act ?? 0;
   // decorrelate future elite/draft rolls from the fresh-boot sequence
   state.rng = makeRng(save.seed + save.round * 101);
   return state;

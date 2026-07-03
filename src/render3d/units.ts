@@ -33,6 +33,8 @@ interface UnitView {
   prevRecoil: number;
   hpBar?: { bg: THREE.Sprite; fg: THREE.Sprite };
   iceCube?: THREE.Mesh;
+  /** translucent stone shell shown while a boss's armor holds */
+  armorShell?: THREE.Mesh;
   height: number;
 }
 
@@ -107,6 +109,24 @@ function makeView(look: UnitLook): UnitView {
     inner.traverse((o) => {
       if (look.hideRe!.test(o.name)) o.visible = false;
     });
+  }
+
+  // held weapon (procedural bow/crossbow) into a hand slot — same math as the ent rock
+  if (look.held) {
+    const asset = getAttachment(look.held.key);
+    const slot = inner.getObjectByName(`handslot${look.held.hand}`)
+      ?? inner.getObjectByName(`hand${look.held.hand}`);
+    if (asset && slot) {
+      inner.updateMatrixWorld(true);
+      const weapon = asset.scene.clone(true);
+      const ws = new THREE.Vector3();
+      slot.getWorldScale(ws);
+      const localUnit = 1 / Math.max(1e-6, ws.y);
+      const targetH = look.held.scale * look.height;
+      weapon.scale.setScalar(targetH * localUnit / asset.rawHeight);
+      weapon.rotation.set(look.held.rotX ?? 0, look.held.rotY ?? Math.PI / 2, look.held.rotZ ?? 0);
+      slot.add(weapon);
+    }
   }
 
   // ent styling: rigged body turned LotR tree-creature — strip ALL gear, bark-tint
@@ -322,6 +342,32 @@ function syncEnemies(state: GameState, dt: number): void {
         m.emissive.copy(v.baseEmissive);
         m.emissiveIntensity = v.baseEmissive.getHex() === 0 ? 0 : 0.35;
       }
+    }
+
+    // boss armor: a translucent stone shell that shatters when the armor breaks
+    const armored = (e.armorHp ?? 0) > 0;
+    if (armored && !v.armorShell) {
+      const shell = new THREE.Mesh(
+        new THREE.SphereGeometry(0.62, 12, 10),
+        new THREE.MeshStandardMaterial({
+          color: '#9aa6b5', transparent: true, opacity: 0.4,
+          roughness: 0.35, metalness: 0.6,
+        }),
+      );
+      shell.scale.set(1, (v.height + 0.2) / 1.24, 1);
+      shell.position.y = (v.height + 0.2) / 2;
+      v.root.add(shell);
+      v.armorShell = shell;
+    } else if (!armored && v.armorShell) {
+      v.root.remove(v.armorShell);
+      disposeMesh(v.armorShell);
+      v.armorShell = undefined;
+    }
+    if (v.armorShell) {
+      // shell shimmers faintly and thins as it takes damage
+      const frac = Math.max(0.15, (e.armorHp ?? 0) / (e.def.armor ?? 1));
+      (v.armorShell.material as THREE.MeshStandardMaterial).opacity =
+        0.18 + frac * 0.3 + Math.sin(performance.now() / 300) * 0.04;
     }
 
     // frozen: ice cube

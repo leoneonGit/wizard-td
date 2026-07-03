@@ -1,73 +1,177 @@
-import type { WaveDef } from '../game/types';
+import type { WaveDef, WaveModifier } from '../game/types';
 
 /**
- * 12-wave slice. Teaches counters progressively:
- *  w1-3 basics -> w4 runners (ice!) -> w5 knights (fire!) -> w7 shades (fire immune!)
- *  w6/w12 bosses. Balance target: beatable with smart element mixing, not with mono-element.
+ * Campaign: 3 acts x 10 waves, each act on its own map, each act ending in a BOSS.
+ * Act scaling multiplies enemy hp/speed/bounty; within an act, hp also ramps per wave.
+ * Teaching arc (act 1): basics -> runners (ice!) -> knights (fire!) -> shades (fire immune!)
+ * -> armored boss (physical!). Acts 2-3 assume a developed build and press harder.
  */
-export const WAVES: WaveDef[] = [
-  // 1
-  [{ type: 'grunt', count: 8, gap: 0.9, delay: 0 }],
-  // 2
-  [{ type: 'grunt', count: 13, gap: 0.75, delay: 0 }],
-  // 3
+export const ACT_WAVES: WaveDef[][] = [
+  // ---------------- ACT 1 — Emerald Vale ----------------
   [
-    { type: 'grunt', count: 10, gap: 0.7, delay: 0 },
-    { type: 'runner', count: 4, gap: 0.9, delay: 3 },
+    [{ type: 'grunt', count: 8, gap: 0.9, delay: 0 }],
+    [{ type: 'grunt', count: 13, gap: 0.7, delay: 0 }],
+    [
+      { type: 'grunt', count: 10, gap: 0.65, delay: 0 },
+      { type: 'runner', count: 5, gap: 0.8, delay: 3 },
+    ],
+    // runner rush: control matters
+    [{ type: 'runner', count: 15, gap: 0.5, delay: 0 }],
+    // first knights: bring fire
+    [
+      { type: 'knight', count: 6, gap: 1.3, delay: 0 },
+      { type: 'grunt', count: 9, gap: 0.55, delay: 4 },
+    ],
+    // mini-boss
+    [
+      { type: 'golemling', count: 1, gap: 0, delay: 0 },
+      { type: 'grunt', count: 10, gap: 0.7, delay: 2 },
+    ],
+    // ember shades: fire does NOTHING
+    [
+      { type: 'shade', count: 9, gap: 0.85, delay: 0 },
+      { type: 'runner', count: 6, gap: 0.65, delay: 5 },
+    ],
+    // mixed pressure
+    [
+      { type: 'grunt', count: 12, gap: 0.5, delay: 0 },
+      { type: 'knight', count: 5, gap: 1.1, delay: 3 },
+      { type: 'shade', count: 5, gap: 0.9, delay: 7 },
+    ],
+    // everything, fast
+    [
+      { type: 'runner', count: 14, gap: 0.42, delay: 0 },
+      { type: 'knight', count: 6, gap: 1.1, delay: 4 },
+      { type: 'shade', count: 5, gap: 0.9, delay: 9 },
+    ],
+    // BOSS: the Ironhide Warlord — armor only physical damage can crack
+    [
+      { type: 'warlord', count: 1, gap: 0, delay: 0 },
+      { type: 'knight', count: 4, gap: 1.6, delay: 5 },
+      { type: 'grunt', count: 8, gap: 0.6, delay: 9 },
+    ],
   ],
-  // 4 — runner rush: control matters
-  [{ type: 'runner', count: 14, gap: 0.55, delay: 0 }],
-  // 5 — first knights: bring fire
+
+  // ---------------- ACT 2 — Ashen Fen ----------------
   [
-    { type: 'knight', count: 6, gap: 1.4, delay: 0 },
-    { type: 'grunt', count: 8, gap: 0.6, delay: 4 },
+    [
+      { type: 'grunt', count: 14, gap: 0.55, delay: 0 },
+      { type: 'runner', count: 6, gap: 0.6, delay: 4 },
+    ],
+    [
+      { type: 'shade', count: 10, gap: 0.7, delay: 0 },
+      { type: 'grunt', count: 8, gap: 0.5, delay: 4 },
+    ],
+    [
+      { type: 'knight', count: 9, gap: 0.9, delay: 0 },
+      { type: 'runner', count: 8, gap: 0.5, delay: 4 },
+    ],
+    [{ type: 'runner', count: 24, gap: 0.32, delay: 0 }],
+    [
+      { type: 'golemling', count: 2, gap: 5, delay: 0 },
+      { type: 'shade', count: 8, gap: 0.7, delay: 3 },
+    ],
+    [
+      { type: 'knight', count: 8, gap: 0.8, delay: 0 },
+      { type: 'shade', count: 8, gap: 0.7, delay: 4 },
+      { type: 'grunt', count: 10, gap: 0.45, delay: 8 },
+    ],
+    [
+      { type: 'runner', count: 16, gap: 0.4, delay: 0 },
+      { type: 'golemling', count: 1, gap: 0, delay: 6 },
+    ],
+    [
+      { type: 'shade', count: 14, gap: 0.55, delay: 0 },
+      { type: 'knight', count: 6, gap: 1.0, delay: 5 },
+    ],
+    [
+      { type: 'grunt', count: 18, gap: 0.35, delay: 0 },
+      { type: 'runner', count: 12, gap: 0.4, delay: 4 },
+      { type: 'knight', count: 7, gap: 0.9, delay: 8 },
+    ],
+    // BOSS: the Pyre Titan — burns cannot touch it, cold slides off
+    [
+      { type: 'pyretitan', count: 1, gap: 0, delay: 0 },
+      { type: 'shade', count: 8, gap: 1.0, delay: 5 },
+      { type: 'runner', count: 10, gap: 0.5, delay: 9 },
+    ],
   ],
-  // 6 — mini-boss
+
+  // ---------------- ACT 3 — Obsidian Pass ----------------
   [
-    { type: 'golemling', count: 1, gap: 0, delay: 0 },
-    { type: 'grunt', count: 10, gap: 0.8, delay: 2 },
-  ],
-  // 7 — ember shades: fire does NOTHING
-  [
-    { type: 'shade', count: 8, gap: 0.9, delay: 0 },
-    { type: 'runner', count: 6, gap: 0.7, delay: 5 },
-  ],
-  // 8 — mixed pressure
-  [
-    { type: 'grunt', count: 12, gap: 0.5, delay: 0 },
-    { type: 'knight', count: 5, gap: 1.2, delay: 3 },
-    { type: 'shade', count: 5, gap: 1.0, delay: 7 },
-  ],
-  // 9 — speed check
-  [
-    { type: 'runner', count: 18, gap: 0.4, delay: 0 },
-    { type: 'knight', count: 4, gap: 1.5, delay: 5 },
-  ],
-  // 10 — armor wall
-  [
-    { type: 'knight', count: 10, gap: 0.9, delay: 0 },
-    { type: 'shade', count: 6, gap: 0.8, delay: 6 },
-  ],
-  // 11 — everything
-  [
-    { type: 'grunt', count: 14, gap: 0.4, delay: 0 },
-    { type: 'runner', count: 10, gap: 0.5, delay: 4 },
-    { type: 'knight', count: 6, gap: 1.1, delay: 8 },
-    { type: 'shade', count: 6, gap: 0.9, delay: 12 },
-  ],
-  // 12 — THE GOLEM
-  [
-    { type: 'golem', count: 1, gap: 0, delay: 0 },
-    { type: 'golemling', count: 2, gap: 3, delay: 6 },
-    { type: 'runner', count: 8, gap: 0.7, delay: 10 },
+    [
+      { type: 'knight', count: 10, gap: 0.7, delay: 0 },
+      { type: 'shade', count: 8, gap: 0.7, delay: 4 },
+    ],
+    [
+      { type: 'runner', count: 20, gap: 0.32, delay: 0 },
+      { type: 'grunt', count: 12, gap: 0.4, delay: 4 },
+    ],
+    [
+      { type: 'golemling', count: 2, gap: 4, delay: 0 },
+      { type: 'knight', count: 8, gap: 0.8, delay: 3 },
+    ],
+    [
+      { type: 'shade', count: 16, gap: 0.5, delay: 0 },
+      { type: 'runner', count: 10, gap: 0.45, delay: 5 },
+    ],
+    [
+      { type: 'grunt', count: 22, gap: 0.3, delay: 0 },
+      { type: 'knight', count: 8, gap: 0.8, delay: 5 },
+      { type: 'shade', count: 8, gap: 0.7, delay: 9 },
+    ],
+    [
+      { type: 'golem', count: 1, gap: 0, delay: 0 },
+      { type: 'runner', count: 12, gap: 0.45, delay: 4 },
+    ],
+    [
+      { type: 'knight', count: 12, gap: 0.6, delay: 0 },
+      { type: 'golemling', count: 2, gap: 4, delay: 4 },
+    ],
+    [
+      { type: 'shade', count: 12, gap: 0.5, delay: 0 },
+      { type: 'runner', count: 16, gap: 0.35, delay: 4 },
+      { type: 'knight', count: 8, gap: 0.8, delay: 8 },
+    ],
+    [
+      { type: 'grunt', count: 20, gap: 0.3, delay: 0 },
+      { type: 'runner', count: 14, gap: 0.35, delay: 3 },
+      { type: 'knight', count: 9, gap: 0.7, delay: 7 },
+      { type: 'shade', count: 9, gap: 0.6, delay: 11 },
+    ],
+    // THE BOSS: the Dread Colossus — armored, fire-hardened, cold-proof.
+    // Cracking the shell releases its heartlings.
+    [
+      { type: 'colossus', count: 1, gap: 0, delay: 0 },
+      { type: 'knight', count: 6, gap: 1.2, delay: 6 },
+      { type: 'shade', count: 6, gap: 1.0, delay: 10 },
+      { type: 'runner', count: 12, gap: 0.5, delay: 14 },
+    ],
   ],
 ];
+
+export const WAVES_PER_ACT = 10;
+export const TOTAL_ACTS = ACT_WAVES.length;
+
+/** Per-act enemy multipliers — the campaign's difficulty spine. */
+export const ACT_SCALING = [
+  { hp: 1.0, speed: 1.0, bounty: 1.0 },
+  { hp: 1.9, speed: 1.08, bounty: 1.35 },
+  { hp: 3.2, speed: 1.15, bounty: 1.7 },
+];
+
+/** Within an act, enemies also toughen a little every wave. */
+export const WAVE_HP_RAMP = 0.06; // hp x (1 + round * 0.06)
+
+/** Waves for a given act — custom (editor) maps play act 1's list as free-play. */
+export function wavesForAct(act: number): WaveDef[] {
+  return ACT_WAVES[Math.min(act, ACT_WAVES.length - 1)];
+}
 
 export const ROUND_BONUS_BASE = 25;
 export const ROUND_BONUS_PER_ROUND = 3;
 
 // ---------------------------------------------------------------- elite waves
-import type { WaveModifier } from '../game/types';
 
 export const ELITE_MODIFIERS: WaveModifier[] = [
   { id: 'enraged', name: 'Enraged', desc: '+40% speed', speedMult: 1.4 },

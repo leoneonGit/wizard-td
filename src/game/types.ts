@@ -2,7 +2,7 @@ export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physi
 export type TowerFamily = 'wizard' | 'goblin' | 'archer' | 'tree';
 export type StatusId = 'burn' | 'wet' | 'chill' | 'frozen' | 'shock';
 export type TargetMode = 'first' | 'last' | 'strong' | 'close';
-export type Phase = 'build' | 'wave' | 'draft' | 'relic' | 'won' | 'lost';
+export type Phase = 'build' | 'wave' | 'draft' | 'relic' | 'actClear' | 'won' | 'lost';
 
 /** Branching wave map: what kind of node the player picks for the next wave. */
 export type NodeKind = 'normal' | 'elite' | 'treasure' | 'event';
@@ -123,6 +123,12 @@ export interface EnemyDef {
   /** damage multiplier per element; missing = 1.0 */
   resist: Partial<Record<ElementId, number>>;
   boss?: boolean;
+  /** boss armor: only PHYSICAL damage chips it; all other damage is ~nothing until it breaks */
+  armor?: number;
+  /** statuses this enemy is simply born immune to (merged with elite immunities at spawn) */
+  innateImmune?: StatusId[];
+  /** enemy ids spawned when this boss's armor shatters */
+  armorBreakSpawns?: string[];
 }
 
 export interface StatMods {
@@ -213,9 +219,29 @@ export interface PropDef {
   scale: number;
 }
 
+/** Per-map look: ground palette + lighting/atmosphere. All colors are CSS hex strings. */
+export interface MapTheme {
+  grassA: string;
+  grassB: string;
+  road: string;
+  roadEdge: string;
+  water: string;
+  shore: string;
+  /** small decorative scatter painted on the ground */
+  scatter: 'flowers' | 'reeds' | 'ash';
+  fog: string;
+  hemiSky: string;
+  hemiGround: string;
+  sun: string;
+  sunIntensity: number;
+  exposure: number;
+}
+
 export interface MapDef {
   id: string;
   name: string;
+  /** ground palette + lighting mood; falls back to the vale look when absent */
+  theme?: MapTheme;
   /** waypoints in CELL coordinates; first/last should sit off-board for clean entry/exit */
   waypoints: [number, number][];
   /** water cells (cx, cy) — only water wizards may build here */
@@ -259,6 +285,8 @@ export interface Enemy {
   gustCd?: number;
   /** entangle immunity window (sec remaining) — prevents permanent rooting */
   entangleCd?: number;
+  /** remaining boss armor — see EnemyDef.armor */
+  armorHp?: number;
   /** elite-wave status immunities */
   immunities?: StatusId[];
   gustImmune?: boolean;
@@ -319,6 +347,9 @@ export interface Cloud {
   y: number;
 }
 
+/** What a projectile LOOKS like — purely cosmetic, set at fire time. */
+export type ProjectileVisual = 'orb' | 'rock' | 'stick' | 'arrow' | 'bolt' | 'needle';
+
 export interface Projectile {
   id: number;
   element: ElementId;
@@ -331,6 +362,11 @@ export interface Projectile {
   tx: number; // last known target pos
   ty: number;
   wizardId: number;
+  /** renderer mesh kind; defaults to 'orb' (mage bolts) */
+  visual?: ProjectileVisual;
+  /** thrown projectiles (rock/stick) lob in a parabola — spawn point for arc progress */
+  sx?: number;
+  sy?: number;
   /** ballesta bolt: flies a fixed line, damaging each enemy it passes exactly once */
   pierce?: {
     dirX: number;

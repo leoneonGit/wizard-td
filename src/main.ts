@@ -1,7 +1,7 @@
 import { startLoop } from './engine/loop';
 import { pixelToCell, inBounds } from './engine/grid';
 import { WIZARDS, SHOP_ORDER } from './data/wizards';
-import { createGame, computeStats, ensureNodes, evolveWizard, findWizard, isBuildable, makeWizard, specializeWizard, wizardAt, type GameState } from './game/state';
+import { advanceAct, createGame, computeStats, ensureNodes, evolveWizard, findWizard, isBuildable, makeWizard, specializeWizard, wizardAt, type GameState } from './game/state';
 import { updateWizards, updateProjectiles, updateEnemies, updateClouds } from './game/combat';
 import { startWave, updateWave } from './game/waves';
 import { canAfford, spend, sellWizard, towerCost } from './game/economy';
@@ -10,9 +10,12 @@ import { initSpecialize, updateSpecialize } from './ui/specialize';
 import { initRelics, updateRelics } from './ui/relics';
 import { initEvents, updateEvents } from './ui/events';
 import { initNodes, updateNodes } from './ui/nodes';
-import { initRenderer3d, draw3d, pickBoardPoint } from './render3d/renderer3d';
+import { initActClear, updateActClear } from './ui/actclear';
+import { initRenderer3d, draw3d, pickBoardPoint, rebuildMap } from './render3d/renderer3d';
 import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
+import { music } from './audio/music';
+import { WAVES_PER_ACT } from './data/waves';
 import { initHud, updateHud } from './ui/hud';
 import { initShop, updateShop } from './ui/shop';
 import { initTowerPanel, updateTowerPanel } from './ui/towerPanel';
@@ -122,6 +125,13 @@ initEvents(() => {
   saveRun(state); // checkpoint after every event decision
 });
 initNodes();
+initActClear((s) => {
+  if (!advanceAct(s)) return;
+  rebuildMap(s); // repaint ground, swap props, apply the act's lighting mood
+  fx.clear();
+  fx.floater(480, 120, `⚑ ${s.map.name} — Act ${['I', 'II', 'III'][s.act]}`, '#7dff9b', 16);
+  saveRun(s);
+});
 
 // "New Run" clears the save and starts fresh on the current map
 document.getElementById('btn-newrun')?.addEventListener('click', () => {
@@ -189,8 +199,19 @@ document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((btn) => {
 });
 
 // ---- audio wiring (context unlocks on first user gesture per autoplay policy) ----
-window.addEventListener('pointerdown', () => sfx.init(), { once: true });
-window.addEventListener('keydown', () => sfx.init(), { once: true });
+const unlockAudio = () => {
+  sfx.init();
+  music.start();
+};
+window.addEventListener('pointerdown', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
+
+const btnMusic = document.getElementById('btn-music') as HTMLButtonElement;
+btnMusic.addEventListener('click', () => {
+  music.setEnabled(!music.isEnabled());
+  btnMusic.textContent = music.isEnabled() ? '🎵' : '🎵̸';
+  btnMusic.style.opacity = music.isEnabled() ? '1' : '0.4';
+});
 
 const btnMute = document.getElementById('btn-mute') as HTMLButtonElement;
 btnMute.addEventListener('click', () => {
@@ -217,6 +238,7 @@ function update(dt: number): void {
   const paused =
     state.phase === 'won' || state.phase === 'lost' ||
     state.phase === 'draft' || state.phase === 'relic' ||
+    state.phase === 'actClear' || // between acts the world holds its breath
     state.pendingEvent !== null || // an open event vignette freezes time
     pathChoiceDue; // so does the path modal — autoplay must not skip the choice
   if (paused) {
@@ -232,6 +254,9 @@ function update(dt: number): void {
 }
 
 function render(): void {
+  music.setIntensity(
+    state.phase !== 'wave' ? 0 : state.round === WAVES_PER_ACT - 1 ? 2 : 1,
+  );
   draw3d(state);
   updateHud(state);
   updateShop(state);
@@ -241,6 +266,7 @@ function render(): void {
   updateRelics(state);
   updateEvents(state);
   updateNodes(state);
+  updateActClear(state);
   updateScreens(state);
 }
 

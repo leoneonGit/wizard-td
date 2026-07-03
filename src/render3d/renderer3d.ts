@@ -3,7 +3,8 @@ import { BOARD_W, BOARD_H, CELL, pixelToCell, inBounds, cellCenter } from '../en
 import { WIZARDS } from '../data/wizards';
 import { ELEMENTS } from '../data/elements';
 import { isBuildable, findWizard, type GameState } from '../game/state';
-import { paintBoardTexture } from './ground';
+import { paintBoardTexture, DEFAULT_THEME } from './ground';
+import type { MapTheme } from '../game/types';
 import { loadCharacters } from './assets';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PROP_MODELS } from '../game/mapio';
@@ -24,6 +25,11 @@ let waterGroup: THREE.Group; // animated water surfaces
 let cloudGroup: THREE.Group; // drifting clouds (visuals follow sim state)
 let cloudShadows: THREE.Mesh[] = [];
 let cloudPuffs: THREE.Group[] = [];
+let hemi: THREE.HemisphereLight;
+let sun: THREE.DirectionalLight;
+let groundMat: THREE.MeshStandardMaterial;
+let skirtMat: THREE.MeshStandardMaterial;
+let mapGroup: THREE.Group; // everything map-specific: portals, water, clouds, props
 let rangeRing: THREE.Mesh; // selected wizard range
 let ghostGroup: THREE.Group; // placement preview
 let ghostRing: THREE.Mesh;
@@ -55,9 +61,10 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   camera.position.set(center.x, Math.sin(tilt) * dist, center.z + Math.cos(tilt) * dist);
   camera.lookAt(center);
 
-  // lights
-  scene.add(new THREE.HemisphereLight('#cfe8ff', '#3a4a30', 1.6));
-  const sun = new THREE.DirectionalLight('#fff4d6', 2.4);
+  // lights (theme-tinted; retinted on act transitions)
+  hemi = new THREE.HemisphereLight('#cfe8ff', '#3a4a30', 1.6);
+  scene.add(hemi);
+  sun = new THREE.DirectionalLight('#fff4d6', 2.4);
   sun.position.set(W_UNITS * 0.3, 14, H_UNITS * 0.15);
   sun.target.position.copy(center);
   sun.castShadow = true;
@@ -70,86 +77,24 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   sun.shadow.camera.far = 60;
   scene.add(sun, sun.target);
 
-  // ground: painted 2D board as texture
-  const tex = new THREE.CanvasTexture(paintBoardTexture(state.track, state.map.water ?? []));
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(W_UNITS, H_UNITS),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }),
-  );
+  // ground: painted 2D board as texture (texture swapped per act)
+  groundMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(W_UNITS, H_UNITS), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(W_UNITS / 2, 0, H_UNITS / 2);
   ground.receiveShadow = true;
   scene.add(ground);
 
   // oversized skirt below the board so the tilted view never shows void
-  const skirt = new THREE.Mesh(
-    new THREE.PlaneGeometry(W_UNITS * 4, H_UNITS * 4),
-    new THREE.MeshStandardMaterial({ color: '#1c2b1c', roughness: 1 }),
-  );
+  skirtMat = new THREE.MeshStandardMaterial({ color: '#1c2b1c', roughness: 1 });
+  const skirt = new THREE.Mesh(new THREE.PlaneGeometry(W_UNITS * 4, H_UNITS * 4), skirtMat);
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.set(W_UNITS / 2, -0.02, H_UNITS / 2);
   skirt.receiveShadow = true;
   scene.add(skirt);
 
-  // portals: glowing torus gates at track ends
-  addPortal(state.track.posAt(0), '#b14aed');
-  addPortal(state.track.posAt(state.track.total), '#3a86ff');
-
-  // water surfaces: one translucent quad per water cell, gently animated in draw3d
-  waterGroup = new THREE.Group();
-  for (const [cx, cy] of state.map.water ?? []) {
-    const quad = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.02, 1.02),
-      new THREE.MeshStandardMaterial({
-        color: '#2f7fd4',
-        transparent: true,
-        opacity: 0.72,
-        roughness: 0.15,
-        metalness: 0.25,
-      }),
-    );
-    quad.rotation.x = -Math.PI / 2;
-    quad.position.set(cx + 0.5, 0.04, cy + 0.5);
-    waterGroup.add(quad);
-  }
-  scene.add(waterGroup);
-
-  // clouds: stylized puff clusters, positions driven by the sim
-  cloudGroup = new THREE.Group();
-  cloudPuffs = [];
-  cloudShadows = [];
-  const puffMat = new THREE.MeshStandardMaterial({
-    color: '#f4f9ff',
-    transparent: true,
-    opacity: 0.88,
-    roughness: 0.9,
-  });
-  for (let i = 0; i < state.clouds.length; i++) {
-    const puffs = new THREE.Group();
-    const sizes: [number, number, number, number][] = [
-      [0, 0, 0, 0.65], [0.6, 0.1, 0.15, 0.45], [-0.55, 0.05, -0.1, 0.5], [0.15, 0.35, -0.2, 0.4],
-    ];
-    for (const [px, py, pz, r] of sizes) {
-      const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), puffMat);
-      puff.position.set(px, py, pz);
-      puffs.add(puff);
-    }
-    puffs.position.y = 3.1;
-    cloudGroup.add(puffs);
-    cloudPuffs.push(puffs);
-
-    const shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(1.05, 24),
-      new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.16, depthWrite: false }),
-    );
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.03;
-    cloudGroup.add(shadow);
-    cloudShadows.push(shadow);
-  }
-  scene.add(cloudGroup);
+  applyTheme(state.map.theme ?? DEFAULT_THEME);
+  await buildMapScene(state);
 
   // selection range ring
   rangeRing = new THREE.Mesh(
@@ -190,9 +135,114 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   initFx3d(scene, camera, canvas.parentElement as HTMLElement);
 
   await loadCharacters();
-  await placeProps(state);
   lastTime = performance.now();
   (window as unknown as { __scene?: THREE.Scene }).__scene = scene; // debug/test handle
+}
+
+/** Tint the world to the act's mood: lights, fog, exposure, backdrop. */
+function applyTheme(theme: MapTheme): void {
+  hemi.color.set(theme.hemiSky);
+  hemi.groundColor.set(theme.hemiGround);
+  sun.color.set(theme.sun);
+  sun.intensity = theme.sunIntensity;
+  renderer.toneMappingExposure = theme.exposure;
+  scene.fog = new THREE.Fog(theme.fog, 34, 62); // a whisper of depth at the board's far edge
+  scene.background = new THREE.Color(theme.fog).multiplyScalar(0.35);
+  skirtMat.color.set(theme.grassB).multiplyScalar(0.75);
+}
+
+/** Build everything map-specific (ground texture, portals, water, clouds, props). */
+async function buildMapScene(state: GameState): Promise<void> {
+  const theme = state.map.theme ?? DEFAULT_THEME;
+  const tex = new THREE.CanvasTexture(paintBoardTexture(state.track, state.map.water ?? [], theme));
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  groundMat.map?.dispose();
+  groundMat.map = tex;
+  groundMat.needsUpdate = true;
+
+  mapGroup = new THREE.Group();
+  scene.add(mapGroup);
+
+  // portals: glowing torus gates at track ends
+  addPortal(state.track.posAt(0), '#b14aed');
+  addPortal(state.track.posAt(state.track.total), '#3a86ff');
+
+  // water surfaces: one translucent quad per water cell, gently animated in draw3d
+  waterGroup = new THREE.Group();
+  for (const [cx, cy] of state.map.water ?? []) {
+    const quad = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.02, 1.02),
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color(theme.water).lerp(new THREE.Color('#4f9fe4'), 0.4),
+        transparent: true,
+        opacity: 0.72,
+        roughness: 0.15,
+        metalness: 0.25,
+      }),
+    );
+    quad.rotation.x = -Math.PI / 2;
+    quad.position.set(cx + 0.5, 0.04, cy + 0.5);
+    waterGroup.add(quad);
+  }
+  mapGroup.add(waterGroup);
+
+  // clouds: stylized puff clusters, positions driven by the sim
+  cloudGroup = new THREE.Group();
+  cloudPuffs = [];
+  cloudShadows = [];
+  const puffMat = new THREE.MeshStandardMaterial({
+    color: '#f4f9ff',
+    transparent: true,
+    opacity: 0.88,
+    roughness: 0.9,
+  });
+  for (let i = 0; i < state.clouds.length; i++) {
+    const puffs = new THREE.Group();
+    const sizes: [number, number, number, number][] = [
+      [0, 0, 0, 0.65], [0.6, 0.1, 0.15, 0.45], [-0.55, 0.05, -0.1, 0.5], [0.15, 0.35, -0.2, 0.4],
+    ];
+    for (const [px, py, pz, r] of sizes) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), puffMat);
+      puff.position.set(px, py, pz);
+      puffs.add(puff);
+    }
+    puffs.position.y = 3.1;
+    cloudGroup.add(puffs);
+    cloudPuffs.push(puffs);
+
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1.05, 24),
+      new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.16, depthWrite: false }),
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.03;
+    cloudGroup.add(shadow);
+    cloudShadows.push(shadow);
+  }
+  mapGroup.add(cloudGroup);
+
+  await placeProps(state);
+}
+
+/** Act transition: tear down the old map's scene pieces and raise the new act's. */
+export function rebuildMap(state: GameState): void {
+  if (mapGroup) {
+    scene.remove(mapGroup);
+    mapGroup.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.geometry?.dispose();
+        const mat = m.material as THREE.Material | THREE.Material[];
+        if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+        else mat?.dispose();
+      }
+    });
+  }
+  applyTheme(state.map.theme ?? DEFAULT_THEME);
+  const exit = state.track.posAt(state.track.total);
+  initUnits(scene, new THREE.Vector3(exit.x * PX, 0, exit.y * PX));
+  void buildMapScene(state).catch((err) => console.warn('map rebuild failed', err));
 }
 
 /** Load + place the map's decorative props as static, shadow-casting clones. */
@@ -223,7 +273,7 @@ async function placeProps(state: GameState): Promise<void> {
     clone.scale.setScalar(entry.unitScale * p.scale);
     clone.position.set(p.x * PX, 0, p.y * PX);
     clone.rotation.y = -p.rot;
-    scene.add(clone);
+    mapGroup.add(clone);
   }
 }
 
@@ -239,7 +289,7 @@ function addPortal(p: { x: number; y: number; angle: number }, color: string): v
   glow.position.y = 0.7;
   g.add(torus, glow);
   g.position.set(p.x * PX, 0, p.y * PX);
-  scene.add(g);
+  mapGroup.add(g);
 }
 
 /** Map a mouse position (canvas offset px) to board pixels via ground-plane raycast.

@@ -10,6 +10,24 @@ let noiseBuf: AudioBuffer | null = null;
 let muted = false;
 let volume = 0.5;
 
+/** ±pct random detune — keeps repetitive casts from sounding stamped-out. */
+function vary(freq: number, pct = 0.04): number {
+  return freq * (1 + (Math.random() * 2 - 1) * pct);
+}
+
+/** 1.4s exponentially-decaying stereo noise — a free, surprisingly decent room. */
+function makeImpulse(c: AudioContext): AudioBuffer {
+  const len = Math.floor(c.sampleRate * 1.4);
+  const buf = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4);
+    }
+  }
+  return buf;
+}
+
 const lastPlayed = new Map<string, number>();
 
 /** Rate-limit spammy sounds (casts at 3x speed with many towers). */
@@ -99,11 +117,33 @@ export const sfx = {
       ctx = new AudioContext();
       master = ctx.createGain();
       master.gain.value = muted ? 0 : volume;
-      master.connect(ctx.destination);
+      // master chain: gentle lowpass -> compressor -> dry + convolver reverb.
+      // Every sound (and the music bus) inherits the same room for free.
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 11000;
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -16;
+      comp.ratio.value = 4;
+      const verb = ctx.createConvolver();
+      verb.buffer = makeImpulse(ctx);
+      const wet = ctx.createGain();
+      wet.gain.value = 0.18;
+      master.connect(lp);
+      lp.connect(comp);
+      comp.connect(ctx.destination); // dry
+      comp.connect(verb);
+      verb.connect(wet);
+      wet.connect(ctx.destination); // wet
       noiseBuf = makeNoise(ctx);
     } catch {
       ctx = null;
     }
+  },
+
+  /** The shared bus other audio modules (music) plug into. */
+  bus(): { ctx: AudioContext; target: GainNode } | null {
+    return ctx && master ? { ctx, target: master } : null;
   },
 
   setVolume(v: number): void {
@@ -125,8 +165,8 @@ export const sfx = {
     const c = gate('fire', 90);
     if (!c) return;
     const t = c.currentTime;
-    noise(c, t, 0.28, env(c, t, 0.5, 0.28), { type: 'bandpass', f0: 400, f1: 1600, q: 1.2 });
-    sweep(c, 'sawtooth', 160, 60, t, 0.25, env(c, t, 0.15, 0.25));
+    noise(c, t, 0.28, env(c, t, 0.5, 0.28), { type: 'bandpass', f0: vary(400), f1: 1600, q: 1.2 });
+    sweep(c, 'sawtooth', vary(160), 60, t, 0.25, env(c, t, 0.15, 0.25));
   },
 
   iceCast(): void {
@@ -134,8 +174,8 @@ export const sfx = {
     if (!c) return;
     const t = c.currentTime;
     // FM-ish bell: two detuned triangles high up
-    osc(c, 'triangle', 1320, t, 0.3, env(c, t, 0.25, 0.3));
-    osc(c, 'triangle', 1980, t + 0.03, 0.25, env(c, t + 0.03, 0.15, 0.25));
+    osc(c, 'triangle', vary(1320), t, 0.3, env(c, t, 0.25, 0.3));
+    osc(c, 'triangle', vary(1980), t + 0.03, 0.25, env(c, t + 0.03, 0.15, 0.25));
   },
 
   boltCast(): void {
@@ -143,7 +183,7 @@ export const sfx = {
     if (!c) return;
     const t = c.currentTime;
     noise(c, t, 0.16, env(c, t, 0.55, 0.16), { type: 'highpass', f0: 2000, q: 0.7 });
-    sweep(c, 'square', 800, 90, t, 0.12, env(c, t, 0.2, 0.12));
+    sweep(c, 'square', vary(800), 90, t, 0.12, env(c, t, 0.2, 0.12));
   },
 
   waterPulse(): void {
@@ -165,6 +205,7 @@ export const sfx = {
     const c = gate('gong', 200);
     if (!c) return;
     const t = c.currentTime;
+    osc(c, 'sine', 55, t, 1.4, env(c, t, 0.3, 1.4)); // sub weight — you FEEL the gong
     // low resonant metallic boom: fundamental + a couple of inharmonic partials
     osc(c, 'sine', 110, t, 1.1, env(c, t, 0.4, 1.1));
     osc(c, 'triangle', 187, t, 0.9, env(c, t, 0.18, 0.9));
@@ -176,7 +217,7 @@ export const sfx = {
     if (!c) return;
     const t = c.currentTime;
     // plucked string: sharp high transient that drops fast, plus a whoosh of air
-    sweep(c, 'triangle', 900, 320, t, 0.12, env(c, t, 0.35, 0.12));
+    sweep(c, 'triangle', vary(900, 0.07), 320, t, 0.12, env(c, t, 0.35, 0.12));
     noise(c, t + 0.02, 0.14, env(c, t + 0.02, 0.12, 0.14), { type: 'bandpass', f0: 2200, f1: 900, q: 1.5 });
   },
 
@@ -185,8 +226,85 @@ export const sfx = {
     if (!c) return;
     const t = c.currentTime;
     // heavy woody impact: low sine punch + knocky filtered noise
-    sweep(c, 'sine', 140, 45, t, 0.22, env(c, t, 0.5, 0.22));
+    sweep(c, 'sine', vary(140, 0.08), 45, t, 0.22, env(c, t, 0.5, 0.22));
     noise(c, t, 0.1, env(c, t, 0.25, 0.1), { type: 'lowpass', f0: 500, f1: 120 });
+  },
+
+  // ---------------- battle punctuation ----------------
+  explosion(): void {
+    const c = gate('boom', 120);
+    if (!c) return;
+    const t = c.currentTime;
+    // sub punch + wide noise wall + a few late crackles
+    sweep(c, 'sine', vary(64), 26, t, 0.5, env(c, t, 0.9, 0.5));
+    noise(c, t, 0.45, env(c, t, 0.55, 0.45), { type: 'lowpass', f0: 3000, f1: 300 });
+    for (let i = 0; i < 3; i++) {
+      const dt = 0.1 + Math.random() * 0.22;
+      noise(c, t + dt, 0.06, env(c, t + dt, 0.16, 0.06), { type: 'bandpass', f0: vary(1600, 0.3), q: 2 });
+    }
+  },
+
+  armorClank(): void {
+    const c = gate('clank', 100);
+    if (!c) return;
+    const t = c.currentTime;
+    // hammer on plate: two inharmonic metal partials, dead short
+    osc(c, 'triangle', vary(1180, 0.06), t, 0.09, env(c, t, 0.3, 0.09));
+    osc(c, 'triangle', vary(1730, 0.06), t, 0.07, env(c, t, 0.18, 0.07));
+    noise(c, t, 0.05, env(c, t, 0.2, 0.05), { type: 'highpass', f0: 3500, q: 1 });
+  },
+
+  armorBreak(): void {
+    const c = ensure();
+    if (!c) return;
+    const t = c.currentTime;
+    // the shell gives: crash + a rain of falling metallic shards
+    noise(c, t, 0.5, env(c, t, 0.7, 0.5), { type: 'bandpass', f0: 2400, f1: 500, q: 0.8 });
+    sweep(c, 'sine', 90, 35, t, 0.4, env(c, t, 0.6, 0.4));
+    for (let i = 0; i < 5; i++) {
+      const dt = 0.06 + i * 0.07;
+      osc(c, 'triangle', vary(2200 - i * 320, 0.1), t + dt, 0.12, env(c, t + dt, 0.14, 0.12));
+    }
+  },
+
+  bossRoar(): void {
+    const c = gate('roar', 800);
+    if (!c) return;
+    const t = c.currentTime;
+    // detuned saw cluster through a throaty formant sweep + sub weight
+    const g = env(c, t, 0.5, 1.2);
+    const f = c.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.4;
+    f.frequency.setValueAtTime(280, t);
+    f.frequency.exponentialRampToValueAtTime(900, t + 0.45);
+    f.frequency.exponentialRampToValueAtTime(320, t + 1.1);
+    for (const base of [55, 82.5, 110.5]) {
+      const o = c.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(vary(base, 0.02), t);
+      o.connect(f);
+      o.start(t);
+      o.stop(t + 1.2);
+    }
+    f.connect(g);
+    sweep(c, 'sine', 60, 38, t, 1.0, env(c, t, 0.4, 1.0));
+  },
+
+  actFanfare(): void {
+    const c = ensure();
+    if (!c) return;
+    const t = c.currentTime;
+    // a bigger, prouder horn line than waveStart — the act is WON
+    const line = [262, 330, 392, 523, 659];
+    line.forEach((f0, i) => {
+      const dt = i * 0.16;
+      osc(c, 'sawtooth', f0, t + dt, 0.34, env(c, t + dt, 0.16, 0.34));
+      osc(c, 'triangle', f0 * 2, t + dt, 0.3, env(c, t + dt, 0.08, 0.3));
+    });
+    osc(c, 'sawtooth', 262, t + 0.85, 0.9, env(c, t + 0.85, 0.14, 0.9));
+    osc(c, 'sawtooth', 392, t + 0.85, 0.9, env(c, t + 0.85, 0.12, 0.9));
+    osc(c, 'sawtooth', 523, t + 0.85, 0.9, env(c, t + 0.85, 0.12, 0.9));
   },
 
   // ---------------- impacts & reactions ----------------
@@ -233,8 +351,9 @@ export const sfx = {
     const c = gate('coin', 80);
     if (!c) return;
     const t = c.currentTime;
-    osc(c, 'square', 1046, t, 0.06, env(c, t, 0.12, 0.06));
-    osc(c, 'square', 1568, t + 0.06, 0.1, env(c, t + 0.06, 0.12, 0.1));
+    osc(c, 'square', vary(1046, 0.02), t, 0.06, env(c, t, 0.12, 0.06));
+    osc(c, 'square', vary(1568, 0.02), t + 0.06, 0.1, env(c, t + 0.06, 0.12, 0.1));
+    osc(c, 'sine', 3136, t + 0.1, 0.12, env(c, t + 0.1, 0.05, 0.12)); // sparkle
   },
 
   place(): void {

@@ -1,7 +1,7 @@
 import { computeBlockedCells, cellKey, cellCenter, pixelToCell } from '../engine/grid';
 import { makeRng } from '../engine/rng';
-import { MAPS, DEFAULT_MAP } from '../data/maps';
-import { WAVES } from '../data/waves';
+import { MAPS, DEFAULT_MAP, ACT_MAPS } from '../data/maps';
+import { WAVES_PER_ACT, TOTAL_ACTS } from '../data/waves';
 import { PROP_MODELS } from './mapio';
 import { Track } from './path';
 import type {
@@ -19,7 +19,9 @@ export interface GameState {
   phase: Phase;
   gold: number;
   lives: number;
-  round: number; // 0-based index of NEXT wave to start (displayed +1)
+  round: number; // 0-based index of NEXT wave to start WITHIN the act (displayed +1)
+  /** campaign act (0-based) — each act runs on its own map; towers reset between acts */
+  act: number;
   speed: number;
   autoplay: boolean;
   autoplayTimer: number;
@@ -106,7 +108,8 @@ export function freshStats(): RunStats {
   };
 }
 
-export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): GameState {
+/** Everything a GameState derives from its MapDef — used at boot AND on act transitions. */
+function mapDerived(map: MapDef) {
   const track = new Track(map);
   // cloud paths are closed loops: append the first waypoint so posAt wraps smoothly
   const cloudTracks = (map.cloudPaths ?? []).map(
@@ -122,19 +125,35 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): 
     const { cx, cy } = pixelToCell(b.x, b.y);
     blocked.add(cellKey(cx, cy)); // no wizards inside trees
   }
+  const clouds = cloudTracks.flatMap((t, i) =>
+    [0, t.total / 2].map((d) => {
+      const p = t.posAt(d);
+      return { pathIdx: i, dist: d, x: p.x, y: p.y };
+    }),
+  );
   return {
-    phase: 'build',
-    gold: START_GOLD,
-    lives: START_LIVES,
-    round: 0,
-    speed: 1,
-    autoplay: false,
-    autoplayTimer: 0,
     map,
     track,
     blocked,
     water: new Set((map.water ?? []).map(([cx, cy]) => cellKey(cx, cy))),
     blockers,
+    clouds,
+    cloudTracks,
+  };
+}
+
+export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): GameState {
+  const derived = mapDerived(map);
+  return {
+    ...derived,
+    phase: 'build',
+    gold: START_GOLD,
+    lives: START_LIVES,
+    round: 0,
+    act: 0,
+    speed: 1,
+    autoplay: false,
+    autoplayTimer: 0,
     seed,
     rng: makeRng(seed),
     draftMods: [],
@@ -158,14 +177,6 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): 
     pendingRelicDraft: null,
     pendingEvent: null,
     seenEvents: [],
-    // two clouds per path, staggered half a lap apart — keeps wind uptime reasonable
-    clouds: cloudTracks.flatMap((t, i) =>
-      [0, t.total / 2].map((d) => {
-        const p = t.posAt(d);
-        return { pathIdx: i, dist: d, x: p.x, y: p.y };
-      }),
-    ),
-    cloudTracks,
     enemies: [],
     wizards: [],
     projectiles: [],
@@ -181,7 +192,40 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): 
 }
 
 export function totalWaves(): number {
-  return WAVES.length;
+  return WAVES_PER_ACT;
+}
+
+/** Is this run the built-in campaign (acts advance) or a custom-map free play? */
+export function isCampaign(state: GameState): boolean {
+  return ACT_MAPS.includes(state.map.id);
+}
+
+/**
+ * Cross into the next act: pack up camp (towers auto-sold at the standard refund),
+ * keep gold/cards/relics/ramps, and rebuild all map-derived state on the act's map.
+ * The renderer must be told to rebuild separately (rebuildMap in renderer3d).
+ */
+export function advanceAct(state: GameState): boolean {
+  if (state.act >= TOTAL_ACTS - 1) return false;
+  let refund = 0;
+  for (const w of state.wizards) refund += Math.round(w.invested * SELL_REFUND);
+  state.gold += refund;
+  state.wizards = [];
+  state.enemies = [];
+  state.projectiles = [];
+  state.selectedWizardId = null;
+  state.placingType = null;
+  state.act++;
+  Object.assign(state, mapDerived(MAPS[ACT_MAPS[state.act]]));
+  state.round = 0;
+  state.lastEliteRound = -5;
+  state.nodesForRound = -1;
+  state.nodeChoice = 'normal';
+  state.nodePicked = true;
+  state.waveModifier = null;
+  state.forcedModifier = null;
+  state.phase = 'build';
+  return true;
 }
 
 function applyMod(s: WizardStats, mod: import('./types').StatMods): void {
@@ -442,6 +486,12 @@ export function ensureNodes(state: GameState): void {
   if (state.nodesForRound === state.round) return;
   state.nodesForRound = state.round;
   state.nodeChoice = 'normal';
+  // the act's final wave is the BOSS — no detours, no choice
+  if (state.round >= WAVES_PER_ACT - 1) {
+    state.nextNodes = ['normal'];
+    state.nodePicked = true;
+    return;
+  }
   const nodes: NodeKind[] = ['normal'];
   if (state.round >= NODE_MIN_ROUND) {
     const eventsLeft = state.seenEvents.length < eventCount();

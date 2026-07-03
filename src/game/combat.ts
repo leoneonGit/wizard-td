@@ -1,10 +1,12 @@
 import { ELEMENTS } from '../data/elements';
+import { ENEMIES as ENEMY_DEFS } from '../data/enemies';
+import { ACT_SCALING } from '../data/waves';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
 import { pickTarget, enemiesInRange, hasLOS } from './targeting';
 import { attackProcMult, conditionalDamageMult, frenzyRateMul } from './procs';
 import { cardAppliesTo, relicSpecial, type GameState } from './state';
-import type { ElementId, Enemy, Projectile, Wizard } from './types';
+import type { ElementId, Enemy, Projectile, ProjectileVisual, Wizard, WizardDef } from './types';
 
 /** ---- Elemental reactions (the signature mechanic) ----
  *  Conduct   : Lightning hit on WET      -> 1.6x dmg, +1 chain hop, consumes Wet
@@ -182,6 +184,7 @@ function attack(state: GameState, w: Wizard, target: Enemy): void {
       tx: target.x,
       ty: target.y,
       wizardId: w.id,
+      visual: w.def.family === 'archer' ? 'bolt' : visualFor(w.def),
       pierce: {
         dirX: dx / d,
         dirY: dy / d,
@@ -203,8 +206,20 @@ function attack(state: GameState, w: Wizard, target: Enemy): void {
       tx: target.x,
       ty: target.y,
       wizardId: w.id,
+      visual: visualFor(w.def),
+      sx: tipX, // thrown visuals (rock/stick) lob a parabola from here
+      sy: tipY,
     });
   }
+}
+
+/** What this tower's shots LOOK like — purely cosmetic identity. */
+function visualFor(def: WizardDef): ProjectileVisual {
+  if (def.family === 'archer') return 'arrow';
+  if (def.id === 'dynamite' || def.id === 'sapperking') return 'stick';
+  if (def.id === 'slingshot' || def.id === 'boulder' || def.id === 'mountain') return 'rock';
+  if (def.id === 'thornspitter' || def.id === 'bramblehydra') return 'needle';
+  return 'orb';
 }
 
 /** Rootgrasp Tree: roots erupt under the target — instant, small area, snare slow.
@@ -330,9 +345,15 @@ function updatePierceBolt(state: GameState, p: Projectile, dt: number): void {
   else if (Math.random() < 0.5) fx.burst(p.x, p.y, ELEMENTS[p.element].glow, 1, 12, 1.5, 0.2);
 }
 
-function impact(state: GameState, p: { x: number; y: number; tx: number; ty: number; element: ElementId; damage: number; splash: number; wizardId: number }, primary: Enemy | undefined): void {
+function impact(state: GameState, p: { x: number; y: number; tx: number; ty: number; element: ElementId; damage: number; splash: number; wizardId: number; visual?: ProjectileVisual }, primary: Enemy | undefined): void {
   const el = ELEMENTS[p.element];
   fx.burst(p.tx, p.ty, el.color, p.splash > 0 ? 14 : 7, p.splash > 0 ? 150 : 90, 3);
+  if (p.splash >= 40) {
+    // a real detonation: boom + slow smoke plume + scorch ring
+    sfx.explosion();
+    fx.ring(p.tx, p.ty, '#ff7b00', p.splash);
+    fx.burst(p.tx, p.ty, '#9a9086', 12, 35, 4, 1.3);
+  }
 
   const w = state.wizards.find((wz) => wz.id === p.wizardId);
 
@@ -442,6 +463,25 @@ export function applyChillStack(state: GameState, e: Enemy, pct: number): void {
 
 export function dealDamage(state: GameState, e: Enemy, amount: number, element: ElementId, src?: Wizard): void {
   if (e.hp <= 0) return;
+
+  // boss armor: while the shell holds, only PHYSICAL damage chips it — everything
+  // else patters off at 10%. Break it, then do whatever you want.
+  if (e.armorHp !== undefined && e.armorHp > 0) {
+    const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
+    const condMult = conditionalDamageMult(state, src, e);
+    const chip = amount * rattleMult * condMult * (element === 'physical' ? 1 : 0.1);
+    e.armorHp -= chip;
+    e.hitFlash = 0.12;
+    state.stats.dmgByElement[element] += chip;
+    if (chip >= 1) {
+      fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(chip)),
+        element === 'physical' ? '#cdd7e0' : '#6b7684', element === 'physical' ? 11 : 9);
+    }
+    if (element === 'physical') sfx.armorClank();
+    if (e.armorHp <= 0) breakArmor(state, e);
+    return; // the shell absorbs the whole hit
+  }
+
   const mult = e.def.resist[element] ?? 1;
   if (mult === 0) {
     fx.floater(e.x, e.y - 14, 'Immune!', '#999999', 11);
@@ -460,8 +500,33 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   if (e.hp <= 0) kill(state, e, src);
 }
 
+/** The shell gives — full damage flows from here on, and the Colossus births its heartlings. */
+function breakArmor(state: GameState, e: Enemy): void {
+  e.armorHp = 0;
+  fx.floater(e.x, e.y - 30, 'ARMOR SHATTERED!', '#ffd75e', 15);
+  fx.burst(e.x, e.y, '#cdd7e0', 22, 190, 4, 0.6);
+  fx.ring(e.x, e.y, '#cdd7e0', 55);
+  sfx.armorBreak();
+  for (const id of e.def.armorBreakSpawns ?? []) {
+    const def = ENEMY_DEFS[id];
+    if (!def) continue;
+    const scale = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)];
+    const hp = def.hp * scale.hp;
+    const dist = Math.max(0, e.dist - 20 - Math.random() * 30);
+    const p = state.track.posAt(dist);
+    state.enemies.push({
+      id: state.nextId++, def, hp, maxHp: hp, dist,
+      x: p.x, y: p.y, statuses: {}, wobble: Math.random() * Math.PI * 2,
+      animT: Math.random() * 2, angle: p.angle, hitFlash: 0,
+      speedMult: scale.speed,
+    });
+    fx.burst(p.x, p.y, def.color, 10, 120, 3, 0.4);
+  }
+}
+
 function kill(state: GameState, e: Enemy, src?: Wizard): void {
-  const bounty = Math.round(e.def.bounty * (state.waveModifier?.bountyMult ?? 1)) + state.bountyBonus;
+  const actBounty = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)].bounty;
+  const bounty = Math.round(e.def.bounty * (state.waveModifier?.bountyMult ?? 1) * actBounty) + state.bountyBonus;
   state.gold += bounty;
   state.stats.kills++;
   fx.floater(e.x, e.y - 22, `+${bounty}`, '#ffd75e', 12);
@@ -515,7 +580,9 @@ function runKillFx(state: GameState, e: Enemy, src: Wizard | undefined, f: impor
 
   const ex = f.onKillExplode;
   if (ex) {
+    sfx.explosion();
     fx.burst(e.x, e.y, '#ffab5e', 14, 160, 3.5);
+    fx.burst(e.x, e.y, '#9a9086', 8, 30, 4, 1.2);
     fx.ring(e.x, e.y, '#ff7b00', ex.radius);
     for (const o of state.enemies) {
       if (o === e || o.hp <= 0) continue;
@@ -613,6 +680,7 @@ export function updateEnemies(state: GameState, dt: number): void {
 
 /** Burn ticks bypass reaction logic but still respect resistances (and Rattled); kills pay bounty. */
 function dealBurnTick(state: GameState, e: Enemy, amount: number): void {
+  if (e.armorHp !== undefined && e.armorHp > 0) return; // flames patter off the shell
   const mult = e.def.resist.fire ?? 1;
   const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
   const dealt = amount * mult * rattleMult;
