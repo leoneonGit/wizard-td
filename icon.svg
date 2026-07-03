@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1e1b2e"/>
+  <rect x="16" y="16" width="480" height="480" rx="84" fill="none" stroke="#55409e" stroke-width="10"/>
+  <!-- wizard hat -->
+  <path d="M256 64 L340 300 L172 300 Z" fill="#6a5acd"/>
+  <path d="M256 64 L340 300 L256 300 Z" fill="#55409e"/>
+  <ellipse cx="256" cy="312" rx="132" ry="34" fill="#6a5acd"/>
+  <ellipse cx="256" cy="306" rx="132" ry="30" fill="#8a7aff"/>
+  <!-- hat band -->
+  <path d="M212 240 L300 240 L308 264 L204 264 Z" fill="#ffd75e"/>
+  <!-- lightning bolt -->
+  <path d="M282 120 L232 210 L262 210 L226 292 L306 190 L270 190 Z" fill="#ffd75e" stroke="#b8860b" stroke-width="4"/>
+  <!-- sparkles -->
+  <circle cx="150" cy="150" r="8" fill="#7fd8ff"/>
+  <circle cx="372" cy="132" r="6" fill="#ff9db5"/>
+  <circle cx="392" cy="220" r="7" fill="#7dff9b"/>
+  <!-- title -->
+  <text x="256" y="432" font-family="Segoe UI, sans-serif" font-size="76" font-weight="700" fill="#c9b8ff" text-anchor="middle">TD</text>
+</svg>
