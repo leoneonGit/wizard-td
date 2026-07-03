@@ -40,6 +40,10 @@ interface UnitView {
   wheels?: THREE.Mesh[];
   /** wraith: opacity follows the phase state */
   ghostly?: boolean;
+  /** flyer wings — flapped every frame */
+  flapWings?: THREE.Mesh[];
+  /** slime: squash-and-stretch instead of a walk cycle */
+  blob?: boolean;
   height: number;
 }
 
@@ -61,6 +65,45 @@ let exitWorld = new THREE.Vector3();
 export function initUnits(scene: THREE.Scene, exitPos: THREE.Vector3): void {
   sceneRef = scene;
   exitWorld = exitPos;
+}
+
+/** Slimes are rigless bouncing blobs — a sphere with squash-and-stretch. */
+function makeBlobView(look: UnitLook): UnitView {
+  const root = new THREE.Group();
+  const inner = new THREE.Group();
+  root.add(inner);
+  const mat = new THREE.MeshStandardMaterial({
+    color: look.tint ?? new THREE.Color('#5fbf4a'),
+    roughness: 0.25,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(look.height / 2, 14, 12), mat);
+  body.position.y = look.height / 2;
+  body.castShadow = true;
+  inner.add(body);
+  // two beady dark eyes so the goo has a face
+  const eyeMat = new THREE.MeshStandardMaterial({ color: '#1a2415' });
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(look.height * 0.06, 6, 6), eyeMat);
+    eye.position.set(side * look.height * 0.14, look.height * 0.62, look.height * 0.4);
+    inner.add(eye);
+  }
+  return {
+    root,
+    inner,
+    mats: [mat],
+    origColors: [mat.color.clone()],
+    baseEmissive: new THREE.Color(0x000000),
+    yaw: 0,
+    casting: false,
+    cheering: false,
+    becalmed: false,
+    watery: false,
+    prevRecoil: 0,
+    blob: true,
+    height: look.height,
+  };
 }
 
 /** Vehicles are procedural wheel-and-plank rigs — no skeleton, they roll and rock. */
@@ -104,6 +147,7 @@ function makeVehicleView(look: UnitLook): UnitView {
 
 function makeView(look: UnitLook): UnitView {
   if (look.vehicle) return makeVehicleView(look);
+  if (look.blob) return makeBlobView(look);
   const asset = getAsset(look.model);
   const inner = SkeletonUtils.clone(asset.scene) as THREE.Group;
   const s = asset.unitScale * look.height;
@@ -318,6 +362,29 @@ function makeView(look: UnitLook): UnitView {
     mats.push(m);
   });
 
+  // flyer wings: two dark membranes on the back, flapped per frame
+  let flapWings: THREE.Mesh[] | undefined;
+  if (look.wings) {
+    const s = asset.unitScale * look.height;
+    const localUnit = 1 / s;
+    const wingMat = new THREE.MeshStandardMaterial({
+      color: '#2e3238', roughness: 0.7, side: THREE.DoubleSide, transparent: true, opacity: 0.92,
+    });
+    flapWings = [];
+    for (const side of [-1, 1]) {
+      const wing = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.55 * look.height * localUnit, 0.26 * look.height * localUnit),
+        wingMat,
+      );
+      // pivot at the wing root: shift the geometry so rotation hinges at the body
+      wing.geometry.translate((side * 0.55 * look.height * localUnit) / 2, 0, 0);
+      wing.position.set(side * 0.06 * look.height * localUnit, 0.6 * look.height * localUnit, -0.08 * look.height * localUnit);
+      wing.rotation.x = -0.4;
+      inner.add(wing);
+      flapWings.push(wing);
+    }
+  }
+
   const mixer = new THREE.AnimationMixer(inner);
   const clip = (name: string) => {
     const c = THREE.AnimationClip.findByName(asset.clips, name);
@@ -355,6 +422,7 @@ function makeView(look: UnitLook): UnitView {
     becalmed: false,
     watery: !!look.watery,
     prevRecoil: 0,
+    flapWings,
     height: look.height,
   };
 }
@@ -398,11 +466,23 @@ function syncEnemies(state: GameState, dt: number): void {
       // spawn pop
       v.root.scale.setScalar(0.01);
     }
-    // position + facing
-    v.root.position.set(e.x * PX, 0, e.y * PX);
+    // position + facing (flyers soar with a gentle bob)
+    const flyY = e.def.flying ? 1.05 + Math.sin(performance.now() / 380 + e.id) * 0.12 : 0;
+    v.root.position.set(e.x * PX, flyY, e.y * PX);
     const targetYaw = headingToYaw(e.angle);
     v.yaw += shortestAngle(v.yaw, targetYaw) * Math.min(1, dt * 10);
     v.root.rotation.y = v.yaw;
+
+    // wings flap, blobs squish
+    if (v.flapWings) {
+      const flap = Math.sin(performance.now() / 90 + e.id) * 0.55;
+      v.flapWings[0].rotation.y = -0.35 - flap;
+      v.flapWings[1].rotation.y = 0.35 + flap;
+    }
+    if (v.blob) {
+      const b = Math.abs(Math.sin(e.animT * 6));
+      v.inner.scale.set(1 + 0.14 * b, 1 - 0.18 * b, 1 + 0.14 * b);
+    }
     // spawn scale-in
     const cur = v.root.scale.x;
     if (cur < 1) v.root.scale.setScalar(Math.min(1, cur + dt * 5));
@@ -546,8 +626,8 @@ function syncWizards(state: GameState, dt: number): void {
     v.yaw += shortestAngle(v.yaw, targetYaw) * Math.min(1, dt * 12);
     v.root.rotation.y = v.yaw;
 
-    // becalmed cloud mage: grayed out, sluggish idle
-    const becalmed = !!w.becalmed;
+    // becalmed cloud mage OR hexed tower: grayed out, sluggish idle
+    const becalmed = !!w.becalmed || (w.silencedT ?? 0) > 0;
     if (becalmed !== v.becalmed) {
       v.becalmed = becalmed;
       v.mats.forEach((m, i) => {

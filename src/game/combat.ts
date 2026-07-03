@@ -56,6 +56,12 @@ export function updateWizards(state: GameState, dt: number): void {
     if (w.recoil > 0) w.recoil -= dt;
     if (w.cooldown > 0) w.cooldown -= dt;
 
+    // hexed: the tower stands dark and silent until the curse lifts
+    if (w.silencedT !== undefined && w.silencedT > 0) {
+      w.silencedT -= dt;
+      continue;
+    }
+
     // cloud mages are becalmed without wind
     if (w.def.needsCloud) {
       w.becalmed = !cloudNear(state, w);
@@ -95,6 +101,7 @@ function tideAttack(state: GameState, w: Wizard, procMult = 1): void {
   sfx.waterPulse();
   fx.ring(w.x, w.y, '#3a86ff', w.stats.range);
   for (const e of enemiesInRange(state, w.x, w.y, w.stats.range)) {
+    if (e.def.flying) continue; // tides stay on the ground
     dealDamage(state, e, w.stats.damage * procMult, 'water', w);
     if (e.hp <= 0) continue;
     if (e.immunities?.includes('wet')) continue;
@@ -126,10 +133,13 @@ function gustAttack(state: GameState, w: Wizard, procMult = 1): void {
     const kb = w.stats.knockback * (e.def.boss ? BOSS_KNOCKBACK_FACTOR : 1);
     e.dist = Math.max(0, e.dist - kb);
     e.gustCd = GUST_IMMUNITY;
-    const p = state.track.posAt(e.dist);
     fx.burst(e.x, e.y, '#e6f7f1', 6, 90, 2.5, 0.35);
-    e.x = p.x;
-    e.y = p.y;
+    if (!e.def.flying) {
+      // flyers get blown back along their flight line instead (repositioned next tick)
+      const p = state.track.posAt(e.dist);
+      e.x = p.x;
+      e.y = p.y;
+    }
   }
 }
 
@@ -228,7 +238,7 @@ function rootgraspAttack(state: GameState, w: Wizard, target: Enemy, procMult = 
   fx.burst(target.x, target.y + 4, '#6a8f4f', 10, 80, 3, 0.4);
   fx.ring(target.x, target.y, '#4c6b38', ROOTGRASP_AREA);
   for (const e of state.enemies) {
-    if (e.hp <= 0) continue;
+    if (e.hp <= 0 || e.def.flying) continue; // roots cannot reach the sky
     const dx = e.x - target.x;
     const dy = e.y - target.y;
     if (dx * dx + dy * dy > (ROOTGRASP_AREA + e.def.radius) ** 2) continue;
@@ -489,7 +499,14 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   }
   const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
   const condMult = conditionalDamageMult(state, src, e); // hunter cards: vs status / vs healthy
-  const dealt = amount * mult * rattleMult * condMult;
+  // archers were born for the sky
+  const airMult = e.def.flying && src?.def.family === 'archer' ? 1.5 : 1;
+  let dealt = amount * mult * rattleMult * condMult * airMult;
+  // shieldbearer's ward: no single hit can exceed the cap
+  if (e.wardCap !== undefined && dealt > e.wardCap) {
+    dealt = e.wardCap;
+    fx.floater(e.x, e.y - 16, 'warded', '#8fb4ff', 9);
+  }
   e.hp -= dealt;
   e.hitFlash = 0.12;
   state.stats.dmgByElement[element] += dealt;
@@ -546,11 +563,35 @@ function kill(state: GameState, e: Enemy, src?: Wizard): void {
     state.lives++;
     fx.floater(e.x, e.y - 40, '🍷 +1 ❤', '#ff9db5', 14);
   }
-  // carriers burst open: the troops inside spill out where the wagon died
+  // a slain thief drops the loot he was carrying home
+  if (e.returning && e.def.stealsGold) {
+    state.gold += e.def.stealsGold;
+    fx.floater(e.x, e.y - 34, `💰 +${e.def.stealsGold} recovered!`, '#7dff9b', 13);
+  }
+  // the banshee's death-wail silences every tower near her corpse
+  if (e.def.deathSilence) {
+    const ds = e.def.deathSilence;
+    fx.ring(e.x, e.y, '#cfd8e8', ds.radius);
+    sfx.wail();
+    for (const w of state.wizards) {
+      if (w.pendingSpecialize) continue;
+      if ((w.x - e.x) ** 2 + (w.y - e.y) ** 2 <= ds.radius * ds.radius) {
+        w.silencedT = Math.max(w.silencedT ?? 0, ds.duration);
+        fx.floater(w.x, w.y - 28, 'silenced!', '#cfd8e8', 12);
+      }
+    }
+  }
+  // things that burst: wagons spill troops, slimes split into smaller goo
   if (e.def.deathSpawns) {
-    sfx.woodCrash();
-    fx.floater(e.x, e.y - 34, 'The wagon breaks open!', '#e0b070', 13);
-    fx.burst(e.x, e.y, '#7a5c38', 18, 150, 4, 0.6);
+    const isSlime = e.def.id.startsWith('slime');
+    if (isSlime) {
+      sfx.squish();
+      fx.burst(e.x, e.y, e.def.color, 12, 110, 4, 0.5);
+    } else {
+      sfx.woodCrash();
+      fx.floater(e.x, e.y - 34, 'The wagon breaks open!', '#e0b070', 13);
+      fx.burst(e.x, e.y, '#7a5c38', 18, 150, 4, 0.6);
+    }
     e.def.deathSpawns.forEach((id, i) => spawnAtDist(state, id, e.dist - 8 - i * 14));
   }
   onKillProcs(state, e, src);
@@ -625,10 +666,24 @@ function runKillFx(state: GameState, e: Enemy, src: Wizard | undefined, f: impor
 
 export function updateEnemies(state: GameState, dt: number): void {
   // ---- support auras (two passes: sources first, then everyone moves)
-  for (const e of state.enemies) e.hasteMul = 1;
+  for (const e of state.enemies) {
+    e.hasteMul = 1;
+    e.wardCap = undefined;
+  }
   for (const e of state.enemies) {
     const aura = e.def.aura;
     if (!aura || e.hp <= 0) continue;
+    if (aura.kind === 'ward') {
+      // shieldbearer: allies under the banner can't be one-shot
+      for (const o of state.enemies) {
+        if (o === e || o.hp <= 0) continue;
+        const d2 = (o.x - e.x) ** 2 + (o.y - e.y) ** 2;
+        if (d2 <= aura.radius * aura.radius) {
+          o.wardCap = Math.min(o.wardCap ?? Infinity, aura.power);
+        }
+      }
+      continue;
+    }
     if (aura.kind === 'heal') {
       e.auraCd = (e.auraCd ?? aura.period ?? 2) - dt;
       if (e.auraCd <= 0) {
@@ -679,6 +734,27 @@ export function updateEnemies(state: GameState, dt: number): void {
         fx.floater(e.x, e.y - 30, 'The tower unloads!', '#e0b070', 12);
         for (let i = 0; i < e.def.dropSpawns.count; i++) {
           spawnAtDist(state, e.def.dropSpawns.type, e.dist - 18 - i * 14);
+        }
+      }
+    }
+
+    // the Hexer curses a random tower in reach — 3s of enforced silence
+    if (e.def.hexes) {
+      e.hexCd = (e.hexCd ?? e.def.hexes.period * 0.6) - dt;
+      if (e.hexCd <= 0) {
+        e.hexCd = e.def.hexes.period;
+        const r2 = e.def.hexes.radius * e.def.hexes.radius;
+        const targets = state.wizards.filter(
+          (w) => !w.pendingSpecialize && (w.silencedT ?? 0) <= 0 &&
+            (w.x - e.x) ** 2 + (w.y - e.y) ** 2 <= r2,
+        );
+        if (targets.length > 0) {
+          const w = targets[Math.floor(Math.random() * targets.length)];
+          w.silencedT = e.def.hexes.duration;
+          fx.arc(e.x, e.y, w.x, w.y, '#b06bff');
+          fx.ring(w.x, w.y, '#7a4a9e', 30);
+          fx.floater(w.x, w.y - 30, 'HEXED!', '#b06bff', 14);
+          sfx.hexZap();
         }
       }
     }
@@ -736,28 +812,57 @@ export function updateEnemies(state: GameState, dt: number): void {
     if (e.hitFlash > 0) e.hitFlash -= dt;
     if (e.gustCd && e.gustCd > 0) e.gustCd -= dt;
     if (e.entangleCd && e.entangleCd > 0) e.entangleCd -= dt;
-    e.dist += e.def.speed * (e.speedMult ?? 1) * factor * dt;
-    const p = state.track.posAt(e.dist);
-    e.x = p.x;
-    e.y = p.y;
-    e.angle = p.angle;
 
-    // leak — carriers full of troops hurt far more than a single creep
-    if (e.dist >= state.track.total) {
-      e.hp = 0; // no bounty — mark for removal via leak path
-      const cost = e.def.leakCost ?? (e.def.boss ? 5 : 1);
-      state.lives -= cost;
-      state.stats.leaks++;
-      fx.floater(p.x - 20, p.y, `-${cost} ❤`, '#ff6b81', cost > 1 ? 16 : 14);
-      sfx.leak();
-      if (state.lives <= 0) {
-        state.lives = 0;
-        state.phase = 'lost';
-        sfx.lose();
+    const step = e.def.speed * (e.speedMult ?? 1) * factor * dt;
+    e.dist += e.returning ? -step : step; // thieves sprint back home with the loot
+
+    if (e.def.flying) {
+      // flyers ignore the road: dist is progress along the straight entrance->exit line
+      const a = state.track.posAt(0);
+      const b = state.track.posAt(state.track.total);
+      const lineLen = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const t = Math.max(0, Math.min(1, e.dist / lineLen));
+      e.x = a.x + (b.x - a.x) * t;
+      e.y = a.y + (b.y - a.y) * t;
+      e.angle = Math.atan2(b.y - a.y, b.x - a.x);
+      if (e.dist >= lineLen) leak(state, e);
+    } else {
+      const p = state.track.posAt(e.dist);
+      e.x = p.x;
+      e.y = p.y;
+      e.angle = p.angle;
+      if (e.returning) {
+        e.angle += Math.PI; // running the other way
+        if (e.dist <= 0) e.hp = 0; // the thief escapes — the gold is gone for good
+      } else if (e.dist >= state.track.total) {
+        leak(state, e);
       }
     }
   }
   state.enemies = state.enemies.filter((e) => e.hp > 0);
+}
+
+/** An enemy reaches the gate. Thieves grab gold and turn around; everyone else costs lives. */
+function leak(state: GameState, e: Enemy): void {
+  if (e.def.stealsGold && !e.returning) {
+    const stolen = Math.min(state.gold, e.def.stealsGold);
+    state.gold -= stolen;
+    e.returning = true;
+    fx.floater(e.x, e.y - 20, `💰 -${stolen} stolen!`, '#ffd75e', 15);
+    sfx.leak();
+    return;
+  }
+  e.hp = 0; // no bounty — mark for removal via leak path
+  const cost = e.def.leakCost ?? (e.def.boss ? 5 : 1);
+  state.lives -= cost;
+  state.stats.leaks++;
+  fx.floater(e.x - 20, e.y, `-${cost} ❤`, '#ff6b81', cost > 1 ? 16 : 14);
+  sfx.leak();
+  if (state.lives <= 0) {
+    state.lives = 0;
+    state.phase = 'lost';
+    sfx.lose();
+  }
 }
 
 /** Burn ticks bypass reaction logic but still respect resistances (and Rattled); kills pay bounty. */

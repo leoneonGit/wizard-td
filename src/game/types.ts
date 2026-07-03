@@ -68,6 +68,8 @@ export interface ProcFx {
   bonusVsHealthy?: { threshold: number; mult: number };
   /** wave-end interest on held gold: +1 per `per` held, capped */
   interest?: { per: number; cap: number };
+  /** matching towers deal bonus damage to FLYING enemies (Skywatch) */
+  bonusVsFlying?: { mult: number };
 }
 
 export interface CardDef {
@@ -135,14 +137,22 @@ export interface EnemyDef {
   dropSpawns?: { type: string; count: number; period: number };
   /** self-heal, as a fraction of maxHp per second (Troll) — chip damage stops working */
   regen?: number;
-  /** support aura: heal pulses or a haste field for nearby allies */
-  aura?: { kind: 'heal' | 'haste'; radius: number; power: number; period?: number };
+  /** support aura: heal pulses, a haste field, or a ward that caps single hits */
+  aura?: { kind: 'heal' | 'haste' | 'ward'; radius: number; power: number; period?: number };
   /** Wraith: untargetable for `duration`s out of every `period`s */
   phase?: { period: number; duration: number };
   /** lives lost if this reaches the gate (default: boss 5, else 1) — carriers hurt */
   leakCost?: number;
   /** rendered as a procedural vehicle instead of a rigged character */
   vehicle?: 'wagon' | 'tower';
+  /** flies a STRAIGHT LINE from entrance to exit, over road, props and ground effects */
+  flying?: boolean;
+  /** Thief: steals this much gold at the gate instead of taking a life, then runs back */
+  stealsGold?: number;
+  /** Hexer: periodically silences a random tower in radius for `duration`s */
+  hexes?: { period: number; duration: number; radius: number };
+  /** Banshee: her death-wail silences towers near the corpse */
+  deathSilence?: { radius: number; duration: number };
 }
 
 export interface StatMods {
@@ -311,6 +321,12 @@ export interface Enemy {
   auraCd?: number;
   /** transient drummer haste (recomputed every tick; 1 = no drummer nearby) */
   hasteMul?: number;
+  /** transient shieldbearer ward: single hits are capped at this (recomputed every tick) */
+  wardCap?: number;
+  /** thief sprinting back to the entrance with your gold */
+  returning?: boolean;
+  /** hexer cast cooldown */
+  hexCd?: number;
   /** elite-wave status immunities */
   immunities?: StatusId[];
   gustImmune?: boolean;
@@ -353,6 +369,8 @@ export interface Wizard {
   recoil: number; // cast animation timer
   /** lifetime attack counter — drives "every Nth attack" proc cards */
   attackCount: number;
+  /** hexed: cannot attack while > 0 (Hexer / Banshee silences) */
+  silencedT?: number;
   /** cloud mage with no cloud in range — cannot attack, shown grayed */
   becalmed?: boolean;
   /** true until the player chooses a specialization; def is a zero-stat generic shell */

@@ -119,6 +119,14 @@ function hintFor(type: string): string {
     case 'orcshaman': return ' <i>(HEALER — focus him first!)</i>';
     case 'wardrummer': return ' <i>(hastens the horde — silence the drums)</i>';
     case 'wraith': return ' <i>(phases out — spread your damage)</i>';
+    case 'gargoyle': return ' <i>(FLIES straight across — archers ready!)</i>';
+    case 'drake': return ' <i>(fast FLYER, burn-proof — arrows up!)</i>';
+    case 'hexer': return ' <i>(SILENCES towers — kill him first!)</i>';
+    case 'banshee': return ' <i>(death-wail silences — kill her at range!)</i>';
+    case 'slime_big': return ' <i>(splits, and splits again)</i>';
+    case 'necromancer': return ' <i>(raises the dead as he walks)</i>';
+    case 'thief': return ' <i>(steals GOLD and runs — catch him!)</i>';
+    case 'shieldbearer': return ' <i>(ward caps your big hits)</i>';
     default: return '';
   }
 }

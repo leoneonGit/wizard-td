@@ -302,6 +302,10 @@ export interface UnitLook {
   vehicle?: string;
   /** transparent materials whose opacity tracks the wraith's phase state */
   ghostly?: boolean;
+  /** flyer: dark membrane wings attached to the back, flapped in code */
+  wings?: boolean;
+  /** slime: rigless squash-and-stretch blob (tint = goo color) */
+  blob?: boolean;
 }
 
 /** Keyed by WizardDef id (not element — multiple defs, e.g. goblins, can share an element). */
@@ -561,6 +565,45 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
   },
   warwagon: { model: 'goblin', height: 1.0, vehicle: 'vehicle_wagon', tint: new THREE.Color('#7a5c38'), tintStrength: 0.2 },
   siegetower: { model: 'goblin', height: 2.3, vehicle: 'vehicle_tower', tint: new THREE.Color('#6b4f30'), tintStrength: 0.2 },
+
+  // death from above + dirty tricks (Phase 12)
+  gargoyle: {
+    model: 'skel_minion', height: 1.05,
+    tint: new THREE.Color('#8d99ae'), tintStrength: 0.6,
+    wings: true,
+  },
+  drake: {
+    model: 'skel_rogue', height: 1.3,
+    tint: new THREE.Color('#c25a2e'), tintStrength: 0.65,
+    emissive: new THREE.Color('#ff5522'),
+    wings: true,
+  },
+  hexer: {
+    model: 'skel_mage', height: 1.25,
+    tint: new THREE.Color('#7a4a9e'), tintStrength: 0.65,
+    emissive: new THREE.Color('#b06bff'),
+  },
+  banshee: {
+    model: 'skel_rogue', height: 1.15,
+    tint: new THREE.Color('#cfd8e8'), tintStrength: 0.6,
+    emissive: new THREE.Color('#e8f2ff'),
+    ghostly: true, // pale and translucent — no phasing, just dread
+  },
+  necromancer: {
+    model: 'skel_mage', height: 1.35,
+    tint: new THREE.Color('#3a2f4e'), tintStrength: 0.7,
+    emissive: new THREE.Color('#7a4a9e'),
+  },
+  risen: { model: 'skel_minion', height: 0.95, tint: new THREE.Color('#9a92b5'), tintStrength: 0.5 },
+  thief: { model: 'skel_rogue', height: 1.05, tint: new THREE.Color('#d9c148'), tintStrength: 0.55 },
+  shieldbearer: {
+    model: 'knight', height: 1.35,
+    tint: new THREE.Color('#5b7fc9'), tintStrength: 0.5,
+    emissive: new THREE.Color('#8fb4ff'),
+  },
+  slime_big: { model: 'goblin', height: 0.85, tint: new THREE.Color('#5fbf4a'), blob: true },
+  slime_mid: { model: 'goblin', height: 0.6, tint: new THREE.Color('#74d15e'), blob: true },
+  slime_small: { model: 'goblin', height: 0.42, tint: new THREE.Color('#8ce276'), blob: true },
 
   // act bosses — huge, tinted, unmistakable
   warlord: {

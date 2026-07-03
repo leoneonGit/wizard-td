@@ -52,6 +52,7 @@ export function conditionalDamageMult(state: GameState, src: Wizard | undefined,
     if (vs && e.statuses[vs.status]) mult *= vs.mult;
     const bh = f.bonusVsHealthy;
     if (bh && e.hp >= e.maxHp * bh.threshold) mult *= bh.mult;
+    if (f.bonusVsFlying && e.def.flying) mult *= f.bonusVsFlying.mult;
   }
   return mult;
 }

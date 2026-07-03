@@ -349,6 +349,34 @@ export const sfx = {
     }
   },
 
+  hexZap(): void {
+    const c = gate('hex', 200);
+    if (!c) return;
+    const t = c.currentTime;
+    // a curse landing: sour descending square + dark noise hiss
+    sweep(c, 'square', vary(620, 0.05), 110, t, 0.3, env(c, t, 0.3, 0.3));
+    noise(c, t, 0.25, env(c, t, 0.15, 0.25), { type: 'bandpass', f0: 900, f1: 300, q: 2 });
+  },
+
+  wail(): void {
+    const c = gate('wail', 400);
+    if (!c) return;
+    const t = c.currentTime;
+    // banshee death-cry: two gliding sines a sour interval apart
+    sweep(c, 'sine', vary(1180, 0.04), 320, t, 0.9, env(c, t, 0.3, 0.9));
+    sweep(c, 'sine', vary(1580, 0.04), 420, t + 0.05, 0.85, env(c, t + 0.05, 0.2, 0.85));
+    noise(c, t, 0.7, env(c, t, 0.1, 0.7), { type: 'bandpass', f0: 2400, f1: 900, q: 3 });
+  },
+
+  squish(): void {
+    const c = gate('squish', 100);
+    if (!c) return;
+    const t = c.currentTime;
+    // wet pop
+    noise(c, t, 0.12, env(c, t, 0.35, 0.12), { type: 'lowpass', f0: 900, f1: 250 });
+    sweep(c, 'sine', vary(300, 0.15), 90, t, 0.1, env(c, t, 0.25, 0.1));
+  },
+
   // ---------------- impacts & reactions ----------------
   hit(): void {
     const c = gate('hit', 70);

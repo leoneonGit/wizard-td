@@ -83,6 +83,64 @@ export const ENEMIES: Record<string, EnemyDef> = {
     phase: { period: 5, duration: 1.6 },
   },
 
+  // ---------------- death from above + dirty tricks (Phase 12) ----------------
+  // flyers cut STRAIGHT across the map — your road maze means nothing to them.
+  // Ground eruptions and tides can't touch them; archers were born for this.
+  gargoyle: {
+    id: 'gargoyle', name: 'Gargoyle', hp: 90, speed: 85, radius: 11, bounty: 12,
+    color: '#8d99ae', resist: { ice: 0.8 }, flying: true,
+  },
+  drake: {
+    id: 'drake', name: 'Ember Drake', hp: 380, speed: 110, radius: 14, bounty: 30,
+    color: '#c25a2e', resist: { fire: 0.5 }, flying: true, innateImmune: ['burn'],
+  },
+  // the Hexer silences a tower for 3s every few beats — kill him FIRST
+  hexer: {
+    id: 'hexer', name: 'Hexer', hp: 160, speed: 55, radius: 11, bounty: 20,
+    color: '#7a4a9e', resist: {},
+    hexes: { period: 6, duration: 3, radius: 150 },
+  },
+  // the Banshee's death-wail silences towers near her corpse — kill her AWAY from your cluster
+  banshee: {
+    id: 'banshee', name: 'Banshee', hp: 130, speed: 90, radius: 10, bounty: 18,
+    color: '#cfd8e8', resist: {},
+    deathSilence: { radius: 100, duration: 2.5 },
+  },
+  // seven kills for the price of one — slow single-target builds drown in goo
+  slime_big: {
+    id: 'slime_big', name: 'Great Slime', hp: 320, speed: 45, radius: 16, bounty: 10,
+    color: '#5fbf4a', resist: {}, deathSpawns: ['slime_mid', 'slime_mid'],
+  },
+  slime_mid: {
+    id: 'slime_mid', name: 'Slime', hp: 120, speed: 55, radius: 12, bounty: 6,
+    color: '#74d15e', resist: {}, deathSpawns: ['slime_small', 'slime_small'],
+  },
+  slime_small: {
+    id: 'slime_small', name: 'Slimeling', hp: 45, speed: 70, radius: 8, bounty: 3,
+    color: '#8ce276', resist: {},
+  },
+  // raises the fallen as he walks — leave him alive and the wave never ends
+  necromancer: {
+    id: 'necromancer', name: 'Necromancer', hp: 200, speed: 50, radius: 12, bounty: 25,
+    color: '#3a2f4e', resist: {},
+    dropSpawns: { type: 'risen', count: 2, period: 5 },
+  },
+  risen: {
+    id: 'risen', name: 'Risen', hp: 40, speed: 60, radius: 10, bounty: 2,
+    color: '#9a92b5', resist: {},
+  },
+  // sprints to the gate, grabs your GOLD, and runs it home — catch him on the way back
+  thief: {
+    id: 'thief', name: 'Thief', hp: 100, speed: 130, radius: 10, bounty: 15,
+    color: '#d9c148', resist: {}, stealsGold: 25,
+  },
+  // his ward caps every single hit on nearby allies — snipers need chip support
+  shieldbearer: {
+    id: 'shieldbearer', name: 'Shieldbearer', hp: 350, speed: 48, radius: 14, bounty: 22,
+    color: '#5b7fc9', resist: {},
+    aura: { kind: 'ward', radius: 110, power: 60 },
+  },
+
   // ---------------- act bosses ----------------
   // Act 1 finale: teaches that ARMOR only cracks under physical fire (goblins/archers/ents)
   warlord: {

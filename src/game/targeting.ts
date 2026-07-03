@@ -1,5 +1,10 @@
 import type { GameState } from './state';
-import type { Enemy, Wizard } from './types';
+import type { Enemy, Wizard, WizardDef } from './types';
+
+/** Ground-slammers can't reach the sky: eruptions and tides only work on the road. */
+export function canHitAir(def: WizardDef): boolean {
+  return !def.groundAttack && def.auraKind !== 'tide';
+}
 
 export function enemiesInRange(state: GameState, x: number, y: number, range: number): Enemy[] {
   const out: Enemy[] = [];
@@ -30,8 +35,11 @@ export function hasLOS(state: GameState, x1: number, y1: number, x2: number, y2:
 }
 
 export function pickTarget(state: GameState, w: Wizard): Enemy | undefined {
-  const candidates = enemiesInRange(state, w.x, w.y, w.stats.range).filter((e) =>
-    hasLOS(state, w.x, w.y, e.x, e.y),
+  const air = canHitAir(w.def);
+  const candidates = enemiesInRange(state, w.x, w.y, w.stats.range).filter(
+    (e) => (air || !e.def.flying) &&
+      // flyers soar over the trees — line of sight only gates ground targets
+      (e.def.flying || hasLOS(state, w.x, w.y, e.x, e.y)),
   );
   if (candidates.length === 0) return undefined;
 

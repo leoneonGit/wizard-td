@@ -79,6 +79,7 @@ export const CARDS: CardDef[] = [
   { id: 'pr_executioner', name: 'Executioner', desc: 'All damage +75% vs Frozen enemies', icon: '⚔️', element: 'all', rarity: 'rare', unique: true, fx: { bonusVsStatus: { status: 'frozen', mult: 1.75 } } },
   { id: 'pr_firstblood', name: 'First Blood', desc: 'Physical damage +30% vs full-health enemies', icon: '🩸', element: 'physical', rarity: 'uncommon', unique: true, fx: { bonusVsHealthy: { threshold: 0.99, mult: 1.3 } } },
   { id: 'pr_soaked', name: 'Riptide Predator', desc: 'Lightning damage +35% vs Wet enemies', icon: '🌩️', element: 'lightning', rarity: 'uncommon', unique: true, fx: { bonusVsStatus: { status: 'wet', mult: 1.35 } } },
+  { id: 'pr_skywatch', name: 'Skywatch', desc: 'ALL towers deal +25% damage to FLYING enemies', icon: '🦅', element: 'all', rarity: 'uncommon', unique: true, fx: { bonusVsFlying: { mult: 1.25 } } },
 ];
 
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, uncommon: 30, rare: 10 };
