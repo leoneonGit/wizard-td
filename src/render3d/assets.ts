@@ -27,14 +27,17 @@ const MODELS: Record<string, string> = {
   // not a tinted human. Replaced the Barbarian-rig-plus-procedural-ears hack (P13).
   goblin_real: assetUrl('models/Goblin.glb'),
   orc_real: assetUrl('models/Orc.glb'),
+  // nature spirits for the tree family (Quaternius, CC0) — one real creature per
+  // lineage instead of the primitive-built treant (P13b). Goleling is a WINGED
+  // hovering golem: no Idle/Walk clips, idle resolves to Flying_Idle.
+  cactoro: assetUrl('models/Cactoro.glb'),
+  mushroom_king: assetUrl('models/Mushroom_King.glb'),
+  goleling: assetUrl('models/Goleling.glb'),
+  goleling_evolved: assetUrl('models/Goleling_Evolved.glb'),
 };
 
-/** Static prop pieces grafted onto rigged characters (ent canopies, thrown rock). */
-const ATTACH_MODELS: Record<string, string> = {
-  canopy_a: assetUrl('models/props/tree_single_A.gltf'),
-  canopy_b: assetUrl('models/props/tree_single_B.gltf'),
-  rock: assetUrl('models/props/rock_single_A.gltf'),
-};
+/** Static prop pieces grafted onto rigged characters. */
+const ATTACH_MODELS: Record<string, string> = {};
 
 /** Per-model attack-clip search order. Default favors the mage's spellcast gesture;
  *  the goblin model shares the same shared KayKit anim library but reads better
@@ -45,6 +48,10 @@ const ATTACK_CLIP_PRIORITY: Record<string, RegExp[]> = {
   knight: [/1h_ranged.*shoot/i, /ranged.*shoot/i, /ranged/i, /shoot/i, /throw/i, /attack/i],
   goblin_real: [/attack/i],
   orc_real: [/weapon/i, /punch/i, /attack/i],
+  cactoro: [/punch/i, /weapon/i, /attack/i],
+  mushroom_king: [/weapon/i, /punch/i, /attack/i], // swings his mushroom club
+  goleling: [/punch/i, /headbutt/i],
+  goleling_evolved: [/punch/i, /headbutt/i],
 };
 
 const assets = new Map<string, CharacterAsset>();
@@ -85,7 +92,7 @@ export async function loadCharacters(): Promise<void> {
         scene,
         clips,
         idle: pickClip(clips, [/^idle$/i, /idle/i], 'Idle'),
-        walk: pickClip(clips, [/^walking_a$/i, /walking/i, /walk/i, /running/i], 'Walking_A'),
+        walk: pickClip(clips, [/^walking_a$/i, /walking/i, /walk/i, /running/i, /fast_flying/i], 'Walking_A'),
         attack: pickClip(
           clips,
           ATTACK_CLIP_PRIORITY[key] ?? ATTACK_CLIP_PRIORITY.default,
@@ -296,15 +303,6 @@ export interface MageStyle {
   hatEmissive?: THREE.Color;
 }
 
-/** Ent styling: a bespoke rigless tree-creature body (see makeTreantView in units.ts) —
- *  no humanoid rig involved. A leafy canopy is grafted onto the trunk. */
-export interface EntStyle {
-  canopy: 'canopy_a' | 'canopy_b'; // which tree crown to graft on
-  canopyTint?: THREE.Color; // foliage color per subtype
-  canopyScale?: number; // canopy height as a fraction of unit height (default 0.9)
-  rock?: boolean; // Boulder Ent carries a rock, ready to hurl
-}
-
 /** Per-unit model mapping: model key, height (world units), tint. */
 export interface UnitLook {
   model: string;
@@ -313,7 +311,6 @@ export interface UnitLook {
   tintStrength?: number;
   emissive?: THREE.Color;
   mage?: MageStyle;
-  ent?: EntStyle;
   /** a weapon placed in a hand slot (procedural bow/crossbow, or any attachment key) */
   held?: { key: string; hand: 'l' | 'r'; scale: number; rotX?: number; rotY?: number; rotZ?: number };
   /** hide any node whose name matches (strip held weapons the kit doesn't use) */
@@ -425,27 +422,25 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     hideRe: /orc_weapon/i, // he throws bolas bare-handed, not his rig's built-in axe
   },
 
-  // trees — ENTS: bark-tinted rigged bodies with grafted canopies. They sway,
-  // turn to face their prey, and hurl with a full arm swing.
+  // trees — nature spirits, one real sculpted creature per lineage (P13b):
+  // Rootgrasp line = Mushroom King (forest monarch, swings his mushroom club),
+  // Boulder line = Goleling rock-golems (winged, hover in place, punch-hurl),
+  // Thornspitter line = Cactoro (a cactus that shoots needles, obviously).
   generic_tree: {
-    model: 'goblin', height: 1.1,
-    tint: new THREE.Color('#6d6357'), tintStrength: 0.8,
-    ent: { canopy: 'canopy_a', canopyScale: 0.75, canopyTint: new THREE.Color('#7a8a6a') },
+    model: 'cactoro', height: 1.1,
+    tint: new THREE.Color('#8a8494'), tintStrength: 0.55,
   },
   rootgrasp: {
-    model: 'goblin', height: 1.7,
-    tint: new THREE.Color('#5e4630'), tintStrength: 0.85, // dark ancient bark
-    ent: { canopy: 'canopy_a', canopyTint: new THREE.Color('#3f6b33') },
+    model: 'mushroom_king', height: 1.7,
+    tint: new THREE.Color('#5e4630'), tintStrength: 0.45, // barky woodland king
   },
   boulder: {
-    model: 'goblin', height: 1.95,
-    tint: new THREE.Color('#6b543c'), tintStrength: 0.85, // broad old-growth trunk
-    ent: { canopy: 'canopy_a', canopyScale: 1.0, canopyTint: new THREE.Color('#556b3a'), rock: true },
+    model: 'goleling', height: 1.95,
+    tint: new THREE.Color('#6b543c'), tintStrength: 0.4, // mossy stone spirit
   },
   thornspitter: {
-    model: 'goblin', height: 1.35,
-    tint: new THREE.Color('#55663d'), tintStrength: 0.8, // green sappy young wood
-    ent: { canopy: 'canopy_b', canopyScale: 0.8, canopyTint: new THREE.Color('#6fcf5f') },
+    model: 'cactoro', height: 1.35,
+    tint: new THREE.Color('#55663d'), tintStrength: 0.3, // already green and spiky
   },
 
   // ---------------- EVOLVED super-forms: bigger, brighter, unmistakable ----------------
@@ -516,22 +511,19 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     hideRe: /orc_weapon/i,
   },
   elderroot: {
-    model: 'goblin', height: 2.15,
-    tint: new THREE.Color('#4a3624'), tintStrength: 0.9,
+    model: 'mushroom_king', height: 2.15,
+    tint: new THREE.Color('#4a3624'), tintStrength: 0.55,
     emissive: new THREE.Color('#3f6b33'),
-    ent: { canopy: 'canopy_a', canopyScale: 1.1, canopyTint: new THREE.Color('#2f5427') },
   },
   mountain: {
-    model: 'goblin', height: 2.4,
-    tint: new THREE.Color('#5e4c38'), tintStrength: 0.9,
+    model: 'goleling_evolved', height: 2.4,
+    tint: new THREE.Color('#5e4c38'), tintStrength: 0.45,
     emissive: new THREE.Color('#8d7a5e'),
-    ent: { canopy: 'canopy_a', canopyScale: 1.15, canopyTint: new THREE.Color('#4c6b38'), rock: true },
   },
   bramblehydra: {
-    model: 'goblin', height: 1.7,
-    tint: new THREE.Color('#3f6b33'), tintStrength: 0.85,
+    model: 'cactoro', height: 1.7,
+    tint: new THREE.Color('#3f6b33'), tintStrength: 0.45,
     emissive: new THREE.Color('#6fcf5f'),
-    ent: { canopy: 'canopy_b', canopyScale: 1.05, canopyTint: new THREE.Color('#8fff6f') },
   },
 };
 

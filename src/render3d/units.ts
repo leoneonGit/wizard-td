@@ -44,8 +44,6 @@ interface UnitView {
   flapWings?: THREE.Mesh[];
   /** slime: squash-and-stretch instead of a walk cycle */
   blob?: boolean;
-  /** ent: rigless tree body — branch arms swing on attack, whole body sways idle */
-  treant?: { arms: THREE.Object3D[]; attackT: number };
   height: number;
 }
 
@@ -57,7 +55,6 @@ interface Dying {
 
 const DEATH_TIME = 1.05;
 const SHRINK_TIME = 0.28;
-const TREANT_ATTACK_TIME = 0.35;
 
 const enemyViews = new Map<number, UnitView>();
 const wizardViews = new Map<number, UnitView>();
@@ -109,142 +106,6 @@ function makeBlobView(look: UnitLook): UnitView {
   };
 }
 
-/** Ents are bespoke rigless tree-creatures — no CC0 treant rig exists, so a proper
- *  non-humanoid body (tapered trunk, splayed roots, branch arms, a carved face) is
- *  built from primitives instead of grafting a leaf canopy onto a human rig. */
-function makeTreantView(look: UnitLook): UnitView {
-  const root = new THREE.Group();
-  const inner = new THREE.Group();
-  root.add(inner);
-  const H = look.height;
-  const bark = look.tint ?? new THREE.Color('#6b543c');
-  const barkMat = new THREE.MeshStandardMaterial({ color: bark.clone(), roughness: 0.92 });
-  const darkMat = new THREE.MeshStandardMaterial({
-    color: bark.clone().lerp(new THREE.Color('#000000'), 0.35), roughness: 0.95,
-  });
-  if (look.emissive) {
-    for (const m of [barkMat, darkMat]) {
-      m.emissive.copy(look.emissive);
-      m.emissiveIntensity = 0.3;
-    }
-  }
-
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.1, H * 0.16, H * 0.62, 8), barkMat);
-  trunk.position.y = H * 0.42;
-  trunk.castShadow = true;
-  inner.add(trunk);
-
-  // roots: three splayed stumps planting the trunk into the ground
-  for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2 + 0.4;
-    const leg = new THREE.Mesh(new THREE.ConeGeometry(H * 0.065, H * 0.26, 5), darkMat);
-    leg.position.set(Math.sin(a) * H * 0.14, H * 0.13, Math.cos(a) * H * 0.14);
-    leg.rotation.x = Math.PI + Math.cos(a) * 0.5;
-    leg.rotation.z = Math.sin(a) * 0.5;
-    leg.castShadow = true;
-    inner.add(leg);
-  }
-
-  // branch arms: bent tubes pivoting at the shoulder, so they can swing on attack
-  const arms: THREE.Object3D[] = [];
-  for (const side of [-1, 1] as const) {
-    const shoulder = new THREE.Vector3(side * H * 0.1, H * 0.72, 0);
-    const curve = new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(side * H * 0.2, -H * 0.14, 0),
-      new THREE.Vector3(side * H * 0.3, -H * 0.32, 0),
-    );
-    const armGroup = new THREE.Group();
-    armGroup.position.copy(shoulder);
-    const armMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 8, H * 0.042, 6), darkMat);
-    armMesh.castShadow = true;
-    armGroup.add(armMesh);
-    inner.add(armGroup);
-    arms.push(armGroup);
-  }
-
-  // face: dim carved eyes + a knot-hole mouth on the trunk's front (+Z, board heading 0)
-  const eyeMat = new THREE.MeshStandardMaterial({
-    color: '#161008',
-    emissive: (look.emissive ?? new THREE.Color('#ffd75e')).clone(),
-    emissiveIntensity: 0.8,
-  });
-  for (const side of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(H * 0.035, 6, 6), eyeMat);
-    eye.position.set(side * H * 0.06, H * 0.58, H * 0.135);
-    inner.add(eye);
-  }
-  const mouth = new THREE.Mesh(
-    new THREE.CircleGeometry(H * 0.045, 8),
-    new THREE.MeshStandardMaterial({ color: '#161008' }),
-  );
-  mouth.position.set(0, H * 0.47, H * 0.155);
-  mouth.rotation.x = -0.2;
-  inner.add(mouth);
-
-  // canopy: the existing leafy tree-crown prop, grafted on top of the trunk
-  const canopyMeshes = new Set<THREE.Object3D>();
-  if (look.ent) {
-    const canopyAsset = getAttachment(look.ent.canopy);
-    if (canopyAsset) {
-      const canopy = canopyAsset.scene.clone(true);
-      const targetH = (look.ent.canopyScale ?? 0.9) * H;
-      canopy.scale.setScalar(targetH / canopyAsset.rawHeight);
-      canopy.position.y = H * 0.68;
-      inner.add(canopy);
-      canopy.traverse((o) => { if ((o as THREE.Mesh).isMesh) canopyMeshes.add(o); });
-    }
-  }
-
-  // Boulder Ent: a held rock that swings with the right arm
-  const rockMeshes = new Set<THREE.Object3D>();
-  if (look.ent?.rock) {
-    const rockAsset = getAttachment('rock');
-    if (rockAsset) {
-      const rock = rockAsset.scene.clone(true);
-      const targetH = H * 0.24;
-      rock.scale.setScalar(targetH / rockAsset.rawHeight);
-      rock.position.set(H * 0.3, -H * 0.32, 0);
-      arms[1].add(rock); // right arm
-      rock.traverse((o) => { if ((o as THREE.Mesh).isMesh) rockMeshes.add(o); });
-    }
-  }
-
-  // per-instance materials: canopy/rock come from shared attachment scenes and need
-  // cloning so tinting one tree doesn't tint every tree; everything else built above
-  // is already a fresh instance.
-  const mats: THREE.MeshStandardMaterial[] = [];
-  inner.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    if (canopyMeshes.has(mesh) || rockMeshes.has(mesh)) {
-      const src = mesh.material as THREE.MeshStandardMaterial;
-      const m = src.clone();
-      if (canopyMeshes.has(mesh) && look.ent?.canopyTint) m.color.lerp(look.ent.canopyTint, 0.5);
-      mesh.material = m;
-      mats.push(m);
-    } else {
-      mats.push(mesh.material as THREE.MeshStandardMaterial);
-    }
-  });
-
-  return {
-    root,
-    inner,
-    mats,
-    origColors: mats.map((m) => m.color.clone()),
-    baseEmissive: look.emissive ? look.emissive.clone() : new THREE.Color(0x000000),
-    yaw: 0,
-    casting: false,
-    cheering: false,
-    becalmed: false,
-    watery: false,
-    prevRecoil: 0,
-    treant: { arms, attackT: 0 },
-    height: H,
-  };
-}
-
 /** Vehicles are procedural wheel-and-plank rigs — no skeleton, they roll and rock. */
 function makeVehicleView(look: UnitLook): UnitView {
   const asset = getAttachment(look.vehicle!);
@@ -287,7 +148,6 @@ function makeVehicleView(look: UnitLook): UnitView {
 function makeView(look: UnitLook): UnitView {
   if (look.vehicle) return makeVehicleView(look);
   if (look.blob) return makeBlobView(look);
-  if (look.ent) return makeTreantView(look);
   const asset = getAsset(look.model);
   const inner = SkeletonUtils.clone(asset.scene) as THREE.Group;
   const s = asset.unitScale * look.height;
@@ -424,7 +284,6 @@ function makeView(look: UnitLook): UnitView {
     return mixer.clipAction(c!);
   };
   const idle = clip(asset.idle);
-  if (look.ent) idle.timeScale = 0.55; // ancient, slow tree-folk sway
   const walk = clip(asset.walk);
   const attack = clip(asset.attack);
   attack.setLoop(THREE.LoopOnce, 1);
@@ -694,21 +553,6 @@ function syncWizards(state: GameState, dt: number): void {
     if (v.casting && v.attack && !v.attack.isRunning()) {
       v.casting = false;
       v.idle?.reset().fadeIn(0.15).play();
-    }
-    // ents have no skeleton: sway idly, and lean the trunk + swing both branch
-    // arms on cast since there's no attack clip to play
-    if (v.treant) {
-      if (w.recoil > v.prevRecoil + 0.01) v.treant.attackT = TREANT_ATTACK_TIME;
-      if (v.treant.attackT > 0) {
-        v.treant.attackT = Math.max(0, v.treant.attackT - dt);
-        const k = Math.sin((1 - v.treant.attackT / TREANT_ATTACK_TIME) * Math.PI); // 0 -> 1 -> 0
-        v.inner.rotation.x = -k * 0.28;
-        for (const arm of v.treant.arms) arm.rotation.x = -k * 0.6;
-      } else {
-        v.inner.rotation.x *= 0.85;
-        for (const arm of v.treant.arms) arm.rotation.x *= 0.85;
-      }
-      v.inner.rotation.z = Math.sin(performance.now() / 900 + w.id) * 0.025;
     }
     v.prevRecoil = w.recoil;
     v.mixer?.update(dt);
