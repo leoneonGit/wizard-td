@@ -8,7 +8,7 @@ import { dealDamage, updateEnemies } from '../src/game/combat';
 import { restoreRun, type RunSave } from '../src/game/save';
 import { ACT_WAVES, ACT_SCALING, WAVE_HP_RAMP, WAVES_PER_ACT, TOTAL_ACTS } from '../src/data/waves';
 import { ENEMIES } from '../src/data/enemies';
-import { MAPS, ACT_MAPS } from '../src/data/maps';
+import { MAPS, ACT_MAPS, ACT_MAP_POOLS, mapForAct } from '../src/data/maps';
 import { PROP_MODELS, propOverlapsRoad } from '../src/game/mapio';
 import { RELICS } from '../src/data/relics';
 import { WIZARDS } from '../src/data/wizards';
@@ -96,6 +96,16 @@ describe('campaign structure', () => {
 
 // ---------------------------------------------------------------- act transition
 
+describe('act map pools', () => {
+  it('rolls each act map from its pool, deterministically per seed', () => {
+    for (let act = 0; act < 3; act++) {
+      const rolled = mapForAct(act, 123456789);
+      expect(ACT_MAP_POOLS[act]).toContain(rolled.id);
+      expect(mapForAct(act, 123456789).id).toBe(rolled.id); // same seed -> same map
+    }
+  });
+});
+
 describe('advanceAct', () => {
   it('sells towers at the standard refund, keeps cards/relics/gold, swaps the map', () => {
     const state = createGame(MAPS.vale, 10);
@@ -110,7 +120,7 @@ describe('advanceAct', () => {
 
     expect(advanceAct(state)).toBe(true);
     expect(state.act).toBe(1);
-    expect(state.map.id).toBe(ACT_MAPS[1]);
+    expect(ACT_MAP_POOLS[1]).toContain(state.map.id); // rolled from act 2's pool
     expect(state.gold).toBe(500 + Math.round(300 * SELL_REFUND));
     expect(state.wizards.length).toBe(0);
     expect(state.relics.length).toBe(1); // relics travel

@@ -182,7 +182,17 @@ export const MAPS: Record<string, MapDef> = {
   },
 };
 
-/** The campaign route: act index -> map id. */
-export const ACT_MAPS = ['vale', 'fen', 'peak'];
+/** The campaign route: each act rolls ONE map from its pool per run (seeded).
+ *  Add editor-built maps to an act's pool and the campaign rotates them. */
+export const ACT_MAP_POOLS: string[][] = [['vale'], ['fen'], ['peak']];
+
+/** Every campaign-capable map id, flattened (campaign detection, saves). */
+export const ACT_MAPS = ACT_MAP_POOLS.flat();
+
+/** Seeded per-run pick — the same run seed always rolls the same map per act. */
+export function mapForAct(act: number, seed: number): MapDef {
+  const pool = ACT_MAP_POOLS[Math.min(act, ACT_MAP_POOLS.length - 1)];
+  return MAPS[pool[Math.abs(Math.floor(seed / 97) + act * 31) % pool.length]];
+}
 
 export const DEFAULT_MAP = 'vale';

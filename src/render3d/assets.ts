@@ -28,12 +28,12 @@ const MODELS: Record<string, string> = {
   goblin_real: assetUrl('models/Goblin.glb'),
   orc_real: assetUrl('models/Orc.glb'),
   // nature spirits for the tree family (Quaternius, CC0) — one real creature per
-  // lineage instead of the primitive-built treant (P13b). Goleling is a WINGED
-  // hovering golem: no Idle/Walk clips, idle resolves to Flying_Idle.
+  // lineage instead of the primitive-built treant (P13b). Mushnub replaced the
+  // winged Goleling (user: "just a bat") — a grounded mushroom-beast cousin of
+  // the Mushroom King, so Boulder reads as kin to Rootgrasp without twinning it.
   cactoro: assetUrl('models/Cactoro.glb'),
   mushroom_king: assetUrl('models/Mushroom_King.glb'),
-  goleling: assetUrl('models/Goleling.glb'),
-  goleling_evolved: assetUrl('models/Goleling_Evolved.glb'),
+  mushnub: assetUrl('models/Mushnub_Evolved.glb'),
 };
 
 /** Static prop pieces grafted onto rigged characters. */
@@ -50,8 +50,7 @@ const ATTACK_CLIP_PRIORITY: Record<string, RegExp[]> = {
   orc_real: [/weapon/i, /punch/i, /attack/i],
   cactoro: [/punch/i, /weapon/i, /attack/i],
   mushroom_king: [/weapon/i, /punch/i, /attack/i], // swings his mushroom club
-  goleling: [/punch/i, /headbutt/i],
-  goleling_evolved: [/punch/i, /headbutt/i],
+  mushnub: [/bite_front/i, /bite/i], // lunging heave — sells the boulder toss
 };
 
 const assets = new Map<string, CharacterAsset>();
@@ -92,7 +91,7 @@ export async function loadCharacters(): Promise<void> {
         scene,
         clips,
         idle: pickClip(clips, [/^idle$/i, /idle/i], 'Idle'),
-        walk: pickClip(clips, [/^walking_a$/i, /walking/i, /walk/i, /running/i, /fast_flying/i], 'Walking_A'),
+        walk: pickClip(clips, [/^walking_a$/i, /walking/i, /walk/i, /running/i], 'Walking_A'),
         attack: pickClip(
           clips,
           ATTACK_CLIP_PRIORITY[key] ?? ATTACK_CLIP_PRIORITY.default,
@@ -424,7 +423,7 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
 
   // trees — nature spirits, one real sculpted creature per lineage (P13b):
   // Rootgrasp line = Mushroom King (forest monarch, swings his mushroom club),
-  // Boulder line = Goleling rock-golems (winged, hover in place, punch-hurl),
+  // Boulder line = Mushnub (his stout mushroom-beast cousin, stone-tinted),
   // Thornspitter line = Cactoro (a cactus that shoots needles, obviously).
   generic_tree: {
     model: 'cactoro', height: 1.1,
@@ -435,8 +434,8 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     tint: new THREE.Color('#5e4630'), tintStrength: 0.45, // barky woodland king
   },
   boulder: {
-    model: 'goleling', height: 1.95,
-    tint: new THREE.Color('#6b543c'), tintStrength: 0.4, // mossy stone spirit
+    model: 'mushnub', height: 1.95,
+    tint: new THREE.Color('#6b543c'), tintStrength: 0.45, // stone-brown hide
   },
   thornspitter: {
     model: 'cactoro', height: 1.35,
@@ -516,8 +515,8 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     emissive: new THREE.Color('#3f6b33'),
   },
   mountain: {
-    model: 'goleling_evolved', height: 2.4,
-    tint: new THREE.Color('#5e4c38'), tintStrength: 0.45,
+    model: 'mushnub', height: 2.4,
+    tint: new THREE.Color('#5e4c38'), tintStrength: 0.5,
     emissive: new THREE.Color('#8d7a5e'),
   },
   bramblehydra: {

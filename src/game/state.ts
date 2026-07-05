@@ -1,6 +1,6 @@
 import { computeBlockedCells, cellKey, cellCenter, pixelToCell } from '../engine/grid';
 import { makeRng } from '../engine/rng';
-import { MAPS, DEFAULT_MAP, ACT_MAPS } from '../data/maps';
+import { ACT_MAPS, mapForAct } from '../data/maps';
 import { WAVES_PER_ACT, TOTAL_ACTS } from '../data/waves';
 import { PROP_MODELS } from './mapio';
 import { Track } from './path';
@@ -142,8 +142,9 @@ function mapDerived(map: MapDef) {
   };
 }
 
-export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): GameState {
-  const derived = mapDerived(map);
+export function createGame(map?: MapDef, seed = Date.now()): GameState {
+  // no explicit map (normal campaign start) -> roll act 1's map from its pool
+  const derived = mapDerived(map ?? mapForAct(0, seed));
   return {
     ...derived,
     phase: 'build',
@@ -216,7 +217,7 @@ export function advanceAct(state: GameState): boolean {
   state.selectedWizardId = null;
   state.placingType = null;
   state.act++;
-  Object.assign(state, mapDerived(MAPS[ACT_MAPS[state.act]]));
+  Object.assign(state, mapDerived(mapForAct(state.act, state.seed)));
   state.round = 0;
   state.lastEliteRound = -5;
   state.nodesForRound = -1;

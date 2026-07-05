@@ -297,7 +297,6 @@ button { touch-action: manipulation; }
   padding: 6px;
   font-size: 12px;
 }
-#editor-link { color: #8a7aff; font-size: 12px; text-decoration: none; white-space: nowrap; }
 #btn-newrun {
   background: #14121f;
   border: 1px solid #3d3660;
