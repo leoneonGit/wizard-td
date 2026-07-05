@@ -18,12 +18,15 @@ export interface CharacterAsset {
 const MODELS: Record<string, string> = {
   mage: assetUrl('models/Mage.glb'),
   knight: assetUrl('models/Knight.glb'),
-  goblin: assetUrl('models/Barbarian.glb'), // stocky build reads well as goblin-sized once tinted
   ranger: assetUrl('models/Rogue_Hooded.glb'), // hooded archer — elf longbow + archer recruits
   skel_mage: assetUrl('models/Skeleton_Mage.glb'),
   skel_minion: assetUrl('models/Skeleton_Minion.glb'),
   skel_rogue: assetUrl('models/Skeleton_Rogue.glb'),
   skel_warrior: assetUrl('models/Skeleton_Warrior.glb'),
+  // real sculpted greenskins (Quaternius, CC0) — actual goblin/orc creature meshes,
+  // not a tinted human. Replaced the Barbarian-rig-plus-procedural-ears hack (P13).
+  goblin_real: assetUrl('models/Goblin.glb'),
+  orc_real: assetUrl('models/Orc.glb'),
 };
 
 /** Static prop pieces grafted onto rigged characters (ent canopies, thrown rock). */
@@ -38,9 +41,10 @@ const ATTACH_MODELS: Record<string, string> = {
  *  throwing/swinging than "casting a spell"; archers should draw and loose. */
 const ATTACK_CLIP_PRIORITY: Record<string, RegExp[]> = {
   default: [/spellcast.*shoot/i, /spellcast/i, /cast/i, /attack/i, /melee/i],
-  goblin: [/^throw$/i, /throw/i, /melee.*attack/i, /attack/i],
   ranger: [/2h_ranged.*shoot/i, /ranged.*shoot/i, /ranged/i, /shoot/i, /throw/i, /attack/i],
   knight: [/1h_ranged.*shoot/i, /ranged.*shoot/i, /ranged/i, /shoot/i, /throw/i, /attack/i],
+  goblin_real: [/attack/i],
+  orc_real: [/weapon/i, /punch/i, /attack/i],
 };
 
 const assets = new Map<string, CharacterAsset>();
@@ -115,6 +119,9 @@ export async function loadCharacters(): Promise<void> {
   // procedural war machines — the horde's carriers
   attachments.set('vehicle_wagon', { scene: makeWagon(), rawHeight: 1.0 });
   attachments.set('vehicle_tower', { scene: makeSiegeTower(), rawHeight: 2.3 });
+  // small hand props for the new sculpted rigs (no built-in shield/drum nodes to toggle)
+  attachments.set('gong', { scene: makeGong(), rawHeight: 0.5 });
+  attachments.set('drum', { scene: makeDrum(), rawHeight: 0.4 });
 }
 
 const WOOD_DARK = () => new THREE.MeshStandardMaterial({ color: '#4a3826', roughness: 0.85 });
@@ -238,6 +245,40 @@ function makeCrossbow(): THREE.Group {
   return g;
 }
 
+/** Gong Goblin's hand-carried gong: a brass disc on a short handle. */
+function makeGong(): THREE.Group {
+  const g = new THREE.Group();
+  const brass = new THREE.MeshStandardMaterial({ color: '#c9a24a', roughness: 0.4, metalness: 0.7 });
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.04, 16), brass);
+  disc.rotation.x = Math.PI / 2;
+  disc.castShadow = true;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.02, 6, 16), WOOD_DARK());
+  rim.rotation.x = Math.PI / 2;
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.22, 5), WOOD_DARK());
+  handle.position.y = -0.28;
+  g.add(disc, rim, handle);
+  return g;
+}
+
+/** War Drummer's marching drum: a squat barrel with a taut skin. */
+function makeDrum(): THREE.Group {
+  const g = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 12), WOOD_MID());
+  shell.castShadow = true;
+  const skin = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.23, 0.23, 0.02, 12),
+    new THREE.MeshStandardMaterial({ color: '#e8dcc0', roughness: 0.6 }),
+  );
+  skin.position.y = 0.16;
+  const band1 = new THREE.Mesh(new THREE.TorusGeometry(0.225, 0.015, 5, 12), IRON());
+  band1.rotation.x = Math.PI / 2;
+  band1.position.y = 0.1;
+  const band2 = band1.clone();
+  band2.position.y = -0.1;
+  g.add(shell, skin, band1, band2);
+  return g;
+}
+
 export function getAsset(key: string): CharacterAsset {
   const a = assets.get(key);
   if (!a) throw new Error(`asset not loaded: ${key}`);
@@ -255,26 +296,8 @@ export interface MageStyle {
   hatEmissive?: THREE.Color;
 }
 
-/** Goblin/orc styling: the Barbarian rig sharpened into an actual greenskin —
- *  pointy ears, glowing eyes, a big head and PROPERLY green skin. */
-export interface GoblinStyle {
-  showShield?: boolean; // Gong Goblin only — the shield reads as a hand-carried gong
-  hatEmissive?: THREE.Color;
-  /** pointy ear cones on the head bone — 'goblin' large and swept, 'orc' shorter/darker */
-  ears?: 'goblin' | 'orc';
-  /** small emissive-yellow eyes on the face */
-  eyes?: boolean;
-  /** big-headed goblin proportions (head bone scale) */
-  headScale?: number;
-  /** full-strength face tint — goblins are GREEN, not faintly green-adjacent */
-  greenFace?: THREE.Color;
-  /** orc grunts keep their axes (the tower goblins throw things instead) */
-  keepWeapons?: boolean;
-}
-
-/** Ent styling: a rigged character turned walking tree — LotR-style tree-folk.
- *  All gear is stripped, the body is tinted bark, and a leafy canopy is grafted
- *  onto the head bone so it sways with the idle animation. */
+/** Ent styling: a bespoke rigless tree-creature body (see makeTreantView in units.ts) —
+ *  no humanoid rig involved. A leafy canopy is grafted onto the trunk. */
 export interface EntStyle {
   canopy: 'canopy_a' | 'canopy_b'; // which tree crown to graft on
   canopyTint?: THREE.Color; // foliage color per subtype
@@ -290,7 +313,6 @@ export interface UnitLook {
   tintStrength?: number;
   emissive?: THREE.Color;
   mage?: MageStyle;
-  goblin?: GoblinStyle;
   ent?: EntStyle;
   /** a weapon placed in a hand slot (procedural bow/crossbow, or any attachment key) */
   held?: { key: string; hand: 'l' | 'r'; scale: number; rotX?: number; rotY?: number; rotZ?: number };
@@ -355,32 +377,29 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
   // unspecialized shells — neutral, no styling (a pending-icon overlay marks them in 3D)
   generic_wizard: { model: 'mage', height: 1.45, tint: new THREE.Color('#8a8494'), tintStrength: 0.5 },
   generic_goblin: {
-    model: 'goblin', height: 1.15,
+    model: 'goblin_real', height: 1.15,
     tint: new THREE.Color('#8a8494'), tintStrength: 0.55,
-    goblin: { ears: 'goblin', eyes: true, headScale: 1.14, greenFace: new THREE.Color('#6f8f68') },
   },
 
-  // goblins — stocky Barbarian rig turned proper greenskin: big head, pointy ears,
-  // glowing eyes, VIVID green skin; differentiated by accent color + props
+  // goblins — real sculpted Quaternius Goblin mesh, no tint-a-human hack needed;
+  // differentiated by accent green shade + emissive + a hand-carried gong prop
   slingshot: {
-    model: 'goblin', height: 1.15,
-    tint: new THREE.Color('#55a83f'), tintStrength: 0.7,
-    goblin: { hatEmissive: new THREE.Color('#c9e08a'), ears: 'goblin', eyes: true, headScale: 1.14, greenFace: new THREE.Color('#4f9e3f') },
+    model: 'goblin_real', height: 1.15,
+    tint: new THREE.Color('#55a83f'), tintStrength: 0.4,
   },
   dynamite: {
-    model: 'goblin', height: 1.15,
-    tint: new THREE.Color('#6ba03c'), tintStrength: 0.7,
+    model: 'goblin_real', height: 1.15,
+    tint: new THREE.Color('#6ba03c'), tintStrength: 0.4,
     emissive: new THREE.Color('#ff6a1e'), // faint ember glow — always sitting on a lit fuse
-    goblin: { hatEmissive: new THREE.Color('#ffb163'), ears: 'goblin', eyes: true, headScale: 1.14, greenFace: new THREE.Color('#579b38') },
   },
   gong: {
-    model: 'goblin', height: 1.15,
-    tint: new THREE.Color('#4c9e59'), tintStrength: 0.7,
-    goblin: { showShield: true, hatEmissive: new THREE.Color('#f4d98a'), ears: 'goblin', eyes: true, headScale: 1.14, greenFace: new THREE.Color('#4a9a4e') },
+    model: 'goblin_real', height: 1.15,
+    tint: new THREE.Color('#4c9e59'), tintStrength: 0.4,
+    held: { key: 'gong', hand: 'r', scale: 0.4 },
   },
 
   // archers — hooded ranger rig for the elves, knight for the human arbalist,
-  // war-painted Barbarian for the orc trapper
+  // the sculpted orc for the bolas trapper
   generic_archer: {
     model: 'ranger', height: 1.4,
     tint: new THREE.Color('#8a8494'), tintStrength: 0.5,
@@ -401,9 +420,9 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     held: { key: 'crossbow', hand: 'l', scale: 0.5 },
   },
   bolas: {
-    model: 'goblin', height: 1.3,
-    tint: new THREE.Color('#4a5548'), tintStrength: 0.65, // dark slate war-paint orc
-    goblin: { hatEmissive: new THREE.Color('#c8d6b0'), ears: 'orc', headScale: 1.08, greenFace: new THREE.Color('#5c6b4a') },
+    model: 'orc_real', height: 1.3,
+    tint: new THREE.Color('#4a5548'), tintStrength: 0.4, // dark slate war-paint orc
+    hideRe: /orc_weapon/i, // he throws bolas bare-handed, not his rig's built-in axe
   },
 
   // trees — ENTS: bark-tinted rigged bodies with grafted canopies. They sway,
@@ -461,22 +480,20 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     mage: { hat: { sx: 1.4, sy: 1.15, sz: 1.4 }, hatEmissive: new THREE.Color('#ffffff') },
   },
   warlord: {
-    model: 'goblin', height: 1.45,
-    tint: new THREE.Color('#55a83f'), tintStrength: 0.75,
+    model: 'goblin_real', height: 1.45,
+    tint: new THREE.Color('#55a83f'), tintStrength: 0.45,
     emissive: new THREE.Color('#c9e08a'),
-    goblin: { hatEmissive: new THREE.Color('#f4ffb0'), ears: 'goblin', eyes: true, headScale: 1.16, greenFace: new THREE.Color('#4f9e3f') },
   },
   sapperking: {
-    model: 'goblin', height: 1.45,
-    tint: new THREE.Color('#6ba03c'), tintStrength: 0.75,
+    model: 'goblin_real', height: 1.45,
+    tint: new THREE.Color('#6ba03c'), tintStrength: 0.45,
     emissive: new THREE.Color('#ff6a1e'),
-    goblin: { hatEmissive: new THREE.Color('#ffd75e'), ears: 'goblin', eyes: true, headScale: 1.16, greenFace: new THREE.Color('#579b38') },
   },
   doomgong: {
-    model: 'goblin', height: 1.45,
-    tint: new THREE.Color('#4c9e59'), tintStrength: 0.75,
+    model: 'goblin_real', height: 1.45,
+    tint: new THREE.Color('#4c9e59'), tintStrength: 0.45,
     emissive: new THREE.Color('#f4d98a'),
-    goblin: { showShield: true, hatEmissive: new THREE.Color('#ffd75e'), ears: 'goblin', eyes: true, headScale: 1.16, greenFace: new THREE.Color('#4a9a4e') },
+    held: { key: 'gong', hand: 'r', scale: 0.5 },
   },
   stormpiercer: {
     model: 'ranger', height: 1.75,
@@ -493,10 +510,10 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     held: { key: 'crossbow', hand: 'l', scale: 0.58 },
   },
   chainwarden: {
-    model: 'goblin', height: 1.55,
-    tint: new THREE.Color('#4a5548'), tintStrength: 0.75,
+    model: 'orc_real', height: 1.55,
+    tint: new THREE.Color('#4a5548'), tintStrength: 0.45,
     emissive: new THREE.Color('#c8d6b0'),
-    goblin: { hatEmissive: new THREE.Color('#e8f2d8'), ears: 'orc', headScale: 1.1, greenFace: new THREE.Color('#5c6b4a') },
+    hideRe: /orc_weapon/i,
   },
   elderroot: {
     model: 'goblin', height: 2.15,
@@ -530,22 +547,19 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
   golem: { model: 'skel_warrior', height: 2.6, tint: new THREE.Color('#3d2f5e'), tintStrength: 0.6 },
   golemling: { model: 'skel_warrior', height: 1.45, tint: new THREE.Color('#7a68a6'), tintStrength: 0.5 },
 
-  // the horde (Phase 8) — orc treatment: shorter darker ears, dull green hides, axes kept
+  // the horde (Phase 8) — real sculpted Quaternius Orc mesh, axe built into the rig
   orcraider: {
-    model: 'goblin', height: 1.15,
-    tint: new THREE.Color('#5e7a3a'), tintStrength: 0.6,
-    goblin: { ears: 'orc', headScale: 1.08, greenFace: new THREE.Color('#5e7a3a'), keepWeapons: true },
+    model: 'orc_real', height: 1.15,
+    tint: new THREE.Color('#5e7a3a'), tintStrength: 0.35,
   },
   orcbrute: {
-    model: 'goblin', height: 1.5,
-    tint: new THREE.Color('#4a5d33'), tintStrength: 0.7,
-    goblin: { ears: 'orc', headScale: 1.1, greenFace: new THREE.Color('#556b3a'), keepWeapons: true },
+    model: 'orc_real', height: 1.5,
+    tint: new THREE.Color('#4a5d33'), tintStrength: 0.45,
   },
   troll: {
-    model: 'goblin', height: 2.3,
-    tint: new THREE.Color('#6a7d5e'), tintStrength: 0.75,
+    model: 'orc_real', height: 2.3,
+    tint: new THREE.Color('#6a7d5e'), tintStrength: 0.5,
     emissive: new THREE.Color('#38553f'),
-    goblin: { ears: 'orc', headScale: 1.12, greenFace: new THREE.Color('#6a7d5e'), keepWeapons: true },
   },
   orcshaman: {
     model: 'skel_mage', height: 1.2,
@@ -553,9 +567,10 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
     emissive: new THREE.Color('#3fae5a'),
   },
   wardrummer: {
-    model: 'goblin', height: 1.35,
-    tint: new THREE.Color('#8a5c3a'), tintStrength: 0.6,
-    goblin: { showShield: true, ears: 'orc', headScale: 1.08, greenFace: new THREE.Color('#6b6b42') },
+    model: 'orc_real', height: 1.35,
+    tint: new THREE.Color('#8a5c3a'), tintStrength: 0.4,
+    hideRe: /orc_weapon/i,
+    held: { key: 'drum', hand: 'l', scale: 0.42 },
   },
   wraith: {
     model: 'skel_rogue', height: 1.15,
