@@ -16,5 +16,5 @@ export const ELEMENTS: Record<ElementId, ElementInfo> = {
   // goblin damage type: always unresisted (no enemy ever sets resist.physical)
   physical: { id: 'physical', name: 'Physical', color: '#a08060', glow: '#d4b896' },
   // from beyond the sky: no reactions, no resists — but armor still shrugs it off
-  void: { id: 'void', name: 'Void', color: '#e5383b', glow: '#ff7b8a' },
+  void: { id: 'void', name: 'Void', color: '#e34bb2', glow: '#ff9ade' },
 };

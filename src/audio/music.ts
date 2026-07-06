@@ -2,32 +2,55 @@
  * Generative ambient music — zero assets, all Web Audio, routed through the sfx
  * master chain (so it inherits the reverb, the volume slider and the mute button).
  *
- * Layers by intensity:
- *   0 (build)  — slow chord pad only
- *   1 (wave)   — + pulsing bass root and soft noise hats
- *   2 (boss)   — + low drone, darker filter
+ * Each ACT has its own chord progression; INTENSITY climbs every couple of
+ * waves so the score keeps pace with the run:
+ *   0 (build)      — slow chord pad only
+ *   1 (waves 1-2)  — + pulsing bass root
+ *   2 (waves 3-4)  — + quicker pulse, alternating root/fifth
+ *   3 (waves 5+)   — + sparkle pings on the chord tones
+ *   4 (boss)       — + low drone, darker filter, driving pulse
  */
 import { sfx } from './sfx';
 
-// A-minor: i – VI – III – VII (Am, F, C, G), voiced low-mid so it stays out of the SFX's way
-const CHORDS: number[][] = [
-  [220.0, 261.63, 329.63], // Am
-  [174.61, 220.0, 261.63], // F
-  [196.0, 261.63, 329.63], // C (voiced with E)
-  [196.0, 246.94, 293.66], // G
+// per-act progressions, voiced low-mid so they stay out of the SFX's way
+const PROGRESSIONS: number[][][] = [
+  // act 1 — A minor, gentle: i – VI – III – VII (Am, F, C, G)
+  [
+    [220.0, 261.63, 329.63], // Am
+    [174.61, 220.0, 261.63], // F
+    [196.0, 261.63, 329.63], // C (voiced with E)
+    [196.0, 246.94, 293.66], // G
+  ],
+  // act 2 — D minor, uneasy: i – iv – VI – V (Dm, Gm, Bb, A)
+  [
+    [146.83, 174.61, 220.0], // Dm
+    [196.0, 233.08, 293.66], // Gm
+    [174.61, 233.08, 293.66], // Bb (voiced F Bb D)
+    [164.81, 220.0, 277.18], // A (voiced E A C#)
+  ],
+  // act 3 — E phrygian, ominous: the half-step above the root looms
+  [
+    [164.81, 196.0, 246.94], // Em
+    [174.61, 220.0, 261.63], // F
+    [164.81, 196.0, 246.94], // Em
+    [146.83, 174.61, 220.0], // Dm
+  ],
 ];
-const CHORD_LEN = 7.5; // seconds per chord
+const CHORD_LENS = [7.5, 7.0, 6.0]; // each act breathes a little faster
 // gain staging: voices (0.12 peak x ~6) x MUSIC_LEVEL x master (~0.5) needs to land
 // around -14dB under the sfx — the original 0.14/0.055 combo was mathematically inaudible
 const MUSIC_LEVEL = 0.5;
 const VOICE_LEVEL = 0.12;
 const BASS_LEVEL = 0.22;
 const DRONE_LEVEL = 0.13;
+const SPARKLE_LEVEL = 0.07;
 
 let started = false;
 let enabled = true;
 let intensity = 0;
+let act = 0;
 let chordIdx = 0;
+let pulseIdx = 0;
 let nextChordAt = 0;
 let nextPulseAt = 0;
 let musicGain: GainNode | null = null;
@@ -77,11 +100,16 @@ export const music = {
     return enabled;
   },
 
-  /** 0 = build phase, 1 = wave running, 2 = boss wave. */
+  /** 0 = build, 1-3 = wave heat (climbs every couple of waves), 4 = boss. */
   setIntensity(level: number): void {
     if (level === intensity) return;
     intensity = level;
     updateDrone();
+  },
+
+  /** Each act plays its own progression (clamped to the last one defined). */
+  setAct(a: number): void {
+    act = Math.max(0, Math.min(PROGRESSIONS.length - 1, a));
   },
 
   stop(): void {
@@ -94,26 +122,35 @@ export const music = {
 function schedule(ctx: AudioContext): void {
   if (!musicGain) return;
   const horizon = ctx.currentTime + 2.6;
+  const chords = PROGRESSIONS[act];
+  const chordLen = CHORD_LENS[act];
 
   while (nextChordAt < horizon) {
-    scheduleChord(ctx, CHORDS[chordIdx % CHORDS.length], nextChordAt);
+    scheduleChord(ctx, chords[chordIdx % chords.length], nextChordAt, chordLen);
     chordIdx++;
-    nextChordAt += CHORD_LEN;
+    nextChordAt += chordLen;
   }
 
-  // bass pulse + hats only while a wave is running
-  const pulseGap = intensity >= 2 ? 0.375 : 0.5; // boss pushes the pulse
+  // bass pulse only while a wave is running; it quickens as the act heats up
+  const pulseGap = intensity >= 4 ? 0.375 : intensity >= 3 ? 0.4 : intensity >= 2 ? 0.45 : 0.5;
   while (nextPulseAt < horizon) {
     if (intensity >= 1) {
-      const root = CHORDS[(chordIdx - 1 + CHORDS.length) % CHORDS.length][0] / 2;
+      const chord = chords[(chordIdx - 1 + chords.length) % chords.length];
+      // heat 2+: the bass walks root/fifth instead of hammering the root
+      const root = (intensity >= 2 && pulseIdx % 2 === 1 ? chord[0] * 1.5 : chord[0]) / 2;
       schedulePulse(ctx, root, nextPulseAt);
+      // heat 3+: sparkle pings on the chord tones — the "we're winning" layer
+      if (intensity >= 3 && pulseIdx % 4 === 2) {
+        scheduleSparkle(ctx, chord[(pulseIdx >> 2) % chord.length] * 2, nextPulseAt);
+      }
+      pulseIdx++;
     }
     nextPulseAt += pulseGap;
   }
 }
 
-function scheduleChord(ctx: AudioContext, freqs: number[], t: number): void {
-  const dark = intensity >= 2;
+function scheduleChord(ctx: AudioContext, freqs: number[], t: number, chordLen: number): void {
+  const dark = intensity >= 4;
   for (const f of freqs) {
     for (const detune of [-3, 3]) {
       const o = ctx.createOscillator();
@@ -123,19 +160,34 @@ function scheduleChord(ctx: AudioContext, freqs: number[], t: number): void {
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
       g.gain.linearRampToValueAtTime(VOICE_LEVEL, t + 2.2);
-      g.gain.setValueAtTime(VOICE_LEVEL, t + CHORD_LEN - 2.0);
-      g.gain.linearRampToValueAtTime(0.0001, t + CHORD_LEN + 0.6);
+      g.gain.setValueAtTime(VOICE_LEVEL, t + chordLen - 2.0);
+      g.gain.linearRampToValueAtTime(0.0001, t + chordLen + 0.6);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
       lp.frequency.setValueAtTime(dark ? 500 : 750, t);
-      lp.frequency.linearRampToValueAtTime(dark ? 380 : 950, t + CHORD_LEN);
+      lp.frequency.linearRampToValueAtTime(dark ? 380 : 950, t + chordLen);
       o.connect(lp);
       lp.connect(g);
       g.connect(musicGain!);
       o.start(t);
-      o.stop(t + CHORD_LEN + 0.8);
+      o.stop(t + chordLen + 0.8);
     }
   }
+}
+
+/** A brief high chime on a chord tone — hope, in 0.5 seconds or less. */
+function scheduleSparkle(ctx: AudioContext, freq: number, t: number): void {
+  const o = ctx.createOscillator();
+  o.type = 'triangle';
+  o.frequency.value = freq;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(SPARKLE_LEVEL, t + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+  o.connect(g);
+  g.connect(musicGain!);
+  o.start(t);
+  o.stop(t + 0.55);
 }
 
 function schedulePulse(ctx: AudioContext, root: number, t: number): void {
@@ -156,7 +208,7 @@ function updateDrone(): void {
   const bus = sfx.bus();
   if (!bus || !musicGain) return;
   const { ctx } = bus;
-  if (intensity >= 2 && !droneOsc) {
+  if (intensity >= 4 && !droneOsc) {
     droneOsc = ctx.createOscillator();
     droneOsc.type = 'sawtooth';
     droneOsc.frequency.value = 55;
@@ -170,7 +222,7 @@ function updateDrone(): void {
     lp.connect(droneGain);
     droneGain.connect(musicGain);
     droneOsc.start();
-  } else if (intensity < 2 && droneOsc && droneGain) {
+  } else if (intensity < 4 && droneOsc && droneGain) {
     const o = droneOsc;
     droneGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 1.5);
     setTimeout(() => o.stop(), 1800);

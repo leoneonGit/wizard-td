@@ -322,6 +322,8 @@ export interface UnitLook {
   tint?: THREE.Color;
   tintStrength?: number;
   emissive?: THREE.Color;
+  /** whole-body glow strength (default 0.35 — lower keeps dark bodies dark) */
+  emissiveIntensity?: number;
   mage?: MageStyle;
   /** a weapon placed in a hand slot (procedural bow/crossbow, or any attachment key) */
   held?: { key: string; hand: 'l' | 'r'; scale: number; rotX?: number; rotY?: number; rotZ?: number };
@@ -455,26 +457,27 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     tint: new THREE.Color('#55663d'), tintStrength: 0.3, // already green and spiky
   },
 
-  // void — visitors from beyond the sky: near-black bodies lit by red glow
+  // void — visitors from beyond the sky: deep-violet bodies, glowing magenta
+  // accents (dark-swarm palette: purple flesh, darker chitin, hot-pink gems)
   generic_void: {
     model: 'skel_rogue', height: 1.3,
     tint: new THREE.Color('#8a8494'), tintStrength: 0.55,
   },
   voidgazer: {
     model: 'skel_rogue', height: 1.45,
-    tint: new THREE.Color('#16101e'), tintStrength: 0.85, // a hooded silhouette of nothing
-    emissive: new THREE.Color('#e5383b'),
+    tint: new THREE.Color('#3a2a52'), tintStrength: 0.9, // violet-shrouded watcher
+    emissive: new THREE.Color('#e34bb2'), emissiveIntensity: 0.22,
   },
   voidsylph: {
     model: 'skel_mage', height: 1.1,
-    tint: new THREE.Color('#241430'), tintStrength: 0.8,
-    emissive: new THREE.Color('#c9184a'),
+    tint: new THREE.Color('#4b3565'), tintStrength: 0.85,
+    emissive: new THREE.Color('#ff5fc8'), emissiveIntensity: 0.2,
     wings: true, // dark fairy — membrane wings, flapped in sync
   },
   voidmaw: {
     model: 'dragon', height: 1.5,
-    tint: new THREE.Color('#2a1016'), tintStrength: 0.6, // dark drake, ember-lit
-    emissive: new THREE.Color('#d00000'),
+    tint: new THREE.Color('#2e2140'), tintStrength: 0.7, // dark-chitin drake
+    emissive: new THREE.Color('#d13aa6'), emissiveIntensity: 0.28,
   },
 
   // ---------------- EVOLVED super-forms: bigger, brighter, unmistakable ----------------

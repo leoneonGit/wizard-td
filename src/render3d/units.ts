@@ -248,7 +248,7 @@ function makeView(look: UnitLook): UnitView {
       m.emissiveIntensity = 0.18;
     } else if (look.emissive) {
       m.emissive.copy(look.emissive);
-      m.emissiveIntensity = 0.35;
+      m.emissiveIntensity = look.emissiveIntensity ?? 0.35;
     }
     if (look.ghostly) m.transparent = true; // wraiths fade with their phase
     mesh.material = m;

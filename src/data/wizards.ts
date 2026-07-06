@@ -551,7 +551,7 @@ export const WIZARDS: Record<string, WizardDef> = {
     splash: 0,
     chains: 0,
     chainFalloff: 0,
-    color: '#e5383b',
+    color: '#e34bb2',
     icon: '👁️',
     upgrades: [
       {
@@ -589,7 +589,7 @@ export const WIZARDS: Record<string, WizardDef> = {
     chains: 0,
     chainFalloff: 0,
     ignoreLOS: true, // telekinesis reaches through the trees
-    color: '#c9184a',
+    color: '#ff5fc8',
     icon: '🧚',
     upgrades: [
       {
@@ -626,7 +626,7 @@ export const WIZARDS: Record<string, WizardDef> = {
     splash: 55,
     chains: 0,
     chainFalloff: 0,
-    color: '#d00000',
+    color: '#c936a4',
     icon: '🐉',
     upgrades: [
       {
@@ -737,7 +737,7 @@ export const WIZARDS: Record<string, WizardDef> = {
     splash: 0,
     chains: 0,
     chainFalloff: 0,
-    color: '#e5383b',
+    color: '#b455d6',
     icon: '🌌',
     upgrades: [
       { name: '—', tiers: [] },

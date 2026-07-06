@@ -400,8 +400,12 @@ function update(dt: number): void {
 }
 
 function render(): void {
+  // each act has its own score; the heat climbs every couple of waves (boss = 4)
+  music.setAct(state.act);
   music.setIntensity(
-    state.phase !== 'wave' ? 0 : state.round === wavesInAct(state.act) - 1 ? 2 : 1,
+    state.phase !== 'wave' ? 0
+      : state.round === wavesInAct(state.act) - 1 ? 4
+        : 1 + Math.min(2, Math.floor(state.round / 2)),
   );
   draw3d(state);
   updatePlaceConfirm();
