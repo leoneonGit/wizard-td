@@ -11,7 +11,7 @@ import type { MapDef, PropDef } from '../game/types';
 type Tool = 'road' | 'water' | 'cloud' | 'prop';
 
 const HELP: Record<Tool, string> = {
-  road: 'Click to add road waypoints. Drag handles to move, right-click a handle to delete. Start & end off the board edge.',
+  road: 'Click to add road waypoints. Drag handles to move, right-click a handle to delete. Drop the FIRST and LAST point at a board edge — it snaps off-board (the entrance/exit).',
   water: 'Click / drag to paint water cells. Drag starting on water to erase.',
   cloud: 'Click to add points to the cloud loop. Right-click a point to delete it. Clouds drift around the loop.',
   prop: 'Pick a prop, click to place. Click a placed prop to select it — R rotates, +/- scales, Delete removes.',
@@ -69,12 +69,10 @@ function draw(): void {
   }
   ctx.restore();
 
-  // waypoint handles
+  // waypoint handles (off-board points draw clamped to the rim so they stay grabbable)
   ctx.save();
   for (let i = 0; i < map.waypoints.length; i++) {
-    const [wx, wy] = map.waypoints[i];
-    const x = wx * CELL;
-    const y = wy * CELL;
+    const [x, y] = handlePos(i);
     ctx.fillStyle = i === 0 ? '#b14aed' : i === map.waypoints.length - 1 ? '#3a86ff' : '#ffd75e';
     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
     ctx.lineWidth = 2;
@@ -155,11 +153,22 @@ function evPos(e: MouseEvent): { x: number; y: number } {
   return { x: ((e.clientX - r.left) / r.width) * BOARD_W, y: ((e.clientY - r.top) / r.height) * BOARD_H };
 }
 
+/** Canvas position of a waypoint's drag handle — off-board points clamp to the
+ *  rim so the entrance/exit stay visible and grabbable. */
+function handlePos(i: number): [number, number] {
+  const [wx, wy] = map.waypoints[i];
+  return [
+    Math.min(Math.max(wx * CELL, 8), BOARD_W - 8),
+    Math.min(Math.max(wy * CELL, 8), BOARD_H - 8),
+  ];
+}
+
 function nearestWaypoint(x: number, y: number, maxPx = 14): number {
   let best = -1;
   let bestD = maxPx;
-  map.waypoints.forEach(([wx, wy], i) => {
-    const d = Math.hypot(wx * CELL - x, wy * CELL - y);
+  map.waypoints.forEach((_, i) => {
+    const [hx, hy] = handlePos(i);
+    const d = Math.hypot(hx - x, hy - y);
     if (d < bestD) {
       bestD = d;
       best = i;
@@ -170,6 +179,23 @@ function nearestWaypoint(x: number, y: number, maxPx = 14): number {
 
 function snapHalf(v: number): number {
   return Math.round(v / CELL - 0.5) + 0.5;
+}
+
+/** Half-cell snap for road points; the board rim is MAGNETIC for the first and
+ *  last waypoint — dropping an endpoint within a cell of an edge throws it
+ *  off-board, which validation requires (enemies must walk IN from off-screen).
+ *  Dragging inside the rim never produces a negative coordinate, so without
+ *  this the left/top edges could never host an entrance or exit at all. */
+function snapRoadPoint(px: number, py: number, isEnd: boolean): [number, number] {
+  let x = snapHalf(px);
+  let y = snapHalf(py);
+  if (isEnd) {
+    if (px < CELL) x = -1.5;
+    else if (px > BOARD_W - CELL) x = COLS + 1.5;
+    if (py < CELL) y = -1.5;
+    else if (py > BOARD_H - CELL) y = ROWS + 1.5;
+  }
+  return [x, y];
 }
 
 // ---------------------------------------------------------------- input
@@ -183,8 +209,8 @@ canvas.addEventListener('mousedown', (e) => {
     if (hit >= 0) {
       dragWaypoint = hit;
     } else {
-      // snap to half-cell centers; allow off-board coords at edges
-      map.waypoints.push([snapHalf(x), snapHalf(y)]);
+      // a newly placed point is always the current end of the road
+      map.waypoints.push(snapRoadPoint(x, y, true));
     }
   } else if (tool === 'water') {
     const cx = Math.floor(x / CELL);
@@ -215,7 +241,8 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mousemove', (e) => {
   if (dragWaypoint >= 0) {
     const { x, y } = evPos(e);
-    map.waypoints[dragWaypoint] = [snapHalf(x), snapHalf(y)];
+    const isEnd = dragWaypoint === 0 || dragWaypoint === map.waypoints.length - 1;
+    map.waypoints[dragWaypoint] = snapRoadPoint(x, y, isEnd);
     draw();
   } else if (paintingWater !== null) {
     const { x, y } = evPos(e);
