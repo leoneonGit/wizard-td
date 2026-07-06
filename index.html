@@ -11,11 +11,18 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/portrait_fire.png" />
-    <script type="module" crossorigin src="./assets/main-BdtN9Gv7.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/mapio-ClxqmgMH.js">
-    <link rel="stylesheet" crossorigin href="./assets/mapio-DHzM8Bgr.css">
+    <script type="module" crossorigin src="./assets/main-DP8RXV0v.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/mapio-DhjPb-LI.js">
+    <link rel="stylesheet" crossorigin href="./assets/mapio-BNkhqSpG.css">
   </head>
   <body>
+    <div id="loading">
+      <div id="loading-inner">
+        <div id="loading-title">🌿 Wildguard TD</div>
+        <div id="loading-bar"><div id="loading-fill"></div></div>
+        <div id="loading-text">Waking the wilds…</div>
+      </div>
+    </div>
     <div id="app">
       <div id="board-wrap">
         <canvas id="board" width="960" height="640"></canvas>
@@ -30,6 +37,15 @@
           <button id="zoom-in" title="Zoom in">＋</button>
           <button id="zoom-out" title="Zoom out">－</button>
           <button id="zoom-reset" title="Reset view">⛶</button>
+        </div>
+        <div id="gesture-hint" class="hidden">
+          <div id="gh-card">
+            <h2>🌿 Welcome, Warden!</h2>
+            <div class="gh-row"><span class="gh-icon">🤏</span> Pinch (or use ＋/－) to zoom the battlefield</div>
+            <div class="gh-row"><span class="gh-icon">✋</span> Drag with one finger to look around while zoomed</div>
+            <div class="gh-row"><span class="gh-icon">👆</span> Double-tap to zoom in and out quickly</div>
+            <button id="gh-ok">Got it — to battle! ⚔️</button>
+          </div>
         </div>
         <div id="place-confirm" class="hidden">
           <button id="pc-build">✓ Build</button>
