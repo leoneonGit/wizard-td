@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { createGame, isBuildable, makeWizard, type GameState } from '../src/game/state';
 import { updateWizards, updateClouds, updateEnemies, CLOUD_RANGE } from '../src/game/combat';
+import { MAPS } from '../src/data/maps';
 import { WIZARDS } from '../src/data/wizards';
 import { ENEMIES } from '../src/data/enemies';
 import { fx } from '../src/render/effects';
@@ -31,7 +32,7 @@ function addEnemy(state: GameState, type: string, x: number, y: number, dist = 5
 describe('terrain placement', () => {
   let state: GameState;
   beforeEach(() => {
-    state = createGame();
+    state = createGame(MAPS.vale); // these tests assert vale-specific terrain
     fx.clear();
   });
 
@@ -51,7 +52,7 @@ describe('terrain placement', () => {
 describe('clouds & cloud mage', () => {
   let state: GameState;
   beforeEach(() => {
-    state = createGame();
+    state = createGame(MAPS.vale); // these tests assert vale-specific terrain
     fx.clear();
   });
 
@@ -123,7 +124,7 @@ describe('clouds & cloud mage', () => {
 describe('water mage tide', () => {
   let state: GameState;
   beforeEach(() => {
-    state = createGame();
+    state = createGame(MAPS.vale); // these tests assert vale-specific terrain
     fx.clear();
   });
 

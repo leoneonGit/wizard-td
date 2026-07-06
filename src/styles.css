@@ -35,6 +35,28 @@ button { touch-action: manipulation; }
   height: auto;
 }
 
+/* per-act mood vignette: the edges of the world close in as the campaign
+   darkens — barely-there in act 1, dusk in act 2, embers-and-ink in act 3 */
+#board-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(10, 8, 22, 0.5) 100%);
+  opacity: 0.12;
+  transition: opacity 1.5s ease, background 1.5s ease;
+}
+body[data-act='1'] #board-wrap::after {
+  opacity: 0.4;
+  background: radial-gradient(ellipse at 50% 42%, transparent 48%, rgba(12, 14, 24, 0.6) 100%);
+}
+body[data-act='2'] #board-wrap::after {
+  opacity: 0.55;
+  background: radial-gradient(ellipse at 50% 42%, transparent 44%, rgba(28, 8, 12, 0.65) 100%);
+}
+
 /* ---- quickbar: the always-visible mobile control strip ---- */
 #quickbar {
   display: none;

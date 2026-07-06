@@ -382,6 +382,8 @@ export function drawSpecialize(state: GameState, family: TowerFamily, onWater: b
     } else {
       pool = pool.filter((d) => d.placement !== 'water');
     }
+    // a skyless map (no cloud paths) would leave a Cloud Mage becalmed forever
+    if (state.cloudTracks.length === 0) pool = pool.filter((d) => !d.needsCloud);
   }
   const picks: WizardDef[] = guaranteed ? [guaranteed] : [];
   const remaining = Math.max(0, count - picks.length);

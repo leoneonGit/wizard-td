@@ -34,6 +34,9 @@ export function updateHud(state: GameState): void {
   if (key === lastKey) return;
   lastKey = key;
 
+  // drives the per-act mood vignette on #board-wrap (styles.css)
+  document.body.dataset.act = String(state.act);
+
   const actTag = isCampaign(state) ? `Act ${['I', 'II', 'III'][state.act] ?? state.act + 1} · ` : '';
   elGold.textContent = String(state.gold);
   elLives.textContent = String(state.lives);
