@@ -35,6 +35,9 @@ const MODELS: Record<string, string> = {
   cactoro: assetUrl('models/Cactoro.glb'),
   mushroom_king: assetUrl('models/Mushroom_King.glb'),
   mushnub: assetUrl('models/Mushnub_Evolved.glb'),
+  // the Void family's drake (Quaternius, CC0) — winged, no ground clips:
+  // idle resolves to Dragon_Flying so it hovers in place
+  dragon: assetUrl('models/Dragon.glb'),
 };
 
 /** Static prop pieces grafted onto rigged characters. */
@@ -52,6 +55,7 @@ const ATTACK_CLIP_PRIORITY: Record<string, RegExp[]> = {
   cactoro: [/punch/i, /weapon/i, /attack/i],
   mushroom_king: [/weapon/i, /punch/i, /attack/i], // swings his mushroom club
   mushnub: [/bite_front/i, /bite/i], // lunging heave — sells the boulder toss
+  dragon: [/attack2/i, /attack/i], // breath gout
 };
 
 const assets = new Map<string, CharacterAsset>();
@@ -97,8 +101,9 @@ export async function loadCharacters(onProgress?: (done: number, total: number) 
       assets.set(key, {
         scene,
         clips,
-        idle: pickClip(clips, [/^idle$/i, /idle/i], 'Idle'),
-        walk: pickClip(clips, [/^walking_a$/i, /walking/i, /walk/i, /running/i], 'Walking_A'),
+        // /flying/i: winged rigs (Dragon) have no Idle — hovering reads as idle
+        idle: pickClip(clips, [/^idle$/i, /idle/i, /flying/i], 'Idle'),
+        walk: pickClip(clips, [/^walking_a$/i, /walking/i, /walk/i, /running/i, /flying/i], 'Walking_A'),
         attack: pickClip(
           clips,
           ATTACK_CLIP_PRIORITY[key] ?? ATTACK_CLIP_PRIORITY.default,
@@ -448,6 +453,28 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
   thornspitter: {
     model: 'cactoro', height: 1.35,
     tint: new THREE.Color('#55663d'), tintStrength: 0.3, // already green and spiky
+  },
+
+  // void — visitors from beyond the sky: near-black bodies lit by red glow
+  generic_void: {
+    model: 'skel_rogue', height: 1.3,
+    tint: new THREE.Color('#8a8494'), tintStrength: 0.55,
+  },
+  voidgazer: {
+    model: 'skel_rogue', height: 1.45,
+    tint: new THREE.Color('#16101e'), tintStrength: 0.85, // a hooded silhouette of nothing
+    emissive: new THREE.Color('#e5383b'),
+  },
+  voidsylph: {
+    model: 'skel_mage', height: 1.1,
+    tint: new THREE.Color('#241430'), tintStrength: 0.8,
+    emissive: new THREE.Color('#c9184a'),
+    wings: true, // dark fairy — membrane wings, flapped in sync
+  },
+  voidmaw: {
+    model: 'dragon', height: 1.5,
+    tint: new THREE.Color('#2a1016'), tintStrength: 0.6, // dark drake, ember-lit
+    emissive: new THREE.Color('#d00000'),
   },
 
   // ---------------- EVOLVED super-forms: bigger, brighter, unmistakable ----------------

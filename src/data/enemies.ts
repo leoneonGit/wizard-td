@@ -146,6 +146,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   warlord: {
     id: 'warlord', name: 'Ironhide Warlord', hp: 2100, speed: 26, radius: 24, bounty: 250,
     color: '#6e7b8a', resist: { ice: 0.8 }, boss: true, armor: 700, leakCost: 10,
+    // stun grenades: every 2s he lobs one at a random tower ANYWHERE — 3s of silence
+    hexes: { period: 2, duration: 3, radius: 9999 },
   },
   // Act 2 finale: burns cannot touch it, cold slides off — lightning/physical/water day
   pyretitan: {

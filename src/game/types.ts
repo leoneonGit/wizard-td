@@ -1,5 +1,5 @@
-export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physical';
-export type TowerFamily = 'wizard' | 'goblin' | 'archer' | 'tree';
+export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physical' | 'void';
+export type TowerFamily = 'wizard' | 'goblin' | 'archer' | 'tree' | 'void';
 export type StatusId = 'burn' | 'wet' | 'chill' | 'frozen' | 'shock';
 export type TargetMode = 'first' | 'last' | 'strong' | 'close';
 export type Phase = 'build' | 'wave' | 'draft' | 'relic' | 'actClear' | 'won' | 'lost';
@@ -217,6 +217,8 @@ export interface WizardDef {
   entangles?: boolean;
   /** Rootgrasp Tree: instant eruption at the target's feet (no projectile), small area */
   groundAttack?: boolean;
+  /** Void Sylph: telekinesis reaches through the trees — targeting ignores line of sight */
+  ignoreLOS?: boolean;
   /** evolved super-form: excluded from specialize draws, reached via Evolve only */
   isEvolved?: boolean;
   /** built-in triggered ability (evolved forms) — scanned by the proc engine like a card */

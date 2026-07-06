@@ -533,6 +533,121 @@ export const WIZARDS: Record<string, WizardDef> = {
     ],
   },
 
+  // ---------------- VOID family: visitors from beyond the sky ----------------
+  // Void damage has no reactions and nothing resists it — but armor still
+  // shrugs it off (only physical cracks shells), so it never obsoletes goblins.
+  voidgazer: {
+    id: 'voidgazer',
+    name: 'Voidgazer',
+    element: 'void',
+    placement: 'ground',
+    family: 'void',
+    cost: 130,
+    desc: 'A dark watcher from between the stars. Its red gaze burns single targets with searing lasers.',
+    range: 150,
+    rate: 1.1,
+    damage: 26,
+    projSpeed: 900,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#e5383b',
+    icon: '👁️',
+    upgrades: [
+      {
+        name: 'Death Ray',
+        tiers: [
+          { name: 'Focused Beam', cost: 90, desc: '+10 damage', mod: { damage: 10 } },
+          { name: 'Burning Gaze', cost: 170, desc: '+14 damage', mod: { damage: 14 } },
+          { name: 'Annihilation', cost: 360, desc: '+24 dmg, +15 range', mod: { damage: 24, range: 15 } },
+        ],
+      },
+      {
+        name: 'Ever-Open Eye',
+        tiers: [
+          { name: 'Quick Glance', cost: 85, desc: '15% faster attacks', mod: { rateMul: 0.85 } },
+          { name: 'Far Stare', cost: 130, desc: '+35 range', mod: { range: 35 } },
+          { name: 'Unblinking', cost: 320, desc: '25% faster attacks', mod: { rateMul: 0.75 } },
+        ],
+      },
+    ],
+  },
+
+  voidsylph: {
+    id: 'voidsylph',
+    name: 'Void Sylph',
+    element: 'void',
+    placement: 'ground',
+    family: 'void',
+    cost: 120,
+    desc: 'A dark fairy whose telekinesis plucks at ANY enemy on the map — nowhere to hide, but her touch is light.',
+    range: 9999, // the whole map — her real limit is the low damage
+    rate: 0.9,
+    damage: 6,
+    projSpeed: 420,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    ignoreLOS: true, // telekinesis reaches through the trees
+    color: '#c9184a',
+    icon: '🧚',
+    upgrades: [
+      {
+        name: 'Puppeteer',
+        tiers: [
+          { name: 'Firmer Grip', cost: 80, desc: '+3 damage', mod: { damage: 3 } },
+          { name: 'Twin Threads', cost: 160, desc: '+4 damage', mod: { damage: 4 } },
+          { name: 'Marionette', cost: 340, desc: '+7 damage', mod: { damage: 7 } },
+        ],
+      },
+      {
+        name: 'Restless Hands',
+        tiers: [
+          { name: 'Deft Fingers', cost: 85, desc: '15% faster attacks', mod: { rateMul: 0.85 } },
+          { name: 'Frantic Pace', cost: 150, desc: '20% faster attacks', mod: { rateMul: 0.8 } },
+          { name: 'Thousand Hands', cost: 330, desc: '25% faster attacks', mod: { rateMul: 0.75 } },
+        ],
+      },
+    ],
+  },
+
+  voidmaw: {
+    id: 'voidmaw',
+    name: 'Voidmaw',
+    element: 'void',
+    placement: 'ground',
+    family: 'void',
+    cost: 125,
+    desc: 'A dark drake that exhales gouts of dark-red fire. Devastating splash, but only at arm\'s length.',
+    range: 85,
+    rate: 1.3,
+    damage: 20,
+    projSpeed: 520,
+    splash: 55,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#d00000',
+    icon: '🐉',
+    upgrades: [
+      {
+        name: 'Dark Furnace',
+        tiers: [
+          { name: 'Hotter Coals', cost: 90, desc: '+8 damage', mod: { damage: 8 } },
+          { name: 'Wider Gout', cost: 160, desc: '+18 splash radius', mod: { splash: 18 } },
+          { name: 'Conflagration', cost: 350, desc: '+16 dmg, +12 splash', mod: { damage: 16, splash: 12 } },
+        ],
+      },
+      {
+        name: 'Long Neck',
+        tiers: [
+          { name: 'Stretch', cost: 80, desc: '+20 range', mod: { range: 20 } },
+          { name: 'Quick Snap', cost: 140, desc: '15% faster attacks', mod: { rateMul: 0.85 } },
+          { name: 'Serpent Reach', cost: 300, desc: '+30 range, +8 dmg', mod: { range: 30, damage: 8 } },
+        ],
+      },
+    ],
+  },
+
   // ---------------- generic shells (shop-purchasable; never actually attack) ----------------
   generic_wizard: {
     id: 'generic_wizard',
@@ -606,6 +721,30 @@ export const WIZARDS: Record<string, WizardDef> = {
     ],
   },
 
+  generic_void: {
+    id: 'generic_void',
+    name: 'Voidling',
+    element: 'void',
+    placement: 'ground',
+    family: 'void',
+    isGeneric: true,
+    cost: 95,
+    desc: 'Something that fell from between the stars. Place, then click to reveal what it truly is.',
+    range: 0,
+    rate: 0,
+    damage: 0,
+    projSpeed: 0,
+    splash: 0,
+    chains: 0,
+    chainFalloff: 0,
+    color: '#e5383b',
+    icon: '🌌',
+    upgrades: [
+      { name: '—', tiers: [] },
+      { name: '—', tiers: [] },
+    ],
+  },
+
   generic_tree: {
     id: 'generic_tree',
     name: 'Sapling',
@@ -632,7 +771,7 @@ export const WIZARDS: Record<string, WizardDef> = {
 };
 
 /** Shop only sells the generic shells now — real specializations are reached via the draw. */
-export const SHOP_ORDER = ['generic_wizard', 'generic_goblin', 'generic_archer', 'generic_tree'];
+export const SHOP_ORDER = ['generic_wizard', 'generic_goblin', 'generic_archer', 'generic_tree', 'generic_void'];
 
 /** All non-generic defs for a given family, in a stable order for the specialize draw. */
 export function specializationsFor(family: TowerFamily): WizardDef[] {

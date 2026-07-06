@@ -6,7 +6,7 @@ import {
 import { startWave, updateWave } from '../src/game/waves';
 import { dealDamage, updateEnemies } from '../src/game/combat';
 import { restoreRun, type RunSave } from '../src/game/save';
-import { ACT_WAVES, ACT_SCALING, WAVE_HP_RAMP, WAVES_PER_ACT, TOTAL_ACTS } from '../src/data/waves';
+import { ACT_WAVES, ACT_SCALING, WAVE_HP_RAMP, wavesInAct, TOTAL_ACTS } from '../src/data/waves';
 import { ENEMIES } from '../src/data/enemies';
 import { MAPS, ACT_MAPS, ACT_MAP_POOLS, mapForAct } from '../src/data/maps';
 import { PROP_MODELS, propOverlapsRoad } from '../src/game/mapio';
@@ -38,12 +38,17 @@ function spawnFirst(state: ReturnType<typeof createGame>) {
 // ---------------------------------------------------------------- campaign structure
 
 describe('campaign structure', () => {
-  it('three acts of ten waves, ending in warlord / pyretitan / colossus', () => {
+  it('three acts, each ending in its boss: warlord / pyretitan / colossus', () => {
     expect(TOTAL_ACTS).toBe(3);
-    for (const act of ACT_WAVES) expect(act.length).toBe(WAVES_PER_ACT);
-    expect(ACT_WAVES[0][9].some((g) => g.type === 'warlord')).toBe(true);
+    // act 1 is a brisk 8 waves; acts 2-3 run the full 10
+    expect(ACT_WAVES.map((a) => a.length)).toEqual([8, 10, 10]);
+    expect(ACT_WAVES[0][7].some((g) => g.type === 'warlord')).toBe(true);
     expect(ACT_WAVES[1][9].some((g) => g.type === 'pyretitan')).toBe(true);
     expect(ACT_WAVES[2][9].some((g) => g.type === 'colossus')).toBe(true);
+    // act 1 gives a TASTE of the sky before act 2 opens it fully — just a pair
+    const taster = ACT_WAVES[0].flat().filter((g) => g.type === 'gargoyle');
+    expect(taster.length).toBe(1);
+    expect(taster[0].count).toBe(2);
   });
 
   it('every act map exists and its props stay off the road', () => {
@@ -73,7 +78,7 @@ describe('campaign structure', () => {
   it('bosses skip the within-act ramp', () => {
     const state = createGame(MAPS.vale, 2);
     state.act = 0;
-    state.round = 9;
+    state.round = 7; // act 1's boss wave
     state.nodePicked = true;
     startWave(state);
     for (let i = 0; i < 60 && !state.enemies.some((e) => e.def.id === 'warlord'); i++) {
@@ -115,7 +120,7 @@ describe('advanceAct', () => {
     const w = makeWizard(state, WIZARDS.fire, 2, 5);
     w.invested = 300;
     state.wizards.push(w);
-    state.round = WAVES_PER_ACT;
+    state.round = wavesInAct(0);
     state.phase = 'actClear';
 
     expect(advanceAct(state)).toBe(true);
@@ -141,7 +146,7 @@ describe('advanceAct', () => {
     for (const [act, expected] of [[0, 'actClear'], [1, 'actClear'], [2, 'won']] as const) {
       const state = createGame(MAPS[ACT_MAPS[act]], 12 + act);
       state.act = act;
-      state.round = WAVES_PER_ACT - 1;
+      state.round = wavesInAct(act) - 1;
       state.phase = 'wave';
       state.waveKind = 'normal';
       state.pendingSpawns = [];
@@ -155,7 +160,7 @@ describe('advanceAct', () => {
     const custom = { ...MAPS.vale, id: 'my_custom_map' };
     const state = createGame(custom, 14);
     expect(isCampaign(state)).toBe(false);
-    state.round = WAVES_PER_ACT - 1;
+    state.round = wavesInAct(0) - 1; // custom maps play act 1's wave list
     state.phase = 'wave';
     state.pendingSpawns = [];
     state.enemies = [];
@@ -291,7 +296,7 @@ describe('boss round nodes', () => {
   it('round 10 of any act rolls no detours', () => {
     const state = createGame(MAPS.fen, 40);
     state.act = 1;
-    state.round = WAVES_PER_ACT - 1;
+    state.round = wavesInAct(1) - 1;
     ensureNodes(state);
     expect(state.nextNodes).toEqual(['normal']);
     expect(state.nodePicked).toBe(true);

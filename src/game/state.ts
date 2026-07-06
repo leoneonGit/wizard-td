@@ -1,7 +1,7 @@
 import { computeBlockedCells, cellKey, cellCenter, pixelToCell } from '../engine/grid';
 import { makeRng } from '../engine/rng';
 import { ACT_MAPS, mapForAct } from '../data/maps';
-import { WAVES_PER_ACT, TOTAL_ACTS } from '../data/waves';
+import { wavesInAct, TOTAL_ACTS } from '../data/waves';
 import { PROP_MODELS } from './mapio';
 import { Track } from './path';
 import type {
@@ -102,7 +102,7 @@ export function freshStats(): RunStats {
     kills: 0,
     leaks: 0,
     wavesCleared: 0,
-    dmgByElement: { fire: 0, ice: 0, lightning: 0, water: 0, wind: 0, physical: 0 },
+    dmgByElement: { fire: 0, ice: 0, lightning: 0, water: 0, wind: 0, physical: 0, void: 0 },
     reactions: { conduct: 0, shatter: 0, evaporate: 0, frozen: 0 },
     cardIds: [],
   };
@@ -190,10 +190,6 @@ export function createGame(map?: MapDef, seed = Date.now()): GameState {
     mouseOnBoard: false,
     nextId: 1,
   };
-}
-
-export function totalWaves(): number {
-  return WAVES_PER_ACT;
 }
 
 /** Is this run the built-in campaign (acts advance) or a custom-map free play? */
@@ -490,7 +486,7 @@ export function ensureNodes(state: GameState): void {
   state.nodesForRound = state.round;
   state.nodeChoice = 'normal';
   // the act's final wave is the BOSS — no detours, no choice
-  if (state.round >= WAVES_PER_ACT - 1) {
+  if (state.round >= wavesInAct(state.act) - 1) {
     state.nextNodes = ['normal'];
     state.nodePicked = true;
     return;

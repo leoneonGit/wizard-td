@@ -15,7 +15,7 @@ import { initRenderer3d, draw3d, pickBoardPoint, rebuildMap, zoomView, panView, 
 import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
 import { music } from './audio/music';
-import { WAVES_PER_ACT } from './data/waves';
+import { wavesInAct } from './data/waves';
 import { initHud, updateHud } from './ui/hud';
 import { initShop, updateShop } from './ui/shop';
 import { initTowerPanel, updateTowerPanel } from './ui/towerPanel';
@@ -401,7 +401,7 @@ function update(dt: number): void {
 
 function render(): void {
   music.setIntensity(
-    state.phase !== 'wave' ? 0 : state.round === WAVES_PER_ACT - 1 ? 2 : 1,
+    state.phase !== 'wave' ? 0 : state.round === wavesInAct(state.act) - 1 ? 2 : 1,
   );
   draw3d(state);
   updatePlaceConfirm();

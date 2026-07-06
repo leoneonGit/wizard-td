@@ -557,6 +557,13 @@ function syncWizards(state: GameState, dt: number): void {
     v.prevRecoil = w.recoil;
     v.mixer?.update(dt);
 
+    // winged towers (Void Sylph) flutter in place
+    if (v.flapWings) {
+      const flap = Math.sin(performance.now() / 110 + w.id) * 0.5;
+      v.flapWings[0].rotation.y = -0.35 - flap;
+      v.flapWings[1].rotation.y = 0.35 + flap;
+    }
+
     // watery shimmer: opacity gently oscillates
     if (v.watery) {
       const op = 0.72 + Math.sin(performance.now() / 380 + w.id) * 0.06;

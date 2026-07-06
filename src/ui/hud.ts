@@ -1,5 +1,5 @@
 import { ENEMIES } from '../data/enemies';
-import { wavesForAct, WAVES_PER_ACT } from '../data/waves';
+import { wavesForAct, wavesInAct } from '../data/waves';
 import { isCampaign, type GameState } from '../game/state';
 
 let elGold: HTMLElement;
@@ -37,16 +37,17 @@ export function updateHud(state: GameState): void {
   // drives the per-act mood vignette on #board-wrap (styles.css)
   document.body.dataset.act = String(state.act);
 
+  const waveCount = wavesInAct(state.act);
   const actTag = isCampaign(state) ? `Act ${['I', 'II', 'III'][state.act] ?? state.act + 1} · ` : '';
   elGold.textContent = String(state.gold);
   elLives.textContent = String(state.lives);
-  elRound.textContent = `${actTag}${Math.min(state.round + 1, WAVES_PER_ACT)}/${WAVES_PER_ACT}`;
+  elRound.textContent = `${actTag}${Math.min(state.round + 1, waveCount)}/${waveCount}`;
   qbGold.textContent = String(state.gold);
   qbLives.textContent = String(state.lives);
   qbRound.textContent = elRound.textContent;
 
-  const isBossRound = state.round === WAVES_PER_ACT - 1;
-  if (state.phase === 'build' && state.round < WAVES_PER_ACT) {
+  const isBossRound = state.round === waveCount - 1;
+  if (state.phase === 'build' && state.round < waveCount) {
     const choiceDue = !state.nodePicked && state.nextNodes.length > 1;
     btnStart.disabled = choiceDue;
     const tag = isBossRound ? ' 👹 BOSS' : state.nodeChoice === 'elite' ? ' ★' : state.nodeChoice === 'treasure' ? ' 💎' : '';
@@ -112,7 +113,7 @@ function hintFor(type: string): string {
     case 'runner': return ' <i>(fast — chill them!)</i>';
     case 'golem': return ' <i>(BOSS)</i>';
     case 'golemling': return ' <i>(mini-boss)</i>';
-    case 'warlord': return ' <i>(BOSS — armor breaks to PHYSICAL only!)</i>';
+    case 'warlord': return ' <i>(BOSS — armor breaks to PHYSICAL only, lobs tower-stunning grenades!)</i>';
     case 'pyretitan': return ' <i>(BOSS — fire-immune, cannot be chilled!)</i>';
     case 'colossus': return ' <i>(THE BOSS — armored, fire-hardened, cold-proof)</i>';
     case 'orcbrute': return ' <i>(armored — physical!)</i>';

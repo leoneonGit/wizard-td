@@ -229,6 +229,7 @@ function visualFor(def: WizardDef): ProjectileVisual {
   if (def.id === 'dynamite' || def.id === 'sapperking') return 'stick';
   if (def.id === 'slingshot' || def.id === 'boulder' || def.id === 'mountain') return 'rock';
   if (def.id === 'thornspitter' || def.id === 'bramblehydra') return 'needle';
+  if (def.id === 'voidgazer') return 'bolt'; // a searing red laser lance
   return 'orb';
 }
 
@@ -482,7 +483,8 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
     const chip = amount * rattleMult * condMult * (element === 'physical' ? 1 : 0.1);
     e.armorHp -= chip;
     e.hitFlash = 0.12;
-    state.stats.dmgByElement[element] += chip;
+    // ?? 0: saves from before the void element lack its stats bucket
+    state.stats.dmgByElement[element] = (state.stats.dmgByElement[element] ?? 0) + chip;
     if (chip >= 1) {
       fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(chip)),
         element === 'physical' ? '#cdd7e0' : '#6b7684', element === 'physical' ? 11 : 9);
@@ -509,7 +511,7 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   }
   e.hp -= dealt;
   e.hitFlash = 0.12;
-  state.stats.dmgByElement[element] += dealt;
+  state.stats.dmgByElement[element] = (state.stats.dmgByElement[element] ?? 0) + dealt;
   if (dealt >= 1) {
     const col = mult > 1 ? '#ffe08a' : mult < 1 ? '#8899aa' : '#ffffff';
     fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(dealt)), col, mult > 1 ? 12 : 10);

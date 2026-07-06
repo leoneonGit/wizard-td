@@ -1,13 +1,14 @@
 import type { WaveDef, WaveModifier } from '../game/types';
 
 /**
- * Campaign: 3 acts x 10 waves, each act on its own map, each act ending in a BOSS.
+ * Campaign: 3 acts (act 1 is a brisk EIGHT waves; acts 2-3 run the full ten),
+ * each act on its own map, each act ending in a BOSS.
  * Act scaling multiplies enemy hp/speed/bounty; within an act, hp also ramps per wave.
  * Teaching arc (act 1): basics -> runners (ice!) -> knights (fire!) -> shades (fire immune!)
- * -> armored boss (physical!). Acts 2-3 assume a developed build and press harder.
+ * -> a taste of the sky -> armored boss (physical!). Acts 2-3 press much harder.
  */
 export const ACT_WAVES: WaveDef[][] = [
-  // ---------------- ACT 1 — Emerald Vale ----------------
+  // ---------------- ACT 1 — Emerald Vale (8 waves) ----------------
   [
     [{ type: 'grunt', count: 8, gap: 0.9, delay: 0 }],
     [{ type: 'grunt', count: 13, gap: 0.7, delay: 0 }],
@@ -22,31 +23,20 @@ export const ACT_WAVES: WaveDef[][] = [
       { type: 'knight', count: 6, gap: 1.3, delay: 0 },
       { type: 'grunt', count: 9, gap: 0.55, delay: 4 },
     ],
-    // mini-boss
+    // mini-boss + ember shades: fire does NOTHING to either
     [
       { type: 'golemling', count: 1, gap: 0, delay: 0 },
-      { type: 'grunt', count: 10, gap: 0.7, delay: 2 },
+      { type: 'shade', count: 9, gap: 0.85, delay: 2 },
     ],
-    // ember shades: fire does NOTHING
+    // a TASTE of the sky (just a pair of gargoyles) + the first orcs
     [
-      { type: 'shade', count: 9, gap: 0.85, delay: 0 },
-      { type: 'runner', count: 6, gap: 0.65, delay: 5 },
+      { type: 'gargoyle', count: 2, gap: 2.0, delay: 0 },
+      { type: 'runner', count: 12, gap: 0.45, delay: 2 },
+      { type: 'orcraider', count: 6, gap: 0.7, delay: 4 },
+      { type: 'knight', count: 4, gap: 1.1, delay: 7 },
     ],
-    // mixed pressure + first ORCS (foreshadowing the horde)
-    [
-      { type: 'grunt', count: 10, gap: 0.5, delay: 0 },
-      { type: 'orcraider', count: 6, gap: 0.7, delay: 2 },
-      { type: 'knight', count: 5, gap: 1.1, delay: 5 },
-      { type: 'shade', count: 5, gap: 0.9, delay: 8 },
-    ],
-    // everything, fast — and one BRUTE ("your magic bounces off... bring muscle")
-    [
-      { type: 'runner', count: 14, gap: 0.42, delay: 0 },
-      { type: 'orcbrute', count: 1, gap: 0, delay: 3 },
-      { type: 'knight', count: 6, gap: 1.1, delay: 4 },
-      { type: 'shade', count: 5, gap: 0.9, delay: 9 },
-    ],
-    // BOSS: the Ironhide Warlord — armor only physical damage can crack
+    // BOSS: the Ironhide Warlord — crack the armor with PHYSICAL damage while
+    // his stun grenades silence a random tower every couple of seconds
     [
       { type: 'warlord', count: 1, gap: 0, delay: 0 },
       { type: 'knight', count: 4, gap: 1.6, delay: 5 },
@@ -190,8 +180,12 @@ export const ACT_WAVES: WaveDef[][] = [
   ],
 ];
 
-export const WAVES_PER_ACT = 10;
 export const TOTAL_ACTS = ACT_WAVES.length;
+
+/** Acts vary in length now (act 1 is 8 waves, acts 2-3 are 10). */
+export function wavesInAct(act: number): number {
+  return wavesForAct(act).length;
+}
 
 /** Per-act enemy multipliers — the campaign's difficulty spine. */
 export const ACT_SCALING = [
