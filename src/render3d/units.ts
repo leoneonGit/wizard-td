@@ -102,6 +102,16 @@ function warpaintTexture(src: THREE.Texture, remap: Record<string, string>): THR
   tex.generateMipmaps = src.generateMipmaps;
   tex.wrapS = src.wrapS;
   tex.wrapT = src.wrapT;
+  // gltfpack quantizes UVs and compensates via a texture transform — without
+  // copying it, sampling lands on the atlas's white filler and the rig renders
+  // blank. (KHR_texture_transform -> offset/repeat/rotation/center/channel.)
+  tex.offset.copy(src.offset);
+  tex.repeat.copy(src.repeat);
+  tex.rotation = src.rotation;
+  tex.center.copy(src.center);
+  tex.channel = src.channel;
+  tex.matrixAutoUpdate = src.matrixAutoUpdate;
+  if (!src.matrixAutoUpdate) tex.matrix.copy(src.matrix);
   warpaintCache.set(key, tex);
   return tex;
 }
