@@ -255,6 +255,25 @@ function makeView(look: UnitLook): UnitView {
     mats.push(m);
   });
 
+  // multi-tone reskin: rank this rig's materials by brightness and map them to
+  // the palette's dark / mid / accent — the sculpt keeps its material variation
+  // instead of drowning in one flat tint. Only the accent materials glow.
+  if (look.palette) {
+    const lum = (c: THREE.Color) => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+    const sorted = [...mats].sort((a, b) => lum(a.color) - lum(b.color));
+    sorted.forEach((m, i) => {
+      const t = sorted.length <= 1 ? 1 : i / (sorted.length - 1);
+      const target = t < 0.4 ? look.palette!.dark : t < 0.8 ? look.palette!.mid : look.palette!.accent;
+      // copy, don't lerp: even a 12% residue of bone-white reads as gray after
+      // the linear->sRGB round trip. Texture maps keep the shading detail.
+      m.color.copy(target);
+      if (t >= 0.8 && look.palette!.accentEmissive) {
+        m.emissive.copy(look.palette!.accentEmissive);
+        m.emissiveIntensity = 0.5;
+      }
+    });
+  }
+
   // flyer wings: two dark membranes on the back, flapped per frame
   let flapWings: THREE.Mesh[] | undefined;
   if (look.wings) {

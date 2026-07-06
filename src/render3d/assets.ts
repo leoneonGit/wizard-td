@@ -324,6 +324,15 @@ export interface UnitLook {
   emissive?: THREE.Color;
   /** whole-body glow strength (default 0.35 — lower keeps dark bodies dark) */
   emissiveIntensity?: number;
+  /** multi-tone reskin: materials are ranked by brightness and mapped to
+   *  dark / mid / accent — keeps a sculpt's material variation instead of
+   *  flooding the whole body with one tint. Only the accent materials glow. */
+  palette?: {
+    dark: THREE.Color;
+    mid: THREE.Color;
+    accent: THREE.Color;
+    accentEmissive?: THREE.Color;
+  };
   mage?: MageStyle;
   /** a weapon placed in a hand slot (procedural bow/crossbow, or any attachment key) */
   held?: { key: string; hand: 'l' | 'r'; scale: number; rotX?: number; rotY?: number; rotZ?: number };
@@ -465,19 +474,28 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
   },
   voidgazer: {
     model: 'skel_rogue', height: 1.45,
-    tint: new THREE.Color('#3a2a52'), tintStrength: 0.9, // violet-shrouded watcher
-    emissive: new THREE.Color('#e34bb2'), emissiveIntensity: 0.22,
+    // obsidian watcher: near-black shroud, violet trim, a glowing amethyst core
+    palette: {
+      dark: new THREE.Color('#151021'), mid: new THREE.Color('#38265c'),
+      accent: new THREE.Color('#b04df0'), accentEmissive: new THREE.Color('#9b30e8'),
+    },
   },
   voidsylph: {
     model: 'skel_mage', height: 1.1,
-    tint: new THREE.Color('#4b3565'), tintStrength: 0.85,
-    emissive: new THREE.Color('#ff5fc8'), emissiveIntensity: 0.2,
-    wings: true, // dark fairy — membrane wings, flapped in sync
+    // dark fairy: ink body, royal-purple robes, hot-pink glow
+    palette: {
+      dark: new THREE.Color('#1c1233'), mid: new THREE.Color('#4a2f73'),
+      accent: new THREE.Color('#ff5fc8'), accentEmissive: new THREE.Color('#ff3db6'),
+    },
+    wings: true, // membrane wings, flapped in sync
   },
   voidmaw: {
     model: 'dragon', height: 1.5,
-    tint: new THREE.Color('#2e2140'), tintStrength: 0.7, // dark-chitin drake
-    emissive: new THREE.Color('#d13aa6'), emissiveIntensity: 0.28,
+    // cosmic drake: blue-black hide, deep-blue belly, purple crest lit from within
+    palette: {
+      dark: new THREE.Color('#10142a'), mid: new THREE.Color('#283064'),
+      accent: new THREE.Color('#8a4be0'), accentEmissive: new THREE.Color('#5a7bff'),
+    },
   },
 
   // ---------------- EVOLVED super-forms: bigger, brighter, unmistakable ----------------
