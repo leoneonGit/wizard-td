@@ -260,10 +260,13 @@ initActClear((s) => {
 });
 
 // "New Run" clears the save and starts fresh — campaign runs re-roll their
-// act maps from the pools (only an explicit ?map= request pins the map)
+// act maps from the pools (only an explicit ?map= request pins the map).
+// The re-roll can land on a DIFFERENT map, so the 3D scene must be rebuilt —
+// otherwise enemies walk the new map's road across the old map's scenery.
 document.getElementById('btn-newrun')?.addEventListener('click', () => {
   clearRunSave();
   state = createGame(activeMap);
+  rebuildMap(state);
   fx.clear();
   sfx.click();
 });
@@ -273,6 +276,7 @@ if (resumed) {
 initScreens(() => {
   clearRunSave();
   state = createGame(activeMap);
+  rebuildMap(state);
   fx.clear();
 });
 
