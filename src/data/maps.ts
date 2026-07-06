@@ -411,7 +411,9 @@ export const MAPS: Record<string, MapDef> = {
       [13.5, 4.5], [16.5, 2.5], [19.5, 5.5], [25.5, 6.5],
     ],
     water: [],
-    cloudPaths: [[[6.5, 4.5], [17.5, 8.5], [9.5, 12.5]]],
+    // deliberately skyless: no wind stirs in the black wood — Cloud Mages are
+    // never offered here (drawSpecialize filters needsCloud on cloudless maps)
+    cloudPaths: [],
     props: [
       { model: 'chest', x: 901, y: 350, rot: 0.7853981633974483, scale: 1 },
       { model: 'chest', x: 787, y: 328, rot: 1.5707963267948966, scale: 1 },
