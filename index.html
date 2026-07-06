@@ -14,6 +14,13 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
+    <div id="loading">
+      <div id="loading-inner">
+        <div id="loading-title">🌿 Wildguard TD</div>
+        <div id="loading-bar"><div id="loading-fill"></div></div>
+        <div id="loading-text">Waking the wilds…</div>
+      </div>
+    </div>
     <div id="app">
       <div id="board-wrap">
         <canvas id="board" width="960" height="640"></canvas>
@@ -28,6 +35,15 @@
           <button id="zoom-in" title="Zoom in">＋</button>
           <button id="zoom-out" title="Zoom out">－</button>
           <button id="zoom-reset" title="Reset view">⛶</button>
+        </div>
+        <div id="gesture-hint" class="hidden">
+          <div id="gh-card">
+            <h2>🌿 Welcome, Warden!</h2>
+            <div class="gh-row"><span class="gh-icon">🤏</span> Pinch (or use ＋/－) to zoom the battlefield</div>
+            <div class="gh-row"><span class="gh-icon">✋</span> Drag with one finger to look around while zoomed</div>
+            <div class="gh-row"><span class="gh-icon">👆</span> Double-tap to zoom in and out quickly</div>
+            <button id="gh-ok">Got it — to battle! ⚔️</button>
+          </div>
         </div>
         <div id="place-confirm" class="hidden">
           <button id="pc-build">✓ Build</button>

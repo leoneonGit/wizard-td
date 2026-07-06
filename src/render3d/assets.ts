@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { assetUrl } from '../engine/assetUrl';
 
 export interface CharacterAsset {
@@ -72,11 +73,17 @@ function pickClipOrNull(clips: THREE.AnimationClip[], patterns: RegExp[]): strin
   return null;
 }
 
-export async function loadCharacters(): Promise<void> {
+export async function loadCharacters(onProgress?: (done: number, total: number) => void): Promise<void> {
   const loader = new GLTFLoader();
+  // character GLBs are gltfpack'd (EXT_meshopt_compression) — ~70% smaller downloads
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const total = Object.keys(MODELS).length + Object.keys(ATTACH_MODELS).length;
+  let done = 0;
+  const tick = () => onProgress?.(++done, total);
   await Promise.all(
     Object.entries(MODELS).map(async ([key, url]) => {
       const gltf = await loader.loadAsync(url);
+      tick();
       const scene = gltf.scene;
       scene.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) {
@@ -117,6 +124,7 @@ export async function loadCharacters(): Promise<void> {
       } catch (err) {
         console.warn(`attachment prop failed to load: ${key}`, err);
       }
+      tick();
     }),
   );
   // procedural weapons — archers finally get their bows

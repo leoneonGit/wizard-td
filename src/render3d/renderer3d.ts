@@ -112,12 +112,17 @@ export function getViewZoom(): number {
   return viewZoom;
 }
 
-export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState): Promise<void> {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+export async function initRenderer3d(
+  canvas: HTMLCanvasElement,
+  state: GameState,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
+  // no preserveDrawingBuffer: it costs real frame time on mobile tile GPUs
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setSize(BOARD_W, BOARD_H, false);
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap; // softer contact edges
+  renderer.shadowMap.type = THREE.PCFShadowMap; // (PCFSoft was removed in r185 — same fallback)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
 
@@ -241,7 +246,7 @@ export async function initRenderer3d(canvas: HTMLCanvasElement, state: GameState
   initUnits(scene, new THREE.Vector3(exit.x * PX, 0, exit.y * PX));
   initFx3d(scene, camera, canvas.parentElement as HTMLElement);
 
-  await loadCharacters();
+  await loadCharacters(onProgress);
   lastTime = performance.now();
   (window as unknown as { __scene?: THREE.Scene }).__scene = scene; // debug/test handle
 }

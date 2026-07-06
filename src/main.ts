@@ -259,10 +259,11 @@ initActClear((s) => {
   saveRun(s);
 });
 
-// "New Run" clears the save and starts fresh on the current map
+// "New Run" clears the save and starts fresh — campaign runs re-roll their
+// act maps from the pools (only an explicit ?map= request pins the map)
 document.getElementById('btn-newrun')?.addEventListener('click', () => {
   clearRunSave();
-  state = createGame(activeMap ?? (resumed ? state.map : undefined));
+  state = createGame(activeMap);
   fx.clear();
   sfx.click();
 });
@@ -412,20 +413,48 @@ function render(): void {
   updateScreens(state);
 }
 
-// boot: load 3D assets, then start the loop
-initRenderer3d(canvas, state)
+// boot: load 3D assets (with a visible progress bar), then start the loop
+const loadingEl = document.getElementById('loading')!;
+const loadingFill = document.getElementById('loading-fill')!;
+const loadingText = document.getElementById('loading-text')!;
+initRenderer3d(canvas, state, (done, total) => {
+  loadingFill.style.width = `${Math.round((done / total) * 100)}%`;
+  loadingText.textContent = `Summoning defenders… ${done}/${total}`;
+})
   .then(() => {
+    loadingEl.remove();
+    showGestureHintOnce();
     startLoop(update, render, () => state.speed);
   })
   .catch((err) => {
     console.error('renderer failed to initialize', err);
-    const wrap = canvas.parentElement!;
-    const msg = document.createElement('div');
-    msg.style.cssText =
-      'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ff9db5;font-size:15px;text-align:center;padding:20px;';
-    msg.textContent = `Failed to load game assets: ${err?.message ?? err}. Try refreshing.`;
-    wrap.appendChild(msg);
+    loadingText.textContent = `Failed to load game assets: ${err?.message ?? err}. Check your connection and refresh.`;
+    (loadingText as HTMLElement).style.color = '#ff9db5';
   });
+
+// one-time touch onboarding: players kept missing that the board zooms/pans.
+// The zoom buttons also pulse (body[data-hint]) until the hint is dismissed.
+function showGestureHintOnce(): void {
+  const HINT_KEY = 'wizardtd.hintSeen';
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  if (!touch || localStorage.getItem(HINT_KEY)) return;
+  const hint = document.getElementById('gesture-hint')!;
+  hint.classList.remove('hidden');
+  document.body.dataset.hint = '1';
+  document.getElementById('gh-ok')!.addEventListener('click', () => {
+    hint.classList.add('hidden');
+    delete document.body.dataset.hint;
+    localStorage.setItem(HINT_KEY, '1');
+    sfx.click();
+  }, { once: true });
+}
+
+// offline + repeat-visit caching (production only — a SW would fight Vite's dev HMR)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+    /* not fatal — the game just won't work offline */
+  });
+}
 
 // debug/test handles (read-only inspection + scripted placement for live verification)
 Object.defineProperty(window, '__game', { get: () => state });
