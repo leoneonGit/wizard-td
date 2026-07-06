@@ -42,13 +42,14 @@ function freshMap(): MapDef {
 // ---------------------------------------------------------------- rendering
 
 function draw(): void {
+  // the board texture is painted at 2x resolution (P7) — draw it scaled to fit
   if (map.waypoints.length >= 2) {
     const base = paintBoardTexture(new Track(map), map.water ?? []);
-    ctx.drawImage(base, 0, 0);
+    ctx.drawImage(base, 0, 0, BOARD_W, BOARD_H);
   } else {
     // empty grass
     const base = paintBoardTexture(new Track({ ...map, waypoints: [[-2, -2], [-1, -2]] }), map.water ?? []);
-    ctx.drawImage(base, 0, 0);
+    ctx.drawImage(base, 0, 0, BOARD_W, BOARD_H);
   }
 
   // grid overlay
