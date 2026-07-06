@@ -333,6 +333,10 @@ export interface UnitLook {
     accent: THREE.Color;
     accentEmissive?: THREE.Color;
   };
+  /** texture warpaint: exact swatch colors in the model's palette atlas are
+   *  replaced (source hex -> target hex). The way to recolor skin/cloth/eyes
+   *  INDEPENDENTLY on single-material atlas-textured rigs like the goblin. */
+  atlasRemap?: Record<string, string>;
   mage?: MageStyle;
   /** a weapon placed in a hand slot (procedural bow/crossbow, or any attachment key) */
   held?: { key: string; hand: 'l' | 'r'; scale: number; rotX?: number; rotY?: number; rotZ?: number };
@@ -348,6 +352,19 @@ export interface UnitLook {
   wings?: boolean;
   /** slime: rigless squash-and-stretch blob (tint = goo color) */
   blob?: boolean;
+}
+
+/** The Quaternius goblin's atlas uses exactly five swatches (measured from the
+ *  mesh's UVs): skin #758718, cloth #cf9f41, dark gear #45433b, leather #715e40,
+ *  eyes #b141ff. Swap them for MTG-card warpaint — green skin, red gear. */
+function goblinWarpaint(skin: string, cloth: string, leather: string, eyes: string): Record<string, string> {
+  return {
+    '#758718': skin,
+    '#cf9f41': cloth,
+    '#715e40': leather,
+    '#b141ff': eyes,
+    '#45433b': '#33291f', // straps & buckles: warm dark leather on every kit
+  };
 }
 
 /** Keyed by WizardDef id (not element — multiple defs, e.g. goblins, can share an element). */
@@ -401,20 +418,21 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
     tint: new THREE.Color('#8a8494'), tintStrength: 0.55,
   },
 
-  // goblins — real sculpted Quaternius Goblin mesh, no tint-a-human hack needed;
-  // differentiated by accent green shade + emissive + a hand-carried gong prop
+  // goblins — MTG-card warpaint via atlas swatch remaps: vivid green skin,
+  // crimson/orange gear, warm glinting eyes. The goblin atlas has exactly five
+  // swatches (skin / cloth / dark gear / leather / eyes) — see goblinWarpaint.
   slingshot: {
     model: 'goblin_real', height: 1.15,
-    tint: new THREE.Color('#55a83f'), tintStrength: 0.4,
+    atlasRemap: goblinWarpaint('#4f9e3f', '#a3271b', '#6b3a24', '#ffc93d'), // classic red raider
   },
   dynamite: {
     model: 'goblin_real', height: 1.15,
-    tint: new THREE.Color('#6ba03c'), tintStrength: 0.4,
-    emissive: new THREE.Color('#ff6a1e'), // faint ember glow — always sitting on a lit fuse
+    atlasRemap: goblinWarpaint('#5da33a', '#d1571f', '#5a3020', '#ffd75e'), // orange bomber
+    emissive: new THREE.Color('#ff6a1e'), emissiveIntensity: 0.12, // ember glow off a lit fuse
   },
   gong: {
     model: 'goblin_real', height: 1.15,
-    tint: new THREE.Color('#4c9e59'), tintStrength: 0.4,
+    atlasRemap: goblinWarpaint('#3f8f3f', '#8f1d2e', '#b8862f', '#ffcf4d'), // crimson + gold ritualist
     held: { key: 'gong', hand: 'r', scale: 0.4 },
   },
 
@@ -531,18 +549,18 @@ export const WIZARD_LOOKS: Record<string, UnitLook> = {
   },
   warlord: {
     model: 'goblin_real', height: 1.45,
-    tint: new THREE.Color('#55a83f'), tintStrength: 0.45,
-    emissive: new THREE.Color('#c9e08a'),
+    atlasRemap: goblinWarpaint('#4f9e3f', '#c2231a', '#7a2e1c', '#ffe08a'), // brighter crimson
+    emissive: new THREE.Color('#c9e08a'), emissiveIntensity: 0.15,
   },
   sapperking: {
     model: 'goblin_real', height: 1.45,
-    tint: new THREE.Color('#6ba03c'), tintStrength: 0.45,
-    emissive: new THREE.Color('#ff6a1e'),
+    atlasRemap: goblinWarpaint('#5da33a', '#e0641f', '#5a3020', '#ffd75e'),
+    emissive: new THREE.Color('#ff6a1e'), emissiveIntensity: 0.15,
   },
   doomgong: {
     model: 'goblin_real', height: 1.45,
-    tint: new THREE.Color('#4c9e59'), tintStrength: 0.45,
-    emissive: new THREE.Color('#f4d98a'),
+    atlasRemap: goblinWarpaint('#3f8f3f', '#a01f33', '#d1a13d', '#ffcf4d'), // gilded doom
+    emissive: new THREE.Color('#f4d98a'), emissiveIntensity: 0.15,
     held: { key: 'gong', hand: 'r', scale: 0.5 },
   },
   stormpiercer: {

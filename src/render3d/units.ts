@@ -56,6 +56,56 @@ interface Dying {
 const DEATH_TIME = 1.05;
 const SHRINK_TIME = 0.28;
 
+// ---------------------------------------------------------------- warpaint
+// Atlas-swatch recoloring for single-material textured rigs (the goblin):
+// exact palette pixels are swapped for the look's colors. Cached per remap so
+// every slingshot shares one texture.
+const warpaintCache = new Map<string, THREE.Texture>();
+
+function warpaintTexture(src: THREE.Texture, remap: Record<string, string>): THREE.Texture {
+  const key = JSON.stringify(remap);
+  const hit = warpaintCache.get(key);
+  if (hit) return hit;
+
+  const img = src.image as CanvasImageSource & { width: number; height: number };
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const g = canvas.getContext('2d')!;
+  g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, canvas.width, canvas.height);
+  const hexToRgb = (h: string) => [
+    parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16),
+  ];
+  const pairs = Object.entries(remap).map(([f, t]) => ({ f: hexToRgb(f), t: hexToRgb(t) }));
+  for (let i = 0; i < px.data.length; i += 4) {
+    for (const { f, t } of pairs) {
+      if (
+        Math.abs(px.data[i] - f[0]) <= 8 &&
+        Math.abs(px.data[i + 1] - f[1]) <= 8 &&
+        Math.abs(px.data[i + 2] - f[2]) <= 8
+      ) {
+        px.data[i] = t[0];
+        px.data[i + 1] = t[1];
+        px.data[i + 2] = t[2];
+        break;
+      }
+    }
+  }
+  g.putImageData(px, 0, 0);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.flipY = src.flipY; // glTF textures don't flip — must match the original
+  tex.colorSpace = src.colorSpace;
+  tex.magFilter = src.magFilter;
+  tex.minFilter = src.minFilter;
+  tex.generateMipmaps = src.generateMipmaps;
+  tex.wrapS = src.wrapS;
+  tex.wrapT = src.wrapT;
+  warpaintCache.set(key, tex);
+  return tex;
+}
+
 const enemyViews = new Map<number, UnitView>();
 const wizardViews = new Map<number, UnitView>();
 const dying: Dying[] = [];
@@ -254,6 +304,16 @@ function makeView(look: UnitLook): UnitView {
     mesh.material = m;
     mats.push(m);
   });
+
+  // warpaint: swap the atlas palette's swatches for this look's colors
+  if (look.atlasRemap) {
+    for (const m of mats) {
+      if (m.map) {
+        m.map = warpaintTexture(m.map, look.atlasRemap);
+        m.needsUpdate = true;
+      }
+    }
+  }
 
   // multi-tone reskin: rank this rig's materials by brightness and map them to
   // the palette's dark / mid / accent — the sculpt keeps its material variation
