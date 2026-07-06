@@ -1,7 +1,7 @@
 {
-  "name": "Wizard TD",
-  "short_name": "WizardTD",
-  "description": "A roguelite 3D tower defense: wizards, goblins, archers and ents against the horde.",
+  "name": "Wildguard TD",
+  "short_name": "Wildguard",
+  "description": "A roguelite 3D tower defense: wizards, goblins, archers and nature spirits guarding the road against the horde.",
   "start_url": ".",
   "scope": ".",
   "display": "fullscreen",
