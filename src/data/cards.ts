@@ -13,7 +13,7 @@ export const CARDS: CardDef[] = [
   { id: 'fire_dmg2', name: 'Inferno Core', desc: 'All Fire Mages +9 damage', icon: '🔥', element: 'fire', rarity: 'rare', mod: { damage: 9 } },
 
   // ---------------- ice ----------------
-  { id: 'ice_chill1', name: 'Deeper Cold', desc: 'Chill slows +8% more', icon: '❄️', element: 'ice', rarity: 'common', mod: { chillPct: 0.08 } },
+  { id: 'ice_chill1', name: 'Deeper Cold', desc: 'Chill slows +20% more', icon: '❄️', element: 'ice', rarity: 'rare', mod: { chillPct: 0.2 } },
   { id: 'ice_dmg1', name: 'Jagged Icicles', desc: 'All Frost Mages +3 damage', icon: '❄️', element: 'ice', rarity: 'common', mod: { damage: 3 } },
   { id: 'ice_wet1', name: 'Soaking Sleet', desc: 'Frost Wet lasts +2s', icon: '❄️', element: 'ice', rarity: 'common', mod: { wetDuration: 2 } },
   { id: 'ice_rate1', name: 'Flash Freeze', desc: 'Frost Mages attack 15% faster', icon: '❄️', element: 'ice', rarity: 'uncommon', mod: { rateMul: 0.85 } },
@@ -70,7 +70,8 @@ export const CARDS: CardDef[] = [
 
   // ---------------- rhythm procs (Vampire Survivors energy) ----------------
   { id: 'pr_adrenaline', name: 'Adrenaline Surge', desc: 'Every 10s, ALL towers frenzy: 2x attack speed for 3s', icon: '🫀', element: 'all', rarity: 'rare', unique: true, fx: { frenzy: { period: 10, duration: 3, rateMul: 0.5 } } },
-  { id: 'pr_warhymn', name: 'Goblin War-Hymn', desc: 'Every 8s, Goblins frenzy: 2x attack speed for 2.5s', icon: '🥁', element: 'physical', family: 'goblin', rarity: 'uncommon', unique: true, fx: { frenzy: { period: 8, duration: 2.5, rateMul: 0.5 } } },
+  // no longer unique (user-tuned): copies stack — two hymns = 4x speed in the window
+  { id: 'pr_warhymn', name: 'Goblin War-Hymn', desc: 'Every 8s, Goblins frenzy: 2x attack speed for 2.5s', icon: '🥁', element: 'physical', family: 'goblin', rarity: 'uncommon', fx: { frenzy: { period: 8, duration: 2.5, rateMul: 0.5 } } },
 
   // ---------------- on-kill chains ----------------
   { id: 'pr_powder', name: 'Powder Trail', desc: 'Enemies killed by Goblins EXPLODE (30 dmg, small area)', icon: '🧨', element: 'physical', family: 'goblin', rarity: 'rare', unique: true, fx: { onKillExplode: { damage: 30, radius: 55 } } },
@@ -83,6 +84,7 @@ export const CARDS: CardDef[] = [
   { id: 'pr_firstblood', name: 'First Blood', desc: 'Physical damage +30% vs full-health enemies', icon: '🩸', element: 'physical', rarity: 'uncommon', unique: true, fx: { bonusVsHealthy: { threshold: 0.99, mult: 1.3 } } },
   { id: 'pr_soaked', name: 'Riptide Predator', desc: 'Lightning damage +35% vs Wet enemies', icon: '🌩️', element: 'lightning', rarity: 'uncommon', unique: true, fx: { bonusVsStatus: { status: 'wet', mult: 1.35 } } },
   { id: 'pr_skywatch', name: 'Skywatch', desc: 'ALL towers deal +25% damage to FLYING enemies', icon: '🦅', element: 'all', rarity: 'uncommon', unique: true, fx: { bonusVsFlying: { mult: 1.25 } } },
+  { id: 'pr_skywatch2', name: 'Skywatch 2', desc: 'ALL towers deal +50% damage to FLYING enemies', icon: '🦅', element: 'all', rarity: 'rare', unique: true, fx: { bonusVsFlying: { mult: 1.5 } } },
 ];
 
 export const RARITY_WEIGHT: Record<Rarity, number> = { common: 60, uncommon: 30, rare: 10 };
