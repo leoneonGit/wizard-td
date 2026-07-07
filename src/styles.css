@@ -440,6 +440,18 @@ body[data-act='2'] #board-wrap::after {
   cursor: help;
 }
 .relic-chip.rare { border-color: #ffd75e; box-shadow: 0 0 6px rgba(255, 215, 94, 0.25); }
+.relic-chip { cursor: pointer; }
+#relic-info {
+  background: #14121f;
+  border: 1px solid #6a5acd;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #b5aed0;
+  flex: 0 0 auto;
+}
+#relic-info b { color: #e8e2d5; }
 
 /* ---- node picker (branching wave map) ---- */
 #node-picker { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }

@@ -30,7 +30,8 @@ export interface SpellDef {
 
 const GONG_STUN = 2.5;
 const BOSS_STUN_FACTOR = 0.3; // mirrors BOSS_ENTANGLE_FACTOR
-const CONVERGE_DMG = 45;
+const CONVERGE_DMG = 60; // per-pass floor
+const CONVERGE_PCT = 0.25; // total % of each target's max hp, split across the passes
 const ROOTS_DURATION = 6;
 const HOLE_DURATION = 3;
 const HOLE_DPS = 25;
@@ -75,21 +76,31 @@ function targetsIn(state: GameState, x: number, y: number, r: number, groundOnly
 // ---------------------------------------------------------------- the five spells
 
 /** Wizards: one blast PER ELEMENT you have fielded, in reaction-optimal order —
- *  water wets, lightning conducts, ice chills, fire shatters/evaporates. */
+ *  water wets, lightning conducts, ice chills, fire shatters/evaporates.
+ *  Damage is percentage-based so it stays a boss-buster in every act: the passes
+ *  together strip at least a quarter of any target's max hp (before resists). */
 function castConvergence(state: GameState, x: number, y: number): void {
   const present = new Set<ElementId>();
   for (const w of state.wizards) {
     if (w.family === 'wizard' && !w.pendingSpecialize) present.add(w.def.element);
   }
   const order: ElementId[] = ['water', 'lightning', 'ice', 'fire', 'wind'];
+  const passes = order.filter((el) => present.has(el));
   const targets = targetsIn(state, x, y, SPELLS_BY_ID.convergence.radius);
+  // the 25% is split across the passes that can actually WOUND each target —
+  // an element the target is immune to doesn't dilute the others' share
+  const shares = new Map<number, number>();
+  for (const e of targets) {
+    const eff = passes.filter((el) => (e.def.resist[el] ?? 1) > 0).length;
+    shares.set(e.id, eff > 0 ? (e.maxHp * CONVERGE_PCT) / eff : 0);
+  }
   fx.ring(x, y, '#c9b8ff', SPELLS_BY_ID.convergence.radius);
   sfx.explosion();
-  for (const el of order) {
-    if (!present.has(el)) continue;
+  for (const el of passes) {
     fx.burst(x, y, ELEMENTS[el].glow, 12, 160, 3, 0.5);
     for (const e of targets) {
       if (e.hp <= 0) continue;
+      const dmg = Math.max(CONVERGE_DMG, shares.get(e.id) ?? 0);
       const immune = (s: 'burn' | 'wet' | 'chill') => e.immunities?.includes(s) ?? false;
       if (el === 'lightning' && e.statuses.wet) {
         // Conduct: the wet coat turns the bolt into a live wire
@@ -97,10 +108,10 @@ function castConvergence(state: GameState, x: number, y: number): void {
         state.stats.reactions.conduct++;
         fx.floater(e.x, e.y - 18, 'Conduct!', '#e8c3ff', 13);
         sfx.conduct();
-        hitEnemy(state, undefined, e, CONVERGE_DMG * state.reaction.conductMult, el);
+        hitEnemy(state, undefined, e, dmg * state.reaction.conductMult, el);
       } else {
         // fire pass: hitEnemy fires Shatter automatically on chilled/frozen targets
-        hitEnemy(state, undefined, e, CONVERGE_DMG, el);
+        hitEnemy(state, undefined, e, dmg, el);
       }
       if (e.hp <= 0) continue;
       if (el === 'water' && !immune('wet')) {
@@ -172,7 +183,7 @@ function castArrowstorm(state: GameState, x: number, y: number): void {
 export const SPELLS: SpellDef[] = [
   {
     id: 'convergence', family: 'wizard', name: 'Elemental Convergence', icon: '🌀',
-    desc: 'Blast an area once per element you have fielded — reactions included',
+    desc: 'Blast an area once per fielded element — together the blasts strip a quarter of each victim\'s health',
     needed: 4, cooldown: 40, needsTarget: true, radius: 85, color: '#c9b8ff',
     cast: castConvergence,
   },

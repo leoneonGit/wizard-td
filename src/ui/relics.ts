@@ -6,6 +6,8 @@ import type { RelicDef } from '../game/types';
 
 let modal: HTMLElement;
 let bar: HTMLElement;
+let info: HTMLElement;
+let infoFor: string | null = null; // relic id the info card is showing
 let shown: RelicDef[] | null = null;
 let afterPick: (() => void) | null = null;
 let barKey = '';
@@ -14,6 +16,22 @@ export function initRelics(onResolved: () => void): void {
   afterPick = onResolved;
   modal = document.getElementById('relic-modal')!;
   bar = document.getElementById('relic-bar')!;
+  // tap-a-chip info card lives right under the bar (hover tooltips don't exist on touch)
+  info = document.createElement('div');
+  info.id = 'relic-info';
+  info.style.display = 'none';
+  bar.insertAdjacentElement('afterend', info);
+}
+
+function toggleInfo(r: RelicDef): void {
+  if (infoFor === r.id) {
+    infoFor = null;
+    info.style.display = 'none';
+    return;
+  }
+  infoFor = r.id;
+  info.innerHTML = `<b>${r.icon} ${r.name}</b> — ${r.desc}`;
+  info.style.display = '';
 }
 
 export function updateRelics(state: GameState): void {
@@ -33,11 +51,17 @@ export function updateRelics(state: GameState): void {
   if (key !== barKey) {
     barKey = key;
     bar.innerHTML = '';
+    infoFor = null;
+    info.style.display = 'none';
     for (const r of state.relics) {
       const chip = document.createElement('div');
       chip.className = `relic-chip ${r.rarity}`;
       chip.textContent = r.icon;
       chip.title = `${r.name} — ${r.desc}`;
+      chip.addEventListener('click', () => {
+        toggleInfo(r);
+        sfx.click();
+      });
       bar.appendChild(chip);
     }
   }

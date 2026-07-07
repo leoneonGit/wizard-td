@@ -199,9 +199,30 @@ describe('Elemental Convergence', () => {
     // water wets -> lightning conducts -> ice re-wets & chills -> fire shatters the chill
     expect(state.stats.reactions.conduct).toBe(1);
     expect(state.stats.reactions.shatter).toBe(1);
-    expect(e.maxHp - e.hp).toBeGreaterThan(180); // four 45-hits plus reaction bonuses
     expect(e.statuses.burn).toBeUndefined(); // fire pass evaporated the ice pass' wet
     expect(state.stats.reactions.evaporate).toBe(1);
+  });
+
+  it('immunities do not dilute the share — the fire-immune Pyre Titan still loses 25%', () => {
+    const state = freshWaveState();
+    field(state, ['fire', 'ice', 'lightning', 'wind']); // no water: no conduct bonus either
+    const boss = addEnemy(state, 'pyretitan', 400); // resist.fire = 0
+    castSpell(state, 'convergence', boss.x, boss.y);
+    expect(boss.maxHp - boss.hp).toBeGreaterThanOrEqual(boss.maxHp * 0.25 * 0.999);
+  });
+
+  it('is a boss-buster: the passes together strip at least 25% of max hp', () => {
+    const state = freshWaveState();
+    field(state, ['fire', 'ice', 'lightning', 'water']);
+    const e = addEnemy(state, 'grunt', 400, 100000); // resist-free tank
+    castSpell(state, 'convergence', e.x, e.y);
+    expect(e.maxHp - e.hp).toBeGreaterThanOrEqual(e.maxHp * 0.25);
+    // and small fry still feel the 60-per-pass floor
+    const s2 = freshWaveState(43);
+    field(s2, ['fire', 'ice', 'lightning', 'water']);
+    const small = addEnemy(s2, 'grunt', 400, 700);
+    castSpell(s2, 'convergence', small.x, small.y);
+    expect(small.maxHp - small.hp).toBeGreaterThanOrEqual(240); // 4 x 60 floor
   });
 
   it('only fielded elements fire — three mages means three blasts', () => {
