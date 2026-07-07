@@ -83,7 +83,11 @@ canvas.addEventListener('click', (e) => {
     return; // that was a pan/pinch, not a tap
   }
   const p = pickBoardPoint(e.offsetX, e.offsetY);
-  if (!p) return;
+  if (!p) {
+    // tapped the scenery around the board: dismiss the tower panel
+    if (!state.placingType) state.selectedWizardId = null;
+    return;
+  }
   const { cx, cy } = pixelToCell(p.x, p.y);
   if (!inBounds(cx, cy)) return;
 
@@ -327,21 +331,9 @@ function setSpeed(speed: number): void {
   document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((b) =>
     b.classList.toggle('active', Number(b.dataset.speed) === speed),
   );
-  qbSpeed.textContent = `${speed}×`;
 }
 document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((btn) => {
   btn.addEventListener('click', () => setSpeed(Number(btn.dataset.speed)));
-});
-
-// quickbar: speed cycles 1→2→3, auto toggles
-const qbSpeed = document.getElementById('qb-speed') as HTMLButtonElement;
-const qbAuto = document.getElementById('qb-auto') as HTMLButtonElement;
-qbSpeed.addEventListener('click', () => setSpeed(state.speed >= 3 ? 1 : state.speed + 1));
-qbAuto.addEventListener('click', () => {
-  state.autoplay = !state.autoplay;
-  qbAuto.classList.toggle('active', state.autoplay);
-  (document.getElementById('chk-auto') as HTMLInputElement).checked = state.autoplay;
-  if (state.autoplay && state.phase === 'build') state.autoplayTimer = 0.8;
 });
 
 // ---- audio wiring (context unlocks on first user gesture per autoplay policy) ----

@@ -7,11 +7,6 @@ let elLives: HTMLElement;
 let elRound: HTMLElement;
 let btnStart: HTMLButtonElement;
 let elWavePreview: HTMLElement;
-// quickbar mirrors (mobile sticky strip)
-let qbGold: HTMLElement;
-let qbLives: HTMLElement;
-let qbRound: HTMLElement;
-let qbStart: HTMLButtonElement;
 
 let lastKey = '';
 
@@ -22,11 +17,6 @@ export function initHud(onStart: () => void): void {
   btnStart = document.getElementById('btn-start') as HTMLButtonElement;
   elWavePreview = document.getElementById('wave-preview')!;
   btnStart.addEventListener('click', onStart);
-  qbGold = document.getElementById('qb-gold')!;
-  qbLives = document.getElementById('qb-lives')!;
-  qbRound = document.getElementById('qb-round')!;
-  qbStart = document.getElementById('qb-start') as HTMLButtonElement;
-  qbStart.addEventListener('click', onStart);
 }
 
 export function updateHud(state: GameState): void {
@@ -42,9 +32,6 @@ export function updateHud(state: GameState): void {
   elGold.textContent = String(state.gold);
   elLives.textContent = String(state.lives);
   elRound.textContent = `${actTag}${Math.min(state.round + 1, waveCount)}/${waveCount}`;
-  qbGold.textContent = String(state.gold);
-  qbLives.textContent = String(state.lives);
-  qbRound.textContent = elRound.textContent;
 
   const isBossRound = state.round === waveCount - 1;
   if (state.phase === 'build' && state.round < waveCount) {
@@ -72,24 +59,6 @@ export function updateHud(state: GameState): void {
   } else {
     btnStart.disabled = true;
     btnStart.textContent = state.phase === 'won' ? 'Victory!' : 'Defeat';
-  }
-
-  // quickbar start mirrors the main button, abbreviated for the strip
-  qbStart.disabled = btnStart.disabled;
-  if (state.phase === 'build') {
-    const choiceDue = !state.nodePicked && state.nextNodes.length > 1;
-    const tag = isBossRound ? ' 👹' : state.nodeChoice === 'elite' ? ' ★' : state.nodeChoice === 'treasure' ? ' 💎' : '';
-    qbStart.textContent = choiceDue ? '🗺️ path…' : `▶ Wave ${state.round + 1}${tag}`;
-  } else if (state.phase === 'wave') {
-    qbStart.textContent = isBossRound ? '👹 BOSS!' : `⚔ Wave ${state.round + 1}`;
-  } else if (state.phase === 'draft') {
-    qbStart.textContent = '🃏 pick a card';
-  } else if (state.phase === 'relic') {
-    qbStart.textContent = '💎 pick a relic';
-  } else if (state.phase === 'actClear') {
-    qbStart.textContent = '🏰 act complete';
-  } else {
-    qbStart.textContent = state.phase === 'won' ? '🏆' : '💀';
   }
 }
 

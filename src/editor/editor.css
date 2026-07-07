@@ -1,5 +1,21 @@
+/* the game shell went full-bleed with a slim rail; the editor keeps a
+   roomy classic layout (these load after styles.css, so they win) */
+#board-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+#sidebar {
+  flex: 0 0 300px;
+  overflow-y: auto;
+  border-left: 1px solid #35304d;
+}
+
 #edit-canvas {
   display: block;
+  max-width: 100%;
+  max-height: 100%;
   border-radius: 8px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   cursor: crosshair;

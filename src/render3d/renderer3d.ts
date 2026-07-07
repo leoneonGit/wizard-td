@@ -42,15 +42,44 @@ let ghostBody: THREE.Mesh;
 let lastTime = 0;
 
 // ---- board camera view: zoom (1..3) + clamped pan, all in world units ----
-const BASE_HALF_W = W_UNITS / 2 + 0.3;
-const BASE_HALF_H = BASE_HALF_W / (BOARD_W / BOARD_H);
+// The frustum follows the canvas' real aspect: the board always fits fully
+// ("contain"), and whatever screen is left over shows the surrounding skirt.
+const FIT_MARGIN = 0.3;
 const CAM_TILT = THREE.MathUtils.degToRad(52);
 const CAM_DIST = 30;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
+let baseHalfW = W_UNITS / 2 + FIT_MARGIN;
+let baseHalfH = baseHalfW / (BOARD_W / BOARD_H);
 let viewZoom = 1;
 let panX = 0;
 let panZ = 0;
+let fitW = 0; // last CSS size the render target was fitted to
+let fitH = 0;
+
+/** Size the render target to the canvas' CSS box and refit the frustum. */
+function fitViewport(): void {
+  const el = renderer.domElement;
+  fitW = el.clientWidth;
+  fitH = el.clientHeight;
+  const w = fitW || BOARD_W;
+  const h = fitH || BOARD_H;
+  renderer.setSize(w, h, false);
+  const aspect = w / h;
+  if (aspect >= BOARD_W / BOARD_H) {
+    baseHalfH = H_UNITS / 2 + FIT_MARGIN; // wide screen: board fills the height
+    baseHalfW = baseHalfH * aspect;
+  } else {
+    baseHalfW = W_UNITS / 2 + FIT_MARGIN; // tall screen: board fills the width
+    baseHalfH = baseHalfW / aspect;
+  }
+  camera.left = -baseHalfW;
+  camera.right = baseHalfW;
+  camera.top = baseHalfH;
+  camera.bottom = -baseHalfH;
+  clampPan();
+  applyView();
+}
 
 /** Re-aim the camera from the current zoom/pan state. */
 function applyView(): void {
@@ -62,9 +91,9 @@ function applyView(): void {
 }
 
 function clampPan(): void {
-  // keep the visible window inside the board (with the base margin)
-  const maxX = BASE_HALF_W * (1 - 1 / viewZoom);
-  const maxZ = BASE_HALF_H * (1 - 1 / viewZoom);
+  // keep the visible window inside the fitted base view
+  const maxX = baseHalfW * (1 - 1 / viewZoom);
+  const maxZ = baseHalfH * (1 - 1 / viewZoom);
   panX = Math.max(-maxX, Math.min(maxX, panX));
   panZ = Math.max(-maxZ, Math.min(maxZ, panZ));
 }
@@ -94,7 +123,7 @@ export function zoomView(factor: number, offsetX?: number, offsetY?: number): vo
 /** Pan by a screen-pixel delta (drag). */
 export function panView(dxPx: number, dyPx: number): void {
   const el = renderer.domElement;
-  const worldPerPx = (BASE_HALF_W * 2) / (el.clientWidth || BOARD_W) / viewZoom;
+  const worldPerPx = (baseHalfW * 2) / (el.clientWidth || BOARD_W) / viewZoom;
   panX -= dxPx * worldPerPx;
   panZ -= dyPx * worldPerPx; // screen-Y maps to board-Z under the tilted ortho view
   clampPan();
@@ -119,7 +148,6 @@ export async function initRenderer3d(
 ): Promise<void> {
   // no preserveDrawingBuffer: it costs real frame time on mobile tile GPUs
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setSize(BOARD_W, BOARD_H, false);
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap; // (PCFSoft was removed in r185 — same fallback)
@@ -129,12 +157,10 @@ export async function initRenderer3d(
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#1a2419');
 
-  // orthographic 3/4 view: straight-on from the south, tilted down
-  const aspect = BOARD_W / BOARD_H;
-  const halfW = W_UNITS / 2 + 0.3;
-  const halfH = halfW / aspect;
-  camera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, 100);
-  applyView();
+  // orthographic 3/4 view: straight-on from the south, tilted down;
+  // frustum + render target track the canvas' on-screen size from here on
+  camera = new THREE.OrthographicCamera(-baseHalfW, baseHalfW, baseHalfH, -baseHalfH, 0.1, 100);
+  fitViewport(); // draw3d refits whenever the canvas' CSS size changes
 
   // lights (theme-tinted; retinted on act transitions)
   hemi = new THREE.HemisphereLight('#cfe8ff', '#3a4a30', 1.7);
@@ -421,6 +447,10 @@ export function pickBoardPoint(offsetX: number, offsetY: number): { x: number; y
 }
 
 export function draw3d(state: GameState): void {
+  // window resized / device rotated / URL bar collapsed: refit before drawing
+  const el = renderer.domElement;
+  if (el.clientWidth !== fitW || el.clientHeight !== fitH) fitViewport();
+
   const now = performance.now();
   const dt = Math.min(0.1, (now - lastTime) / 1000);
   lastTime = now;
