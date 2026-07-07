@@ -11,9 +11,9 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="icons/portrait_fire.png" />
-    <script type="module" crossorigin src="./assets/main-BEgy7S-Y.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/mapio-CaqQ57Li.js">
-    <link rel="stylesheet" crossorigin href="./assets/mapio-DEc-cEGE.css">
+    <script type="module" crossorigin src="./assets/main-CwUJzOdg.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/mapio-DVypBqcB.js">
+    <link rel="stylesheet" crossorigin href="./assets/mapio-BReNjYd2.css">
   </head>
   <body>
     <div id="loading">
@@ -80,9 +80,12 @@
         <div id="wave-preview"></div>
         <div id="node-picker" class="hidden"></div>
         <div id="audio-row">
-          <button id="btn-mute" title="Mute">🔊</button>
+          <button id="btn-mute" title="Mute everything">🔊</button>
+          <input type="range" id="vol-slider" min="0" max="100" value="50" title="Sound effects volume" />
+        </div>
+        <div id="music-row">
           <button id="btn-music" title="Toggle music">🎵</button>
-          <input type="range" id="vol-slider" min="0" max="100" value="50" />
+          <input type="range" id="music-slider" min="0" max="100" value="50" title="Music volume" />
         </div>
         <div id="map-row">
           <select id="map-select"></select>
