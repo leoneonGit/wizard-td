@@ -1,13 +1,36 @@
 {
+  "id": "/wizard-td/",
   "name": "Wildguard TD",
   "short_name": "Wildguard",
   "description": "A roguelite 3D tower defense: wizards, goblins, archers and nature spirits guarding the road against the horde.",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["games", "entertainment"],
   "start_url": ".",
   "scope": ".",
   "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "landscape",
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "prefer_related_applications": false,
   "background_color": "#14121f",
   "theme_color": "#14121f",
+  "screenshots": [
+    {
+      "src": "screens/battle.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Hold the winding road of Emerald Vale against the horde"
+    },
+    {
+      "src": "screens/boss.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "The Pyre Titan marches — rally your wizards"
+    }
+  ],
   "icons": [
     {
       "src": "icon.svg",
