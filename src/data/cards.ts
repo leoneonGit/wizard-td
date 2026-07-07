@@ -25,11 +25,14 @@ export const CARDS: CardDef[] = [
   { id: 'ltn_range1', name: 'Skyline Arcs', desc: 'Storm Mages +25 range', icon: '⚡', element: 'lightning', rarity: 'common', mod: { range: 25 } },
   { id: 'ltn_rate1', name: 'Static Rhythm', desc: 'Storm Mages attack 12% faster', icon: '⚡', element: 'lightning', rarity: 'uncommon', mod: { rateMul: 0.88 } },
 
-  // ---------------- water ----------------
-  { id: 'wat_slow1', name: 'Heavy Currents', desc: 'Tide slow +8% stronger', icon: '🌊', element: 'water', rarity: 'common', mod: { soakSlow: 0.08 } },
-  { id: 'wat_dmg1', name: 'Crashing Waves', desc: 'All Water Mages +4 damage', icon: '🌊', element: 'water', rarity: 'common', mod: { damage: 4 } },
-  { id: 'wat_range1', name: 'High Tide', desc: 'Water Mages +20 range', icon: '🌊', element: 'water', rarity: 'uncommon', mod: { range: 20 } },
-  { id: 'wat_wet1', name: 'Drenching Pulse', desc: 'Tide Wet lasts +2s', icon: '🌊', element: 'water', rarity: 'common', mod: { wetDuration: 2 } },
+  // (water mage cards removed by design — the tower carries the element on its own)
+
+  // ---------------- void ----------------
+  { id: 'void_dmg1', name: 'Umbral Edge', desc: 'All Void towers +4 damage', icon: '🌌', element: 'void', rarity: 'common', mod: { damage: 4 } },
+  { id: 'void_rate1', name: 'Dark Resonance', desc: 'Void towers attack 12% faster', icon: '🌌', element: 'void', rarity: 'common', mod: { rateMul: 0.88 } },
+  { id: 'void_range1', name: 'Deep Gaze', desc: 'Void towers +20 range', icon: '👁️', element: 'void', rarity: 'uncommon', mod: { range: 20 } },
+  { id: 'void_splash1', name: 'Hungering Maw', desc: 'Void splash radius +14', icon: '🕳️', element: 'void', rarity: 'uncommon', mod: { splash: 14 } },
+  { id: 'void_dmg2', name: 'Event Horizon', desc: 'All Void towers +9 damage', icon: '🌌', element: 'void', rarity: 'rare', mod: { damage: 9 } },
 
   // ---------------- wind ----------------
   { id: 'wnd_kb1', name: 'Tailwind', desc: 'Gust knockback +20px', icon: '☁️', element: 'wind', rarity: 'common', mod: { knockback: 20 } },

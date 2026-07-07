@@ -4,3 +4,4 @@ art/raw/
 .env
 .env.local
 .github/
+.cards-dump.json
