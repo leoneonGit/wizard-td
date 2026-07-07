@@ -352,6 +352,8 @@ export interface UnitLook {
   wings?: boolean;
   /** slime: rigless squash-and-stretch blob (tint = goo color) */
   blob?: boolean;
+  /** heartstone: rigless glowing crystal, gentle pulse (tint = crystal color) */
+  crystal?: boolean;
 }
 
 /** The Quaternius goblin's atlas uses exactly five swatches (measured from the
@@ -684,6 +686,7 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
   slime_big: { model: 'goblin', height: 0.85, tint: new THREE.Color('#5fbf4a'), blob: true },
   slime_mid: { model: 'goblin', height: 0.6, tint: new THREE.Color('#74d15e'), blob: true },
   slime_small: { model: 'goblin', height: 0.42, tint: new THREE.Color('#8ce276'), blob: true },
+  heartstone: { model: 'goblin', height: 1.0, tint: new THREE.Color('#e05a7a'), crystal: true },
 
   // act bosses — huge, tinted, unmistakable
   warlord: {

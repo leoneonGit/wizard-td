@@ -16,6 +16,11 @@ import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
 import { music } from './audio/music';
 import { wavesInAct } from './data/waves';
+import { ENEMIES } from './data/enemies';
+import { SPELLS, castSpell, spellById, spellReady, updateSpells } from './game/spells';
+import { loadMeta, perksFromMeta } from './game/meta';
+import { initGrove } from './ui/grove';
+import { initSpellbar, updateSpellbar } from './ui/spellbar';
 import { initHud, updateHud } from './ui/hud';
 import { initShop, updateShop } from './ui/shop';
 import { initTowerPanel, updateTowerPanel } from './ui/towerPanel';
@@ -27,12 +32,14 @@ import { loadRunSave, restoreRun, clearRunSave, saveRun } from './game/save';
 const requestedMap = new URLSearchParams(location.search).get('map');
 const activeMap = (requestedMap && loadMap(requestedMap)) || undefined;
 
-// resume a saved run when it matches the requested map (or no map was requested)
+// resume a saved run when it matches the requested map (or no map was requested).
+// Grove perks are read fresh here and injected — the sim itself never touches storage.
+const bootPerks = perksFromMeta(loadMeta());
 const runSave = loadRunSave();
 const resumed =
-  runSave && (!requestedMap || requestedMap === runSave.mapId) ? restoreRun(runSave) : null;
+  runSave && (!requestedMap || requestedMap === runSave.mapId) ? restoreRun(runSave, bootPerks) : null;
 
-let state: GameState = resumed ?? createGame(activeMap);
+let state: GameState = resumed ?? createGame(activeMap, undefined, bootPerks);
 
 const canvas = document.getElementById('board') as HTMLCanvasElement;
 
@@ -65,6 +72,7 @@ function tryPlaceAt(cx: number, cy: number, keepPlacing = false): boolean {
   const cost = towerCost(state, def.cost);
   if (!isBuildable(state, cx, cy, def) || !canAfford(state, cost)) return false;
   spend(state, cost);
+  state.firstTowerBought = true; // Founder's Discount is spent
   const w = makeWizard(state, def, cx, cy);
   w.invested = cost;
   state.wizards.push(w);
@@ -84,10 +92,19 @@ canvas.addEventListener('click', (e) => {
   }
   const p = pickBoardPoint(e.offsetX, e.offsetY);
   if (!p) {
-    // tapped the scenery around the board: dismiss the tower panel
+    // tapped the scenery around the board: dismiss the tower panel / spell targeting
     if (!state.placingType) state.selectedWizardId = null;
+    state.castingSpell = null;
     return;
   }
+
+  // spell targeting mode: this click IS the cast
+  if (state.castingSpell) {
+    castSpell(state, state.castingSpell, p.x, p.y);
+    state.castingSpell = null;
+    return;
+  }
+
   const { cx, cy } = pixelToCell(p.x, p.y);
   if (!inBounds(cx, cy)) return;
 
@@ -211,19 +228,25 @@ canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   state.placingType = null;
   state.selectedWizardId = null;
+  state.castingSpell = null;
   pendingPlace = null;
 });
 
+const SPELL_KEYS = ['q', 'w', 'e', 'r', 't'];
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     state.placingType = null;
     state.selectedWizardId = null;
+    state.castingSpell = null;
     pendingPlace = null;
   } else if (e.key === ' ') {
     e.preventDefault();
     startWave(state);
   } else if (e.key >= '1' && e.key <= String(SHOP_ORDER.length)) {
     pickShopItem(SHOP_ORDER[Number(e.key) - 1]);
+  } else {
+    const idx = SPELL_KEYS.indexOf(e.key.toLowerCase());
+    if (idx >= 0 && SPELLS[idx]) pickSpell(SPELLS[idx].id);
   }
 });
 
@@ -235,10 +258,27 @@ function pickShopItem(typeId: string): void {
   if (!canAfford(state, def.cost)) return;
   state.placingType = state.placingType === typeId ? null : typeId;
   state.selectedWizardId = null;
+  state.castingSpell = null; // placement and spell targeting are mutually exclusive
   pendingPlace = null; // fresh pick, fresh two-tap cycle
 }
 
+/** Spell bar / hotkey entry: global spells fire at once, targeted ones arm the cursor. */
+function pickSpell(id: string): void {
+  const def = spellById(id);
+  if (!def || !spellReady(state, def)) return;
+  if (def.needsTarget) {
+    state.castingSpell = state.castingSpell === id ? null : id;
+    state.placingType = null;
+    pendingPlace = null;
+    sfx.click();
+  } else {
+    castSpell(state, id);
+  }
+}
+
 initShop(pickShopItem);
+initSpellbar(pickSpell);
+initGrove();
 initHud(() => startWave(state));
 initDraft(() => {
   saveRun(state); // checkpoint after every draft decision
@@ -269,7 +309,8 @@ initActClear((s) => {
 // otherwise enemies walk the new map's road across the old map's scenery.
 document.getElementById('btn-newrun')?.addEventListener('click', () => {
   clearRunSave();
-  state = createGame(activeMap);
+  // perks re-read fresh: Grove purchases made since boot apply to THIS new run
+  state = createGame(activeMap, undefined, perksFromMeta(loadMeta()));
   rebuildMap(state);
   fx.clear();
   sfx.click();
@@ -279,7 +320,7 @@ if (resumed) {
 }
 initScreens(() => {
   clearRunSave();
-  state = createGame(activeMap);
+  state = createGame(activeMap, undefined, perksFromMeta(loadMeta()));
   rebuildMap(state);
   fx.clear();
 });
@@ -387,6 +428,7 @@ function update(dt: number): void {
   updateClouds(state, dt);
   updateWizards(state, dt);
   updateProjectiles(state, dt);
+  updateSpells(state, dt); // spell CC lands before enemies take their step
   updateEnemies(state, dt);
   fx.update(dt);
 }
@@ -402,6 +444,7 @@ function render(): void {
   draw3d(state);
   updatePlaceConfirm();
   updateHud(state);
+  updateSpellbar(state);
   updateShop(state);
   updateTowerPanel(state);
   updateDraft(state);
@@ -467,6 +510,19 @@ Object.defineProperty(window, '__game', { get: () => state });
   const w = makeWizard(state, def, cx, cy);
   state.wizards.push(w);
   return w.id;
+};
+(window as any).__cast = (id: string, x = 0, y = 0) => castSpell(state, id, x, y);
+(window as any).__spawn = (type: string, dist = 200) => {
+  const def = ENEMIES[type];
+  if (!def) return null;
+  const p = state.track.posAt(Math.min(dist, state.track.total - 1));
+  const e = {
+    id: state.nextId++, def, hp: def.hp, maxHp: def.hp, dist,
+    x: p.x, y: p.y, statuses: {}, wobble: 0, animT: 0, angle: p.angle, hitFlash: 0,
+    armorHp: def.armor,
+  };
+  state.enemies.push(e as any);
+  return e.id;
 };
 (window as any).__specialize = (wizardId: number, defId: string) => {
   const w = findWizard(state, wizardId);

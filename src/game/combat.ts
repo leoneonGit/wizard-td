@@ -384,7 +384,7 @@ function impact(state: GameState, p: { x: number; y: number; tx: number; ty: num
 }
 
 /** Full hit: reaction check -> damage -> status application. */
-function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number, element: ElementId): void {
+export function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number, element: ElementId): void {
   // Shatter: fire on chilled/frozen
   if (element === 'fire' && (e.statuses.chill || e.statuses.frozen)) {
     delete e.statuses.chill;
@@ -396,7 +396,7 @@ function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number
     sfx.shatter();
   }
   dealDamage(state, e, dmg, element, w);
-  if (w && e.hp > 0) applyStatusesFromWizard(state, w, e);
+  if (w && e.hp > 0 && !e.shieldActive) applyStatusesFromWizard(state, w, e); // no statuses through the carapace
 }
 
 // ---------------------------------------------------------------- statuses
@@ -472,15 +472,32 @@ export function applyChillStack(state: GameState, e: Enemy, pct: number): void {
 
 // ---------------------------------------------------------------- damage & death
 
+/** Grove perk: towers of the player's attuned element hit harder (source-attributed only). */
+function attunementMult(state: GameState, src?: Wizard): number {
+  return src && state.perks.attuneElement === src.def.element ? 1 + state.perks.attunePct / 100 : 1;
+}
+
 export function dealDamage(state: GameState, e: Enemy, amount: number, element: ElementId, src?: Wizard): void {
   if (e.hp <= 0) return;
+
+  // Cinder Carapace: while the shield is up, EVERY hit is eaten whole — but each
+  // blocked hit chips at the shield's patience (hits counter shatters it early)
+  if (e.shieldActive) {
+    e.shieldHits = (e.shieldHits ?? 0) + 1;
+    e.hitFlash = 0.08;
+    fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 14, 'Blocked!', '#ffb163', 11);
+    sfx.armorClank();
+    if (e.shieldHits >= (e.def.periodicShield?.hits ?? Infinity)) shatterShield(state, e);
+    return;
+  }
 
   // boss armor: while the shell holds, only PHYSICAL damage chips it — everything
   // else patters off at 10%. Break it, then do whatever you want.
   if (e.armorHp !== undefined && e.armorHp > 0) {
     const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
     const condMult = conditionalDamageMult(state, src, e);
-    const chip = amount * rattleMult * condMult * (element === 'physical' ? 1 : 0.1);
+    const attuneMult = attunementMult(state, src);
+    const chip = amount * rattleMult * condMult * attuneMult * (element === 'physical' ? 1 : 0.1);
     e.armorHp -= chip;
     e.hitFlash = 0.12;
     // ?? 0: saves from before the void element lack its stats bucket
@@ -503,7 +520,7 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   const condMult = conditionalDamageMult(state, src, e); // hunter cards: vs status / vs healthy
   // archers were born for the sky
   const airMult = e.def.flying && src?.def.family === 'archer' ? 1.5 : 1;
-  let dealt = amount * mult * rattleMult * condMult * airMult;
+  let dealt = amount * mult * rattleMult * condMult * airMult * attunementMult(state, src);
   // shieldbearer's ward: no single hit can exceed the cap
   if (e.wardCap !== undefined && dealt > e.wardCap) {
     dealt = e.wardCap;
@@ -539,6 +556,17 @@ function spawnAtDist(state: GameState, type: string, dist: number): Enemy | null
   return e;
 }
 
+/** The carapace gives way — timed out or battered down early. shieldHits is
+ *  deliberately NOT reset: it holds the "already shattered this window" mark
+ *  so the shield can't re-arm until a fresh cycle clears it. */
+function shatterShield(state: GameState, e: Enemy): void {
+  e.shieldActive = false;
+  fx.floater(e.x, e.y - 32, 'Shield shatters!', '#ffd75e', 14);
+  fx.burst(e.x, e.y, '#ff9b4a', 18, 170, 3.5, 0.5);
+  fx.ring(e.x, e.y, '#ff7b00', 48);
+  sfx.bossRoar();
+}
+
 /** The shell gives — full damage flows from here on, and the Colossus births its heartlings. */
 function breakArmor(state: GameState, e: Enemy): void {
   e.armorHp = 0;
@@ -553,7 +581,9 @@ function breakArmor(state: GameState, e: Enemy): void {
 
 function kill(state: GameState, e: Enemy, src?: Wizard): void {
   const actBounty = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)].bounty;
-  const bounty = Math.round(e.def.bounty * (state.waveModifier?.bountyMult ?? 1) * actBounty) + state.bountyBonus;
+  const bounty = Math.round(
+    e.def.bounty * (state.waveModifier?.bountyMult ?? 1) * actBounty * (1 + state.perks.bountyPct / 100),
+  ) + state.bountyBonus;
   state.gold += bounty;
   state.stats.kills++;
   fx.floater(e.x, e.y - 22, `+${bounty}`, '#ffd75e', 12);
@@ -761,6 +791,48 @@ export function updateEnemies(state: GameState, dt: number): void {
       }
     }
 
+    // Cinder Carapace: shields up for the LAST stretch of each cycle, so a fresh
+    // boss is hittable first. Blocked hits are counted in dealDamage; the timer
+    // here raises the shield and retires it when the window closes.
+    if (e.def.periodicShield) {
+      const ps = e.def.periodicShield;
+      e.shieldT = (e.shieldT ?? 0) + dt;
+      const inWindow = e.shieldT % ps.period > ps.period - ps.duration;
+      if (inWindow && !e.shieldActive && (e.shieldHits ?? 0) === 0) {
+        // shieldHits === 0 gates the re-arm: a shield battered down early leaves its
+        // hit count standing until the window closes, so it stays down this cycle
+        e.shieldActive = true;
+        fx.floater(e.x, e.y - 34, '🛡 CINDER CARAPACE!', '#ff9b4a', 15);
+        fx.ring(e.x, e.y, '#ff7b00', 60);
+        sfx.armorClank();
+      } else if (!inWindow && e.shieldActive) {
+        shatterShield(state, e); // window closed — the shield burns out on its own
+      }
+      if (!inWindow) e.shieldHits = 0; // new cycle, clean slate
+      if (e.shieldActive) {
+        // steady ember pulse telegraphs "this is a shield, not a bug"
+        const c = e.shieldT % 0.4;
+        if (c < dt) fx.ring(e.x, e.y, '#ff7b00', 34);
+      }
+    }
+
+    // Heartstones: at each hp threshold the Colossus plants a pair of heal-crystals
+    // beside itself. A single huge hit can cross two thresholds — plant both pairs.
+    if (e.def.hpPhases) {
+      const hpp = e.def.hpPhases;
+      let idx = e.phaseIdx ?? 0;
+      while (idx < hpp.thresholds.length && e.hp <= e.maxHp * hpp.thresholds[idx]) {
+        idx++;
+        fx.floater(e.x, e.y - 40, '💗 Heartstones erupt!', '#ff9db5', 15);
+        fx.ring(e.x, e.y, '#e05a7a', 90);
+        sfx.healChime();
+        for (let i = 0; i < hpp.count; i++) {
+          spawnAtDist(state, hpp.type, e.dist + (i % 2 === 0 ? -45 : 45) * (1 + Math.floor(i / 2)));
+        }
+      }
+      e.phaseIdx = idx;
+    }
+
     // wraiths slip out of reality on a cycle (phased at the END of each period,
     // so a fresh spawn is targetable for a few seconds first)
     if (e.def.phase) {
@@ -801,11 +873,15 @@ export function updateEnemies(state: GameState, dt: number): void {
       st.snared.t -= dt;
       if (st.snared.t <= 0) delete st.snared;
     }
+    if (st.stunned) {
+      st.stunned.t -= dt;
+      if (st.stunned.t <= 0) delete st.stunned;
+    }
     if (e.hp <= 0) continue;
 
     // movement
     let factor = 1;
-    if (st.frozen || st.entangled) factor = 0;
+    if (st.frozen || st.entangled || st.stunned) factor = 0;
     else if (st.chill) factor = Math.max(0.25, 1 - st.chill.pct * (0.6 + 0.2 * st.chill.stacks));
     if (factor > 0 && st.snared) factor *= Math.max(0.2, 1 - st.snared.pct); // stacks with chill
     factor *= e.hasteMul ?? 1; // the war drums
@@ -869,6 +945,7 @@ function leak(state: GameState, e: Enemy): void {
 
 /** Burn ticks bypass reaction logic but still respect resistances (and Rattled); kills pay bounty. */
 function dealBurnTick(state: GameState, e: Enemy, amount: number): void {
+  if (e.shieldActive) return; // blocked, but 60 ticks/s must NOT count as shield hits
   if (e.armorHp !== undefined && e.armorHp > 0) return; // flames patter off the shell
   const mult = e.def.resist.fire ?? 1;
   const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);

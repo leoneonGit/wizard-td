@@ -3,7 +3,7 @@ import { ELITE_MODIFIERS } from '../data/waves';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
 import {
-  applyRelic, drawDraft, drawRelics, type GameState,
+  applyRelic, draftCount, drawDraft, drawRelics, type GameState,
 } from './state';
 import type { WaveModifier } from './types';
 
@@ -31,7 +31,7 @@ export function resolveEventChoice(state: GameState, effect: string): void {
     }
     case 'blood_pact': {
       state.lives = Math.max(1, state.lives - 3);
-      state.pendingDraft = drawDraft(state, 3, true);
+      state.pendingDraft = drawDraft(state, draftCount(state), true);
       state.eliteDraft = true;
       state.phase = 'draft';
       sfx.leak();

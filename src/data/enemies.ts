@@ -149,17 +149,30 @@ export const ENEMIES: Record<string, EnemyDef> = {
     // stun grenades: every 2s he lobs one at a random tower ANYWHERE — 3s of silence
     hexes: { period: 2, duration: 3, radius: 9999 },
   },
-  // Act 2 finale: burns cannot touch it, cold slides off — lightning/physical/water day
+  // Act 2 finale: burns cannot touch it, cold slides off — lightning/physical/water day.
+  // Cinder Carapace: periodically hardens — hits are BLOCKED but counted; land 10 fast
+  // hits and it shatters early. Rewards rapid-fire builds over slow nukers.
   pyretitan: {
     id: 'pyretitan', name: 'Pyre Titan', hp: 4800, speed: 24, radius: 26, bounty: 350,
     color: '#c25a2e', resist: { fire: 0.0, lightning: 1.15 }, boss: true, leakCost: 10,
     innateImmune: ['burn', 'chill'],
+    periodicShield: { period: 9, duration: 4, hits: 10 },
   },
   // Act 3 finale, THE boss: armored AND fire-hardened AND cold-proof.
-  // Cracking the shell releases its heartlings.
+  // Cracking the shell releases its heartlings — and wounds erupt into Heartstones
+  // (75/50/25% hp) that heal it until sniped.
   colossus: {
     id: 'colossus', name: 'Dread Colossus', hp: 8600, speed: 20, radius: 30, bounty: 600,
     color: '#3d2f5e', resist: { fire: 0.5 }, boss: true, armor: 1600, leakCost: 25,
     innateImmune: ['chill'], armorBreakSpawns: ['golemling', 'golemling', 'golemling'],
+    hpPhases: { thresholds: [0.75, 0.5, 0.25], type: 'heartstone', count: 2 },
+  },
+  // The Colossus' pulsing heal-crystal: rooted to the road, never leaks, holds the
+  // wave open until destroyed. Snipe it or the boss drinks deep.
+  heartstone: {
+    id: 'heartstone', name: 'Heartstone', hp: 130, speed: 0, radius: 12, bounty: 25,
+    color: '#e05a7a', resist: {},
+    aura: { kind: 'heal', radius: 150, power: 0.02, period: 1 },
+    leakCost: 0,
   },
 };

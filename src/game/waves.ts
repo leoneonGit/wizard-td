@@ -5,7 +5,7 @@ import {
 } from '../data/waves';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
-import { drawDraft, drawRelics, isCampaign, relicSpecial, type GameState } from './state';
+import { draftCount, drawDraft, drawRelics, isCampaign, relicSpecial, type GameState } from './state';
 import type { StatusId, WaveModifier } from './types';
 import { saveRun } from './save';
 
@@ -120,14 +120,13 @@ export function updateWave(state: GameState, dt: number): void {
         }
       }
       if (wasTreasure) {
-        // treasure clear: the reward IS the relic — pick 1 of 2
-        state.pendingRelicDraft = drawRelics(state, 2);
+        // treasure clear: the reward IS the relic — pick 1 of 2 (3 with Treasure Trove)
+        state.pendingRelicDraft = drawRelics(state, state.perks.trove ? 3 : 2);
         state.phase = 'relic';
       } else {
         // Slay-the-Spire moment: reveal 3 cards (elite clears draw rare-only;
-        // Cursed Hourglass relic widens every draft to 4)
-        const count = relicSpecial(state, 'draft4') ? 4 : 3;
-        state.pendingDraft = drawDraft(state, count, wasElite);
+        // Cursed Hourglass relic / Wider Draft perk widen every draft to 4)
+        state.pendingDraft = drawDraft(state, draftCount(state), wasElite);
         state.eliteDraft = wasElite;
         state.phase = 'draft';
       }

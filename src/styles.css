@@ -686,6 +686,173 @@ body[data-hint='1'] #zoom-controls button {
   cursor: pointer;
 }
 
+/* ---- Warden's Grove (meta-progression shop) ---- */
+#grove-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 8, 20, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30; /* above the game-over overlay (25) — the Grove opens over it */
+}
+#grove-modal.hidden { display: none; }
+#grove-inner {
+  background: #1e1b2e;
+  border: 1px solid #55409e;
+  border-radius: 14px;
+  padding: 18px 20px;
+  width: min(560px, 94%);
+  max-height: 92%;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+#grove-inner h2 { color: #8bd97a; font-size: 20px; margin-bottom: 6px; text-align: center; }
+#gv-balance { text-align: center; font-size: 15px; color: #ffd75e; margin-bottom: 12px; }
+#gv-lifetime { color: #9a92b5; font-size: 12px; }
+#gv-perks { display: flex; flex-direction: column; gap: 8px; }
+.gv-perk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #14121f;
+  border: 1px solid #3d3660;
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.gv-icon { font-size: 22px; flex: 0 0 auto; }
+.gv-info { flex: 1; min-width: 0; }
+.gv-name { font-size: 13.5px; font-weight: 700; }
+.gv-pips { color: #8bd97a; letter-spacing: 2px; font-size: 11px; margin-left: 4px; }
+.gv-desc { font-size: 11.5px; color: #9a92b5; line-height: 1.35; }
+.gv-buy {
+  flex: 0 0 auto;
+  min-width: 64px;
+  min-height: 38px;
+  background: linear-gradient(180deg, #3f7a4a, #2c5e38);
+  border: 1px solid #7dff9b;
+  border-radius: 8px;
+  color: #d9ffe3;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gv-buy:disabled { background: #262138; border-color: #3d3660; color: #7a7290; cursor: default; }
+.gv-maxed { flex: 0 0 auto; color: #ffd75e; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.gv-attune { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.gv-el {
+  background: #1e1b2e;
+  border: 1px solid;
+  border-radius: 6px;
+  color: #e8e2d5;
+  font-size: 10.5px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.gv-el.active { font-weight: 700; }
+#gv-note { font-size: 11px; color: #7a7290; text-align: center; margin: 12px 0 10px; }
+#gv-close {
+  width: 100%;
+  min-height: 42px;
+  background: #14121f;
+  border: 1px solid #3d3660;
+  border-radius: 8px;
+  color: #b5aed0;
+  font-size: 14px;
+  cursor: pointer;
+}
+#gv-close:hover { border-color: #8a7aff; color: #fff; }
+
+#btn-grove-over {
+  margin-left: 10px;
+  background: #1e2e1e;
+  border: 1px solid #4a7a4a;
+  color: #a8dfa8;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#btn-grove-over:hover { border-color: #7dff9b; }
+#btn-grove {
+  background: #14121f;
+  border: 1px solid #3d3660;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 8px;
+}
+.sum-essence { color: #8bd97a; font-size: 14px; }
+
+/* ---- draft footer (skip + reroll) ---- */
+#draft-footer { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+#draft-footer #draft-skip { margin-top: 0; }
+#draft-reroll {
+  background: #14121f;
+  border: 1px solid #8a7aff;
+  color: #c9b8ff;
+  padding: 8px 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#draft-reroll:hover { background: #262138; color: #fff; }
+
+/* ---- Warden Spell bar (board overlay, above the placement confirm band) ---- */
+#spell-bar {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 6;
+}
+#spell-bar.hidden { display: none; }
+.spell-btn {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  border: 2px solid #55409e;
+  background: rgba(30, 27, 46, 0.9);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.spell-btn .sp-key {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #9a92b5;
+}
+.spell-btn .sp-cd {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 8, 20, 0.72);
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8e2d5;
+}
+.spell-btn.ready { border-color: #8bd97a; box-shadow: 0 0 12px rgba(139, 217, 122, 0.35); }
+.spell-btn.casting { border-color: #ffd75e; box-shadow: 0 0 14px rgba(255, 215, 94, 0.55); }
+.spell-btn:disabled { cursor: default; }
+.spell-btn.pop { animation: spell-pop 0.6s ease; }
+@keyframes spell-pop {
+  0% { transform: scale(0.2); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
 /* ================================================================
    RESPONSIVE — these live last so they beat every base rule above.
    ================================================================ */
@@ -712,7 +879,7 @@ body[data-hint='1'] #zoom-controls button {
   #btn-start { min-height: 48px; font-size: 12.5px; }
   .btn-speed, #autoplay-label { min-height: 32px; padding: 5px 0; font-size: 12px; }
   #wave-preview { -webkit-line-clamp: 2; font-size: 9.5px; }
-  #map-row { display: none; } /* map picking is a desktop pastime */
+  #map-select { display: none; } /* map picking is a desktop pastime — Grove/New Run stay */
   .draft-card { width: min(38vw, 168px); padding: 12px 8px; }
   .dc-desc { min-height: 0; }
   #draft-inner h2 { font-size: 18px; padding: 0 12px; }

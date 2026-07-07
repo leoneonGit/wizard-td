@@ -1,6 +1,7 @@
 import { ELEMENTS } from '../data/elements';
 import { CARDS } from '../data/cards';
 import { clearRunSave } from '../game/save';
+import { addEssence, essenceForRun, loadMeta } from '../game/meta';
 import type { GameState } from '../game/state';
 import type { ElementId } from '../game/types';
 
@@ -27,16 +28,21 @@ export function updateScreens(state: GameState): void {
   }
   overlay.classList.remove('hidden');
   clearRunSave(); // the run is over either way
+  // bank the run's essence exactly once (this block only fires on the phase transition)
+  const meta = loadMeta();
+  const earned = essenceForRun(state.stats, state.act, want === 'won');
+  addEssence(meta, earned);
+  const essenceLine = `<div class="sum-line sum-essence">✦ Essence earned <b>+${earned}</b> · grove total ${meta.essence}</div>`;
   if (want === 'won') {
     title.textContent = '🏆 Victory!';
-    text.innerHTML = `The realm stands! ${state.lives} lives to spare.${summaryHtml(state)}`;
+    text.innerHTML = `The realm stands! ${state.lives} lives to spare.${summaryHtml(state, essenceLine)}`;
   } else {
     title.textContent = '💀 Defeat';
-    text.innerHTML = `The horde broke through on wave ${state.round + 1}.${summaryHtml(state)}`;
+    text.innerHTML = `The horde broke through on wave ${state.round + 1}.${summaryHtml(state, essenceLine)}`;
   }
 }
 
-function summaryHtml(state: GameState): string {
+function summaryHtml(state: GameState, essenceLine = ''): string {
   const s = state.stats;
   const dmg = Object.entries(s.dmgByElement).filter(([, v]) => v > 0) as [ElementId, number][];
   dmg.sort((a, b) => b[1] - a[1]);
@@ -59,6 +65,7 @@ function summaryHtml(state: GameState): string {
   const r = s.reactions;
   return `
     <div id="run-summary">
+      ${essenceLine}
       <div class="sum-line">Waves <b>${s.wavesCleared}</b> · Kills <b>${s.kills}</b> · Leaks <b>${s.leaks}</b></div>
       <div class="sum-line">💫 Conduct ×${r.conduct} · 💎 Shatter ×${r.shatter} · ♨️ Evaporate ×${r.evaporate} · 🧊 Frozen ×${r.frozen}</div>
       ${bars ? `<div class="sum-section">Damage by element</div>${bars}` : ''}

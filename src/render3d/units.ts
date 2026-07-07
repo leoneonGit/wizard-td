@@ -44,6 +44,8 @@ interface UnitView {
   flapWings?: THREE.Mesh[];
   /** slime: squash-and-stretch instead of a walk cycle */
   blob?: boolean;
+  /** heartstone: rooted crystal, pulses gently in place */
+  crystal?: boolean;
   height: number;
 }
 
@@ -166,6 +168,55 @@ function makeBlobView(look: UnitLook): UnitView {
   };
 }
 
+/** Heartstones are rooted heal-crystals: a glowing octahedron on a rock base. */
+function makeCrystalView(look: UnitLook): UnitView {
+  const root = new THREE.Group();
+  const inner = new THREE.Group();
+  root.add(inner);
+  const color = look.tint ?? new THREE.Color('#e05a7a');
+  const mat = new THREE.MeshStandardMaterial({
+    color,
+    emissive: color.clone().multiplyScalar(0.55),
+    roughness: 0.2,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(look.height * 0.42), mat);
+  gem.position.y = look.height * 0.62;
+  gem.castShadow = true;
+  inner.add(gem);
+  // smaller side shards give it a grown-from-the-road silhouette
+  for (const [dx, dz, s] of [[0.28, 0.1, 0.5], [-0.24, -0.14, 0.4]] as const) {
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(look.height * 0.42 * s), mat);
+    shard.position.set(dx * look.height, look.height * 0.3 * s + 0.05, dz * look.height);
+    shard.castShadow = true;
+    inner.add(shard);
+  }
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(look.height * 0.34, look.height * 0.44, look.height * 0.16, 7),
+    new THREE.MeshStandardMaterial({ color: '#4a4252', roughness: 1 }),
+  );
+  base.position.y = look.height * 0.08;
+  base.castShadow = true;
+  inner.add(base);
+  return {
+    root,
+    inner,
+    mats: [mat],
+    origColors: [mat.color.clone()],
+    baseEmissive: mat.emissive.clone(),
+    yaw: 0,
+    casting: false,
+    cheering: false,
+    becalmed: false,
+    watery: false,
+    prevRecoil: 0,
+    crystal: true,
+    height: look.height,
+  };
+}
+
 /** Vehicles are procedural wheel-and-plank rigs — no skeleton, they roll and rock. */
 function makeVehicleView(look: UnitLook): UnitView {
   const asset = getAttachment(look.vehicle!);
@@ -208,6 +259,7 @@ function makeVehicleView(look: UnitLook): UnitView {
 function makeView(look: UnitLook): UnitView {
   if (look.vehicle) return makeVehicleView(look);
   if (look.blob) return makeBlobView(look);
+  if (look.crystal) return makeCrystalView(look);
   const asset = getAsset(look.model);
   const inner = SkeletonUtils.clone(asset.scene) as THREE.Group;
   const s = asset.unitScale * look.height;
@@ -463,6 +515,12 @@ function syncEnemies(state: GameState, dt: number): void {
     if (v.blob) {
       const b = Math.abs(Math.sin(e.animT * 6));
       v.inner.scale.set(1 + 0.14 * b, 1 - 0.18 * b, 1 + 0.14 * b);
+    }
+    if (v.crystal) {
+      // a slow heartbeat — in time with the heal it pumps out
+      const b = 1 + Math.sin(performance.now() / 320 + e.id) * 0.06;
+      v.inner.scale.setScalar(b);
+      v.inner.rotation.y += dt * 0.6;
     }
     // spawn scale-in
     const cur = v.root.scale.x;
