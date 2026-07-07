@@ -86,6 +86,9 @@ function hintFor(type: string): string {
     case 'pyretitan': return ' <i>(BOSS — fire-immune, periodically SHIELDS: pelt it with fast attacks!)</i>';
     case 'colossus': return ' <i>(THE BOSS — armored, fire-hardened, plants healing Heartstones: snipe them!)</i>';
     case 'heartstone': return ' <i>(heal-crystal — destroy it fast!)</i>';
+    case 'frostshaman': return ' <i>(his cold SLOWS your towers — kill him first!)</i>';
+    case 'burrower': return ' <i>(tunnels underground — untargetable and fast below!)</i>';
+    case 'mirrorslime': return ' <i>(magic kills SPLIT it — finish with physical!)</i>';
     case 'orcbrute': return ' <i>(armored — physical!)</i>';
     case 'troll': return ' <i>(armored + REGENERATES — crack, then burst!)</i>';
     case 'warwagon': return ' <i>(carrier — kill it EARLY, leaks -8!)</i>';

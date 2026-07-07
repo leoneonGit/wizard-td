@@ -50,6 +50,22 @@ function cloudNear(state: GameState, w: Wizard): boolean {
 export function updateWizards(state: GameState, dt: number): void {
   state.clock += dt; // run clock — drives periodic frenzy proc cards
 
+  // frost shamans chill the TOWERS — recompute the aura like the enemy-side ones
+  let frostSources: Enemy[] | null = null;
+  for (const e of state.enemies) {
+    if (e.def.frostAura && e.hp > 0) (frostSources ??= []).push(e);
+  }
+  for (const w of state.wizards) {
+    w.frostMul = 1;
+    if (!frostSources) continue;
+    for (const e of frostSources) {
+      const fa = e.def.frostAura!;
+      if ((w.x - e.x) ** 2 + (w.y - e.y) ** 2 <= fa.radius * fa.radius) {
+        w.frostMul = Math.max(w.frostMul, fa.rateMul);
+      }
+    }
+  }
+
   for (const w of state.wizards) {
     if (w.pendingSpecialize) continue; // idle shell — does nothing until specialized
 
@@ -71,10 +87,15 @@ export function updateWizards(state: GameState, dt: number): void {
       }
     }
 
+    // a frost-chilled tower shows its sluggishness now and then (render juice only)
+    if ((w.frostMul ?? 1) > 1 && Math.random() < dt * 0.4) {
+      fx.floater(w.x, w.y - 30, '❄ chilled', '#a8dcf0', 10);
+    }
+
     // aura casters (water tide / wind gust / gong rattle) need no single target
     if (w.def.auraKind) {
       if (w.cooldown <= 0 && enemiesInRange(state, w.x, w.y, w.stats.range).length > 0) {
-        w.cooldown = w.stats.rate * frenzyRateMul(state, w);
+        w.cooldown = w.stats.rate * frenzyRateMul(state, w) * (w.frostMul ?? 1);
         w.recoil = 0.18;
         const mult = attackProcMult(state, w);
         if (w.def.auraKind === 'tide') tideAttack(state, w, mult);
@@ -88,7 +109,7 @@ export function updateWizards(state: GameState, dt: number): void {
     if (target) {
       w.aim = Math.atan2(target.y - w.y, target.x - w.x);
       if (w.cooldown <= 0) {
-        w.cooldown = w.stats.rate * frenzyRateMul(state, w);
+        w.cooldown = w.stats.rate * frenzyRateMul(state, w) * (w.frostMul ?? 1);
         w.recoil = 0.18;
         attack(state, w, target);
       }
@@ -533,7 +554,7 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
     const col = mult > 1 ? '#ffe08a' : mult < 1 ? '#8899aa' : '#ffffff';
     fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(dealt)), col, mult > 1 ? 12 : 10);
   }
-  if (e.hp <= 0) kill(state, e, src);
+  if (e.hp <= 0) kill(state, e, src, element);
 }
 
 /** Reinforcement spawn mid-track (armor-break heartlings, carrier payloads). */
@@ -579,7 +600,7 @@ function breakArmor(state: GameState, e: Enemy): void {
   }
 }
 
-function kill(state: GameState, e: Enemy, src?: Wizard): void {
+function kill(state: GameState, e: Enemy, src?: Wizard, element?: ElementId): void {
   const actBounty = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)].bounty;
   const bounty = Math.round(
     e.def.bounty * (state.waveModifier?.bountyMult ?? 1) * actBounty * (1 + state.perks.bountyPct / 100),
@@ -625,6 +646,16 @@ function kill(state: GameState, e: Enemy, src?: Wizard): void {
       fx.burst(e.x, e.y, '#7a5c38', 18, 150, 4, 0.6);
     }
     e.def.deathSpawns.forEach((id, i) => spawnAtDist(state, id, e.dist - 8 - i * 14));
+  }
+  // the Mirror Slime punishes magic: an elemental deathblow fissions it into
+  // reflections — only PHYSICAL kills put it down for good
+  if (e.def.splitOnElemental && element && element !== 'physical') {
+    sfx.squish();
+    fx.floater(e.x, e.y - 30, 'It splits!', '#b8e0e8', 13);
+    fx.burst(e.x, e.y, '#d4f0f6', 14, 120, 3.5, 0.5);
+    for (let i = 0; i < e.def.splitOnElemental.count; i++) {
+      spawnAtDist(state, e.def.splitOnElemental.type, e.dist - 6 - i * 12);
+    }
   }
   onKillProcs(state, e, src);
 }
@@ -834,13 +865,27 @@ export function updateEnemies(state: GameState, dt: number): void {
     }
 
     // wraiths slip out of reality on a cycle (phased at the END of each period,
-    // so a fresh spawn is targetable for a few seconds first)
+    // so a fresh spawn is targetable for a few seconds first); burrowers use the
+    // same clock but dive under the road instead
     if (e.def.phase) {
       e.phaseT = (e.phaseT ?? 0) + dt;
       const c = e.phaseT % e.def.phase.period;
       const wasPhased = e.phased;
       e.phased = c > e.def.phase.period - e.def.phase.duration;
-      if (e.phased !== wasPhased) sfx.phaseShimmer();
+      if (e.phased !== wasPhased) {
+        if (e.def.burrowSpeedMul) {
+          sfx.thud();
+          fx.burst(e.x, e.y + 4, '#8a6a42', 12, 90, 3.5, 0.5); // a spray of earth
+          fx.ring(e.x, e.y, '#8a6a42', 20);
+        } else {
+          sfx.phaseShimmer();
+        }
+      }
+    }
+
+    // the Frost Shaman's cold radiates over YOUR towers — pulse the telltale ring
+    if (e.def.frostAura && e.animT % 1.4 < dt) {
+      fx.ring(e.x, e.y, '#a8dcf0', e.def.frostAura.radius * 0.55);
     }
 
     // tick statuses
@@ -885,6 +930,7 @@ export function updateEnemies(state: GameState, dt: number): void {
     else if (st.chill) factor = Math.max(0.25, 1 - st.chill.pct * (0.6 + 0.2 * st.chill.stacks));
     if (factor > 0 && st.snared) factor *= Math.max(0.2, 1 - st.snared.pct); // stacks with chill
     factor *= e.hasteMul ?? 1; // the war drums
+    if (e.phased && e.def.burrowSpeedMul) factor *= e.def.burrowSpeedMul; // tunneling is FAST
 
     e.animT += factor * dt; // walk cycle slows/freezes with the enemy
     if (e.hitFlash > 0) e.hitFlash -= dt;
@@ -952,5 +998,5 @@ function dealBurnTick(state: GameState, e: Enemy, amount: number): void {
   const dealt = amount * mult * rattleMult;
   e.hp -= dealt;
   state.stats.dmgByElement.fire += dealt;
-  if (e.hp <= 0) kill(state, e);
+  if (e.hp <= 0) kill(state, e, undefined, 'fire');
 }

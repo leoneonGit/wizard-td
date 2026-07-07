@@ -64,6 +64,7 @@ export const ACT_WAVES: WaveDef[][] = [
     ],
     [
       { type: 'runner', count: 24, gap: 0.32, delay: 0 },
+      { type: 'burrower', count: 3, gap: 1.5, delay: 3 }, // they tunnel PAST your kill zone
       { type: 'thief', count: 1, gap: 0, delay: 5 }, // he's after your GOLD
     ],
     // first WAR WAGON — kill it early or fight its orcs deep in your lines
@@ -75,6 +76,7 @@ export const ACT_WAVES: WaveDef[][] = [
     [
       { type: 'knight', count: 8, gap: 0.8, delay: 0 },
       { type: 'orcshaman', count: 2, gap: 6, delay: 2 },
+      { type: 'frostshaman', count: 1, gap: 0, delay: 3 }, // his cold slows YOUR towers
       { type: 'gargoyle', count: 5, gap: 1.0, delay: 3 },
       { type: 'orcraider', count: 12, gap: 0.45, delay: 4 },
     ],
@@ -93,9 +95,10 @@ export const ACT_WAVES: WaveDef[][] = [
     [
       { type: 'orcraider', count: 16, gap: 0.35, delay: 0 },
       { type: 'orcshaman', count: 2, gap: 5, delay: 2 },
+      { type: 'frostshaman', count: 2, gap: 8, delay: 2 },
       { type: 'gargoyle', count: 6, gap: 0.9, delay: 3 },
       { type: 'shieldbearer', count: 1, gap: 0, delay: 4 },
-      { type: 'orcbrute', count: 3, gap: 2.2, delay: 5 },
+      { type: 'burrower', count: 4, gap: 1.4, delay: 5 },
       { type: 'knight', count: 6, gap: 0.9, delay: 9 },
     ],
     // BOSS: the Pyre Titan — burns cannot touch it, cold slides off
@@ -118,6 +121,7 @@ export const ACT_WAVES: WaveDef[][] = [
     [
       { type: 'wraith', count: 6, gap: 1.0, delay: 0 }, // they slip between your shots
       { type: 'banshee', count: 2, gap: 4, delay: 2 }, // kill her AWAY from your towers
+      { type: 'mirrorslime', count: 1, gap: 0, delay: 3 }, // magic splits it — hit it with STONE
       { type: 'runner', count: 12, gap: 0.4, delay: 4 },
     ],
     [
@@ -140,6 +144,7 @@ export const ACT_WAVES: WaveDef[][] = [
     ],
     [
       { type: 'troll', count: 2, gap: 8, delay: 0 },
+      { type: 'frostshaman', count: 2, gap: 7, delay: 1 },
       { type: 'drake', count: 4, gap: 1.2, delay: 2 },
       { type: 'banshee', count: 2, gap: 4, delay: 3 },
       { type: 'wraith', count: 6, gap: 0.9, delay: 3 },
@@ -156,16 +161,20 @@ export const ACT_WAVES: WaveDef[][] = [
       { type: 'drake', count: 4, gap: 1.1, delay: 1 },
       { type: 'orcshaman', count: 2, gap: 5, delay: 2 },
       { type: 'shieldbearer', count: 1, gap: 0, delay: 3 },
+      { type: 'burrower', count: 5, gap: 1.2, delay: 4 },
+      { type: 'mirrorslime', count: 2, gap: 7, delay: 5 },
       { type: 'troll', count: 1, gap: 0, delay: 6 },
       { type: 'runner', count: 12, gap: 0.4, delay: 8 },
     ],
     [
       { type: 'siegetower', count: 2, gap: 12, delay: 0 },
       { type: 'wardrummer', count: 2, gap: 8, delay: 2 },
+      { type: 'frostshaman', count: 2, gap: 9, delay: 2 },
       { type: 'necromancer', count: 2, gap: 9, delay: 3 },
       { type: 'banshee', count: 3, gap: 3, delay: 3 },
       { type: 'orcraider', count: 16, gap: 0.35, delay: 4 },
       { type: 'drake', count: 5, gap: 1.0, delay: 6 },
+      { type: 'mirrorslime', count: 2, gap: 8, delay: 7 },
       { type: 'orcbrute', count: 4, gap: 2.2, delay: 8 },
     ],
     // THE BOSS: the Dread Colossus rides with the whole war machine — and the sky burns.

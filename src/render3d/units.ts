@@ -46,6 +46,10 @@ interface UnitView {
   blob?: boolean;
   /** heartstone: rooted crystal, pulses gently in place */
   crystal?: boolean;
+  /** burrower: dips below the ground while phased */
+  burrow?: boolean;
+  /** current burrow depth (smoothed toward 0 or the buried depth) */
+  sink?: number;
   height: number;
 }
 
@@ -491,6 +495,7 @@ function syncEnemies(state: GameState, dt: number): void {
       const look = ENEMY_LOOKS[e.def.id] ?? ENEMY_LOOKS.grunt;
       v = makeView(look);
       v.ghostly = look.ghostly;
+      v.burrow = look.burrower;
       makeHpBar(v);
       v.walk?.play();
       v.yaw = headingToYaw(e.angle);
@@ -499,9 +504,13 @@ function syncEnemies(state: GameState, dt: number): void {
       // spawn pop
       v.root.scale.setScalar(0.01);
     }
-    // position + facing (flyers soar with a gentle bob)
+    // position + facing (flyers soar with a gentle bob; burrowers duck below the road)
     const flyY = e.def.flying ? 1.05 + Math.sin(performance.now() / 380 + e.id) * 0.12 : 0;
-    v.root.position.set(e.x * PX, flyY, e.y * PX);
+    if (v.burrow) {
+      const target = e.phased ? -0.72 : 0;
+      v.sink = (v.sink ?? 0) + (target - (v.sink ?? 0)) * Math.min(1, dt * 7);
+    }
+    v.root.position.set(e.x * PX, flyY + (v.sink ?? 0), e.y * PX);
     const targetYaw = headingToYaw(e.angle);
     v.yaw += shortestAngle(v.yaw, targetYaw) * Math.min(1, dt * 10);
     v.root.rotation.y = v.yaw;

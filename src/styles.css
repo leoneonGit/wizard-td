@@ -347,7 +347,7 @@ body[data-act='2'] #board-wrap::after {
 }
 #autoplay-label:has(input:checked) { border-color: #c9b8ff; color: #fff; background: #322a52; }
 
-#audio-row { display: flex; gap: 5px; align-items: center; flex: 0 0 auto; }
+#audio-row, #music-row { display: flex; gap: 5px; align-items: center; flex: 0 0 auto; }
 #btn-mute, #btn-music {
   background: #14121f;
   border: 1px solid #3d3660;
@@ -356,7 +356,7 @@ body[data-act='2'] #board-wrap::after {
   padding: 5px 7px;
   cursor: pointer;
 }
-#vol-slider { flex: 1; min-width: 0; accent-color: #8a7aff; }
+#vol-slider, #music-slider { flex: 1; min-width: 0; accent-color: #8a7aff; }
 
 #wave-preview {
   flex: 0 0 auto;

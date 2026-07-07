@@ -44,9 +44,12 @@ const VOICE_LEVEL = 0.12;
 const BASS_LEVEL = 0.22;
 const DRONE_LEVEL = 0.13;
 const SPARKLE_LEVEL = 0.07;
+const BOSS_LEAD_LEVEL = 0.09;
 
 let started = false;
 let enabled = true;
+let musicVol = 0.5; // user slider 0..1 (0.5 = the classic loudness)
+let musicMuted = false; // the global 🔇 also silences the score
 let intensity = 0;
 let act = 0;
 let chordIdx = 0;
@@ -58,15 +61,28 @@ let droneOsc: OscillatorNode | null = null;
 let droneGain: GainNode | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 
+/** Effective bus gain for the current slider/toggle/mute state. */
+function level(): number {
+  return enabled && !musicMuted ? MUSIC_LEVEL * musicVol * 2 : 0;
+}
+
+function rampToLevel(): void {
+  const bus = sfx.bus();
+  if (!musicGain || !bus) return;
+  musicGain.gain.cancelScheduledValues(bus.ctx.currentTime);
+  musicGain.gain.linearRampToValueAtTime(level(), bus.ctx.currentTime + 0.6);
+}
+
 export const music = {
   /** Call once after sfx.init() (first user gesture). Safe to call repeatedly. */
   start(): void {
     if (started) return;
-    const bus = sfx.bus();
+    // the dedicated music bus sits past the SFX volume gain (independent sliders)
+    const bus = sfx.musicBus() ?? sfx.bus();
     if (!bus) return;
     started = true;
     musicGain = bus.ctx.createGain();
-    musicGain.gain.value = enabled ? MUSIC_LEVEL : 0;
+    musicGain.gain.value = level();
     musicGain.connect(bus.target);
     nextChordAt = bus.ctx.currentTime + 0.1;
     nextPulseAt = nextChordAt;
@@ -89,15 +105,23 @@ export const music = {
   setEnabled(on: boolean): void {
     enabled = on;
     if (on) music.start(); // defensive: the toggle can boot music even if the unlock missed
-    const bus = sfx.bus();
-    if (musicGain && bus) {
-      musicGain.gain.cancelScheduledValues(bus.ctx.currentTime);
-      musicGain.gain.linearRampToValueAtTime(on ? MUSIC_LEVEL : 0, bus.ctx.currentTime + 0.8);
-    }
+    rampToLevel();
   },
 
   isEnabled(): boolean {
     return enabled;
+  },
+
+  /** Music-only volume (0..1; 0.5 = the classic loudness). */
+  setVolume(v: number): void {
+    musicVol = Math.max(0, Math.min(1, v));
+    rampToLevel();
+  },
+
+  /** The global mute silences the score too (SFX master no longer feeds us). */
+  setMuted(m: boolean): void {
+    musicMuted = m;
+    rampToLevel();
   },
 
   /** 0 = build, 1-3 = wave heat (climbs every couple of waves), 4 = boss. */
@@ -126,7 +150,10 @@ function schedule(ctx: AudioContext): void {
   const chordLen = CHORD_LENS[act];
 
   while (nextChordAt < horizon) {
-    scheduleChord(ctx, chords[chordIdx % chords.length], nextChordAt, chordLen);
+    const chord = chords[chordIdx % chords.length];
+    scheduleChord(ctx, chord, nextChordAt, chordLen);
+    // BOSS THEME: a snarling half-step lead rides each chord while the boss lives
+    if (intensity >= 4) scheduleBossLead(ctx, chord[0], nextChordAt, chordLen);
     chordIdx++;
     nextChordAt += chordLen;
   }
@@ -172,6 +199,35 @@ function scheduleChord(ctx: AudioContext, freqs: number[], t: number, chordLen: 
       o.start(t);
       o.stop(t + chordLen + 0.8);
     }
+  }
+}
+
+/** The boss motif: staccato saw stabs circling the root's evil half-step —
+ *  root, flat-two, root, fifth — unmistakably "the boss is HERE". */
+function scheduleBossLead(ctx: AudioContext, root: number, t: number, chordLen: number): void {
+  const r2 = root * 2; // an octave up, over the pad
+  const notes: [number, number][] = [
+    [0.0, r2], [0.75, r2 * (16 / 15)], [1.5, r2], [2.25, root * 3],
+    [3.0, r2 * (16 / 15)], [3.75, r2],
+  ];
+  for (const [off, f] of notes) {
+    if (off + 0.5 > chordLen) break;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = f;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1100;
+    lp.Q.value = 2;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t + off);
+    g.gain.exponentialRampToValueAtTime(BOSS_LEAD_LEVEL, t + off + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + off + 0.4);
+    o.connect(lp);
+    lp.connect(g);
+    g.connect(musicGain!);
+    o.start(t + off);
+    o.stop(t + off + 0.45);
   }
 }
 

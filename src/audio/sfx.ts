@@ -6,6 +6,7 @@
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let chainInput: BiquadFilterNode | null = null; // post-master room input (music plugs in here)
 let noiseBuf: AudioBuffer | null = null;
 let muted = false;
 let volume = 0.5;
@@ -122,6 +123,7 @@ export const sfx = {
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
       lp.frequency.value = 11000;
+      chainInput = lp; // music joins the room here, past the SFX volume gain
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -16;
       comp.ratio.value = 4;
@@ -144,6 +146,12 @@ export const sfx = {
   /** The shared bus other audio modules (music) plug into. */
   bus(): { ctx: AudioContext; target: GainNode } | null {
     return ctx && master ? { ctx, target: master } : null;
+  },
+
+  /** The room input PAST the SFX volume gain — music connects here so the
+   *  music and sound sliders are truly independent (both share the reverb). */
+  musicBus(): { ctx: AudioContext; target: AudioNode } | null {
+    return ctx && chainInput ? { ctx, target: chainInput } : null;
   },
 
   setVolume(v: number): void {

@@ -156,6 +156,12 @@ export interface EnemyDef {
   /** Pyre Titan: hardens for `duration`s out of every `period`s — every hit is
    *  blocked outright, but each blocked hit counts; `hits` of them shatter it early */
   periodicShield?: { period: number; duration: number; hits: number };
+  /** Frost Shaman: TOWERS in radius attack slower (attack interval x rateMul) */
+  frostAura?: { radius: number; rateMul: number };
+  /** Burrower: moves this much faster while phased underground (pairs with `phase`) */
+  burrowSpeedMul?: number;
+  /** Mirror Slime: killed by NON-physical damage it fissions; physical kills it clean */
+  splitOnElemental?: { type: string; count: number };
   /** Colossus: at these hp fractions, plants `count` of `type` on the road beside itself */
   hpPhases?: { thresholds: number[]; type: string; count: number };
 }
@@ -388,6 +394,8 @@ export interface Wizard {
   attackCount: number;
   /** hexed: cannot attack while > 0 (Hexer / Banshee silences) */
   silencedT?: number;
+  /** transient frost-shaman aura: attack interval multiplier (recomputed every tick) */
+  frostMul?: number;
   /** cloud mage with no cloud in range — cannot attack, shown grayed */
   becalmed?: boolean;
   /** true until the player chooses a specialization; def is a zero-stat generic shell */

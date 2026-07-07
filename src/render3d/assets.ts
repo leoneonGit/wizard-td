@@ -354,6 +354,8 @@ export interface UnitLook {
   blob?: boolean;
   /** heartstone: rigless glowing crystal, gentle pulse (tint = crystal color) */
   crystal?: boolean;
+  /** burrower: sinks below the ground while phased (instead of going translucent) */
+  burrower?: boolean;
 }
 
 /** The Quaternius goblin's atlas uses exactly five swatches (measured from the
@@ -687,6 +689,20 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
   slime_mid: { model: 'goblin', height: 0.6, tint: new THREE.Color('#74d15e'), blob: true },
   slime_small: { model: 'goblin', height: 0.42, tint: new THREE.Color('#8ce276'), blob: true },
   heartstone: { model: 'goblin', height: 1.0, tint: new THREE.Color('#e05a7a'), crystal: true },
+
+  // act 2/3 specialists (Phase 16)
+  frostshaman: {
+    model: 'skel_mage', height: 1.2,
+    tint: new THREE.Color('#7fc8e8'), tintStrength: 0.65,
+    emissive: new THREE.Color('#b3ecff'),
+  },
+  burrower: {
+    model: 'skel_rogue', height: 0.95,
+    tint: new THREE.Color('#8a6a42'), tintStrength: 0.6,
+    burrower: true,
+  },
+  mirrorslime: { model: 'goblin', height: 0.9, tint: new THREE.Color('#b8e0e8'), blob: true },
+  mirrorling: { model: 'goblin', height: 0.5, tint: new THREE.Color('#d4f0f6'), blob: true },
 
   // act bosses — huge, tinted, unmistakable
   warlord: {

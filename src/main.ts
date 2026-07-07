@@ -385,20 +385,64 @@ const unlockAudio = () => {
 window.addEventListener('pointerdown', unlockAudio, { once: true });
 window.addEventListener('keydown', unlockAudio, { once: true });
 
-const btnMusic = document.getElementById('btn-music') as HTMLButtonElement;
-btnMusic.addEventListener('click', () => {
-  music.setEnabled(!music.isEnabled());
-  btnMusic.textContent = music.isEnabled() ? '🎵' : '🎵̸';
-  btnMusic.style.opacity = music.isEnabled() ? '1' : '0.4';
-});
+// ---- audio settings: separate SFX/music volumes, persisted across sessions ----
+const AUDIO_KEY = 'wizardtd.audio';
+interface AudioPrefs { sfx: number; music: number; muted: boolean; musicOn: boolean }
+const audioPrefs: AudioPrefs = (() => {
+  try {
+    return { sfx: 0.5, music: 0.5, muted: false, musicOn: true, ...JSON.parse(localStorage.getItem(AUDIO_KEY) ?? '{}') };
+  } catch {
+    return { sfx: 0.5, music: 0.5, muted: false, musicOn: true };
+  }
+})();
+function saveAudioPrefs(): void {
+  try {
+    localStorage.setItem(AUDIO_KEY, JSON.stringify(audioPrefs));
+  } catch { /* non-fatal */ }
+}
 
+const btnMusic = document.getElementById('btn-music') as HTMLButtonElement;
 const btnMute = document.getElementById('btn-mute') as HTMLButtonElement;
-btnMute.addEventListener('click', () => {
-  sfx.setMuted(!sfx.isMuted());
-  btnMute.textContent = sfx.isMuted() ? '🔇' : '🔊';
+const volSlider = document.getElementById('vol-slider') as HTMLInputElement;
+const musicSlider = document.getElementById('music-slider') as HTMLInputElement;
+
+function syncAudioUi(): void {
+  btnMute.textContent = audioPrefs.muted ? '🔇' : '🔊';
+  btnMusic.style.opacity = audioPrefs.musicOn ? '1' : '0.4';
+  volSlider.value = String(Math.round(audioPrefs.sfx * 100));
+  musicSlider.value = String(Math.round(audioPrefs.music * 100));
+}
+
+// apply saved prefs before the first sound plays (all safe pre-init)
+sfx.setVolume(audioPrefs.sfx);
+sfx.setMuted(audioPrefs.muted);
+music.setVolume(audioPrefs.music);
+music.setEnabled(audioPrefs.musicOn);
+music.setMuted(audioPrefs.muted);
+syncAudioUi();
+
+btnMusic.addEventListener('click', () => {
+  audioPrefs.musicOn = !audioPrefs.musicOn;
+  music.setEnabled(audioPrefs.musicOn);
+  syncAudioUi();
+  saveAudioPrefs();
 });
-(document.getElementById('vol-slider') as HTMLInputElement).addEventListener('input', (e) => {
-  sfx.setVolume(Number((e.target as HTMLInputElement).value) / 100);
+btnMute.addEventListener('click', () => {
+  audioPrefs.muted = !audioPrefs.muted;
+  sfx.setMuted(audioPrefs.muted); // music rides its own bus now — mute both
+  music.setMuted(audioPrefs.muted);
+  syncAudioUi();
+  saveAudioPrefs();
+});
+volSlider.addEventListener('input', () => {
+  audioPrefs.sfx = Number(volSlider.value) / 100;
+  sfx.setVolume(audioPrefs.sfx);
+  saveAudioPrefs();
+});
+musicSlider.addEventListener('input', () => {
+  audioPrefs.music = Number(musicSlider.value) / 100;
+  music.setVolume(audioPrefs.music);
+  saveAudioPrefs();
 });
 
 (document.getElementById('chk-auto') as HTMLInputElement).addEventListener('change', (e) => {

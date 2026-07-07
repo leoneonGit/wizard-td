@@ -78,9 +78,12 @@
         <div id="wave-preview"></div>
         <div id="node-picker" class="hidden"></div>
         <div id="audio-row">
-          <button id="btn-mute" title="Mute">🔊</button>
+          <button id="btn-mute" title="Mute everything">🔊</button>
+          <input type="range" id="vol-slider" min="0" max="100" value="50" title="Sound effects volume" />
+        </div>
+        <div id="music-row">
           <button id="btn-music" title="Toggle music">🎵</button>
-          <input type="range" id="vol-slider" min="0" max="100" value="50" />
+          <input type="range" id="music-slider" min="0" max="100" value="50" title="Music volume" />
         </div>
         <div id="map-row">
           <select id="map-select"></select>

@@ -141,6 +141,30 @@ export const ENEMIES: Record<string, EnemyDef> = {
     aura: { kind: 'ward', radius: 110, power: 60 },
   },
 
+  // ---------------- act 2/3 specialists (Phase 16) ----------------
+  // his cold saps YOUR towers' attack speed — kill him before the line slows to a crawl
+  frostshaman: {
+    id: 'frostshaman', name: 'Frost Shaman', hp: 240, speed: 30, radius: 11, bounty: 22,
+    color: '#7fc8e8', resist: { ice: 0.5 }, innateImmune: ['chill'],
+    frostAura: { radius: 130, rateMul: 1.45 },
+  },
+  // dives under the road on a cycle — untargetable and FASTER while below
+  burrower: {
+    id: 'burrower', name: 'Burrower', hp: 300, speed: 30, radius: 10, bounty: 16,
+    color: '#8a6a42', resist: {},
+    phase: { period: 6, duration: 2.4 }, burrowSpeedMul: 1.8,
+  },
+  // a living mirror: magic deathblows fission it — put it down with PHYSICAL hits
+  mirrorslime: {
+    id: 'mirrorslime', name: 'Mirror Slime', hp: 380, speed: 26, radius: 13, bounty: 26,
+    color: '#b8e0e8', resist: {},
+    splitOnElemental: { type: 'mirrorling', count: 2 },
+  },
+  mirrorling: {
+    id: 'mirrorling', name: 'Mirrorling', hp: 120, speed: 36, radius: 8, bounty: 8,
+    color: '#d4f0f6', resist: {},
+  },
+
   // ---------------- act bosses ----------------
   // Act 1 finale: teaches that ARMOR only cracks under physical fire (goblins/archers/ents)
   warlord: {
