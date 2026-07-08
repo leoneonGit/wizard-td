@@ -71,6 +71,9 @@ The road is yours to guard, Warden.
 ## Notes
 - Avoid naming other games (e.g. BTD6, Slay the Spire) anywhere in the listing — trademark policy risk.
 - "No data collected" matches the Data safety form we'll file (localStorage only, nothing leaves the device).
-- Graphic assets still needed: 1024×500 feature graphic + at least 2 phone screenshots
-  (16:9 or 9:16, 320–3840px). The manifest screenshots in public/screens/ are usable as a base.
+- Graphics — all ready:
+  - Feature graphic: store/feature-graphic.png (1024×500)
+  - Screenshots: store/screenshots/1-rockbend.jpg … 4-endpass.jpg (1920×1080, 16:9)
+    → upload the SAME four files to Phone, 7-inch tablet AND 10-inch tablet slots
+    (4 shots ≥1080p in 16:9 also makes the listing promotion-eligible)
 ```
