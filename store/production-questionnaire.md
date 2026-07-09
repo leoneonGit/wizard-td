@@ -26,7 +26,11 @@ Key feedback and the changes it drove:
 - Requests for audio control → added independent Sound and Music volume sliders that
   persist between sessions.
 - Difficulty pacing notes → rebalanced early waves and boss encounters.
-[Add any real bug fixes / balance tweaks your testers report during the 14-day test.]
+- (Closed test, day 1) A tester on a small phone reported the Start Wave button was
+  pushed off-screen by the path-choice buttons, blocking progress -> made the side
+  panel scrollable, pinned the Start button so it is always visible, and compacted
+  the layout for short screens. Fixed and shipped the same day.
+[Add further tester reports here as they come in.]
 
 ### Q: How did you decide the app is ready for production?
 After 14+ days of testing with 12+ active testers across a range of Android devices, the

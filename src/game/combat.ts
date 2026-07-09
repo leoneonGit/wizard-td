@@ -1,12 +1,13 @@
 import { ELEMENTS } from '../data/elements';
 import { ENEMIES as ENEMY_DEFS } from '../data/enemies';
 import { ACT_SCALING } from '../data/waves';
+import { specializationsFor } from '../data/wizards';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
 import { pickTarget, enemiesInRange, hasLOS } from './targeting';
 import { attackProcMult, conditionalDamageMult, frenzyRateMul } from './procs';
-import { cardAppliesTo, relicSpecial, type GameState } from './state';
-import type { ElementId, Enemy, Projectile, ProjectileVisual, Wizard, WizardDef } from './types';
+import { cardAppliesTo, computeStats, relicSpecial, type GameState } from './state';
+import type { ElementId, Enemy, Projectile, ProjectileVisual, TowerFamily, Wizard, WizardDef } from './types';
 
 /** ---- Elemental reactions (the signature mechanic) ----
  *  Conduct   : Lightning hit on WET      -> 1.6x dmg, +1 chain hop, consumes Wet
@@ -847,6 +848,14 @@ export function updateEnemies(state: GameState, dt: number): void {
       }
     }
 
+    // The Aetherwyrm's roar: a quarter of the way down the road, half the
+    // player's towers twist into random other specializations (value preserved)
+    if (e.def.polymorph && !e.polyDone &&
+        e.dist >= state.track.total * e.def.polymorph.atDistPct) {
+      e.polyDone = true;
+      unleashPolymorph(state, e);
+    }
+
     // Heartstones: at each hp threshold the Colossus plants a pair of heal-crystals
     // beside itself. A single huge hit can cross two thresholds — plant both pairs.
     if (e.def.hpPhases) {
@@ -964,6 +973,47 @@ export function updateEnemies(state: GameState, dt: number): void {
     }
   }
   state.enemies = state.enemies.filter((e) => e.hp > 0);
+}
+
+/** The Aetherwyrm's signature: polymorph a fraction of the towers into random
+ *  OTHER specializations of the same value (invested gold — and thus sell value —
+ *  is untouched; tiers reset because it is a different tower now). Seeded rng:
+ *  the same run always twists the same towers the same way. */
+function unleashPolymorph(state: GameState, e: Enemy): void {
+  const poly = e.def.polymorph!;
+  // every family's roster, minus the placement traps: water-only defs never come
+  // up (targets stand on ground), and skyless maps offer no cloud mages
+  const families: TowerFamily[] = ['wizard', 'goblin', 'archer', 'tree', 'void'];
+  const pool = families.flatMap((f) => specializationsFor(f)).filter((d) =>
+    d.placement !== 'water' && !(state.cloudTracks.length === 0 && d.needsCloud));
+  // towers standing IN the water are left alone — only the tide fits there
+  const candidates = state.wizards.filter((w) => !w.pendingSpecialize && w.def.placement !== 'water');
+  const count = Math.floor(candidates.length * poly.fraction);
+  if (count <= 0 || pool.length < 2) return;
+
+  sfx.dragonRoar();
+  fx.ring(e.x, e.y, '#3fd8c8', 95);
+  fx.burst(e.x, e.y, '#4fd8ff', 24, 200, 4, 0.7);
+  fx.floater(480, 140, '🐉 THE AETHERWYRM ROARS — your towers twist!', '#3fd8c8', 17);
+
+  // seeded shuffle, take the first `count`
+  const bag = [...candidates];
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(state.rng() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+  for (const w of bag.slice(0, count)) {
+    const options = pool.filter((d) => d.id !== w.def.id);
+    const newDef = options[Math.floor(state.rng() * options.length)];
+    w.def = newDef;
+    w.family = newDef.family;
+    w.tiers = [0, 0];
+    w.stats = computeStats(newDef, w.tiers, state.draftMods);
+    w.cooldown = 0;
+    fx.burst(w.x, w.y, '#4fd8ff', 16, 150, 3.5, 0.6);
+    fx.ring(w.x, w.y, '#3fd8c8', 34);
+    fx.floater(w.x, w.y - 30, `→ ${newDef.name}!`, '#4fd8ff', 12);
+  }
 }
 
 /** An enemy reaches the gate. Thieves grab gold and turn around; everyone else costs lives. */

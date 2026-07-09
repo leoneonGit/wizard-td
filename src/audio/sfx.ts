@@ -275,6 +275,20 @@ export const sfx = {
     }
   },
 
+  /** The Aetherwyrm's polymorph roar — longer, deeper and angrier than bossRoar. */
+  dragonRoar(): void {
+    const c = ensure();
+    if (!c) return;
+    const t = c.currentTime;
+    // chest: two detuned saws diving nearly an octave
+    sweep(c, 'sawtooth', 132, 46, t, 1.3, env(c, t, 0.55, 1.3));
+    sweep(c, 'sawtooth', 99, 40, t + 0.06, 1.2, env(c, t + 0.06, 0.42, 1.2));
+    // throat: a growl of noise through a falling bandpass
+    noise(c, t, 1.1, env(c, t, 0.5, 1.1), { type: 'bandpass', f0: 950, f1: 160, q: 1.6 });
+    // sub weight: the ground shakes
+    sweep(c, 'sine', 88, 28, t, 0.9, env(c, t, 0.55, 0.9));
+  },
+
   bossRoar(): void {
     const c = gate('roar', 800);
     if (!c) return;

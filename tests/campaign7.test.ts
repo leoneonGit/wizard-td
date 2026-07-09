@@ -38,13 +38,13 @@ function spawnFirst(state: ReturnType<typeof createGame>) {
 // ---------------------------------------------------------------- campaign structure
 
 describe('campaign structure', () => {
-  it('three acts, each ending in its boss: warlord / pyretitan / colossus', () => {
+  it('three acts, each ending in its boss: warlord / pyretitan / aetherwyrm', () => {
     expect(TOTAL_ACTS).toBe(3);
     // act 1 is a brisk 8 waves; acts 2-3 run the full 10
     expect(ACT_WAVES.map((a) => a.length)).toEqual([8, 10, 10]);
     expect(ACT_WAVES[0][7].some((g) => g.type === 'warlord')).toBe(true);
     expect(ACT_WAVES[1][9].some((g) => g.type === 'pyretitan')).toBe(true);
-    expect(ACT_WAVES[2][9].some((g) => g.type === 'colossus')).toBe(true);
+    expect(ACT_WAVES[2][9].some((g) => g.type === 'aetherwyrm')).toBe(true);
     // act 1 gives a TASTE of the sky before act 2 opens it fully — just a pair
     const taster = ACT_WAVES[0].flat().filter((g) => g.type === 'gargoyle');
     expect(taster.length).toBe(1);

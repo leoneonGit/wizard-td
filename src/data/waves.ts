@@ -177,10 +177,10 @@ export const ACT_WAVES: WaveDef[][] = [
       { type: 'mirrorslime', count: 2, gap: 8, delay: 7 },
       { type: 'orcbrute', count: 4, gap: 2.2, delay: 8 },
     ],
-    // THE BOSS: the Dread Colossus rides with the whole war machine — and the sky burns.
+    // THE BOSS: the Aetherwyrm descends — its roar remakes your defenses mid-fight.
     [
-      { type: 'colossus', count: 1, gap: 0, delay: 0 },
-      { type: 'orcshaman', count: 2, gap: 6, delay: 4 }, // healers on the Colossus!
+      { type: 'aetherwyrm', count: 1, gap: 0, delay: 0 },
+      { type: 'orcshaman', count: 2, gap: 6, delay: 4 }, // healers on the dragon!
       { type: 'shieldbearer', count: 2, gap: 8, delay: 5 }, // and wards capping your hits
       { type: 'troll', count: 1, gap: 0, delay: 8 },
       { type: 'drake', count: 4, gap: 1.2, delay: 10 },

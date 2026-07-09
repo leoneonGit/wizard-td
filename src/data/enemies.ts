@@ -191,6 +191,16 @@ export const ENEMIES: Record<string, EnemyDef> = {
     innateImmune: ['chill'], armorBreakSpawns: ['golemling', 'golemling', 'golemling'],
     hpPhases: { thresholds: [0.75, 0.5, 0.25], type: 'heartstone', count: 2 },
   },
+  // Act 3 finale (campaign): THE AETHERWYRM — a vast jade dragon on bronze wings.
+  // No armor to crack; instead, a quarter of the way down the road it ROARS and
+  // polymorphs half your towers into random ones of equal value. Adapt or fall.
+  aetherwyrm: {
+    id: 'aetherwyrm', name: 'The Aetherwyrm', hp: 9400, speed: 23, radius: 27, bounty: 650,
+    color: '#3fd8c8', resist: { fire: 0.5, ice: 0.8 }, boss: true, leakCost: 25,
+    innateImmune: ['burn'],
+    polymorph: { atDistPct: 0.25, fraction: 0.5 },
+  },
+
   // The Colossus' pulsing heal-crystal: rooted to the road, never leaks, holds the
   // wave open until destroyed. Snipe it or the boss drinks deep.
   heartstone: {

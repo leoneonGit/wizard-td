@@ -85,6 +85,7 @@ function hintFor(type: string): string {
     case 'warlord': return ' <i>(BOSS — armor breaks to PHYSICAL only, lobs tower-stunning grenades!)</i>';
     case 'pyretitan': return ' <i>(BOSS — fire-immune, periodically SHIELDS: pelt it with fast attacks!)</i>';
     case 'colossus': return ' <i>(THE BOSS — armored, fire-hardened, plants healing Heartstones: snipe them!)</i>';
+    case 'aetherwyrm': return ' <i>(THE BOSS — its ROAR polymorphs half your towers at the first bend. Kill it fast or adapt!)</i>';
     case 'heartstone': return ' <i>(heal-crystal — destroy it fast!)</i>';
     case 'frostshaman': return ' <i>(his cold SLOWS your towers — kill him first!)</i>';
     case 'burrower': return ' <i>(tunnels underground — untargetable and fast below!)</i>';

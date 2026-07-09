@@ -356,6 +356,10 @@ export interface UnitLook {
   crystal?: boolean;
   /** burrower: sinks below the ground while phased (instead of going translucent) */
   burrower?: boolean;
+  /** exact per-part recolor by material NAME (the dragon rig names its slots) */
+  matColors?: Record<string, { color: string; emissive?: string; emissiveIntensity?: number }>;
+  /** rides the road but RENDERS airborne — hovers with a gentle bob (dragon boss) */
+  hover?: boolean;
 }
 
 /** The Quaternius goblin's atlas uses exactly five swatches (measured from the
@@ -689,6 +693,19 @@ export const ENEMY_LOOKS: Record<string, UnitLook> = {
   slime_mid: { model: 'goblin', height: 0.6, tint: new THREE.Color('#74d15e'), blob: true },
   slime_small: { model: 'goblin', height: 0.42, tint: new THREE.Color('#8ce276'), blob: true },
   heartstone: { model: 'goblin', height: 1.0, tint: new THREE.Color('#e05a7a'), crystal: true },
+
+  // THE act 3 boss: a vast jade dragon on bronze wings, eyes burning cyan.
+  // Real rigged model — Dragon_Flying drives the wingbeats, per-part MTG palette.
+  aetherwyrm: {
+    model: 'dragon', height: 3.4, hover: true,
+    matColors: {
+      Main: { color: '#2f6b60' },                                        // jade-teal hide
+      Wings: { color: '#8a5a35' },                                       // bronze membranes
+      Belly: { color: '#c9a45c' },                                       // gold underside
+      Claws: { color: '#b98a3e' },                                       // bronze talons
+      Eyes: { color: '#5fe8ff', emissive: '#4fd8ff', emissiveIntensity: 1.0 }, // arcane glare
+    },
+  },
 
   // act 2/3 specialists (Phase 16)
   frostshaman: {

@@ -164,6 +164,9 @@ export interface EnemyDef {
   splitOnElemental?: { type: string; count: number };
   /** Colossus: at these hp fractions, plants `count` of `type` on the road beside itself */
   hpPhases?: { thresholds: number[]; type: string; count: number };
+  /** Aetherwyrm: crossing `atDistPct` of the road, it ROARS and polymorphs
+   *  `fraction` of the player's towers into random specs of the same value */
+  polymorph?: { atDistPct: number; fraction: number };
 }
 
 export interface StatMods {
@@ -355,6 +358,8 @@ export interface Enemy {
   shieldHits?: number;
   /** hpPhases: how many thresholds have already fired */
   phaseIdx?: number;
+  /** polymorph already unleashed (fires exactly once) */
+  polyDone?: boolean;
 }
 
 export interface WizardStats {

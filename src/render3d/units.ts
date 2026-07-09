@@ -50,6 +50,8 @@ interface UnitView {
   burrow?: boolean;
   /** current burrow depth (smoothed toward 0 or the buried depth) */
   sink?: number;
+  /** dragon boss: rides the road but renders airborne with a bob */
+  hover?: boolean;
   height: number;
 }
 
@@ -400,6 +402,19 @@ function makeView(look: UnitLook): UnitView {
     });
   }
 
+  // exact per-part recolor by material name (dragon rig: Main/Wings/Belly/Claws/Eyes)
+  if (look.matColors) {
+    for (const m of mats) {
+      const spec = look.matColors[m.name];
+      if (!spec) continue;
+      m.color.set(spec.color);
+      if (spec.emissive) {
+        m.emissive.set(spec.emissive);
+        m.emissiveIntensity = spec.emissiveIntensity ?? 0.5;
+      }
+    }
+  }
+
   // flyer wings: two dark membranes on the back, flapped per frame
   let flapWings: THREE.Mesh[] | undefined;
   if (look.wings) {
@@ -496,6 +511,7 @@ function syncEnemies(state: GameState, dt: number): void {
       v = makeView(look);
       v.ghostly = look.ghostly;
       v.burrow = look.burrower;
+      v.hover = look.hover;
       makeHpBar(v);
       v.walk?.play();
       v.yaw = headingToYaw(e.angle);
@@ -504,8 +520,10 @@ function syncEnemies(state: GameState, dt: number): void {
       // spawn pop
       v.root.scale.setScalar(0.01);
     }
-    // position + facing (flyers soar with a gentle bob; burrowers duck below the road)
-    const flyY = e.def.flying ? 1.05 + Math.sin(performance.now() / 380 + e.id) * 0.12 : 0;
+    // position + facing (flyers soar with a gentle bob; burrowers duck below the road;
+    // the dragon hovers low over the road on its wingbeats)
+    const flyY = e.def.flying ? 1.05 + Math.sin(performance.now() / 380 + e.id) * 0.12
+      : v.hover ? 0.55 + Math.sin(performance.now() / 320 + e.id) * 0.14 : 0;
     if (v.burrow) {
       const target = e.phased ? -0.72 : 0;
       v.sink = (v.sink ?? 0) + (target - (v.sink ?? 0)) * Math.min(1, dt * 7);
@@ -539,7 +557,11 @@ function syncEnemies(state: GameState, dt: number): void {
     let factor = 1;
     if (e.statuses.frozen) factor = 0;
     else if (e.statuses.chill) factor = Math.max(0.25, 1 - e.statuses.chill.pct * (0.6 + 0.2 * e.statuses.chill.stacks));
-    if (v.walk) v.walk.timeScale = (e.def.speed / 60) * factor;
+    if (v.walk) {
+      const ts = (e.def.speed / 60) * factor;
+      // hovering wings keep a living wingbeat tempo — unless truly frozen/stunned
+      v.walk.timeScale = v.hover ? (factor === 0 ? 0 : Math.max(0.85, ts)) : ts;
+    }
     v.mixer?.update(dt);
 
     // vehicles roll: wheels spin with covered distance, the body rocks on the ruts
