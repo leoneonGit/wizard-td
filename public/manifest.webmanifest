@@ -1,25 +1,54 @@
 {
-  "name": "Wizard TD",
-  "short_name": "WizardTD",
-  "description": "A roguelite 3D tower defense: wizards, goblins, archers and ents against the horde.",
+  "id": "/wizard-td/",
+  "name": "Wildguard TD",
+  "short_name": "Wildguard",
+  "description": "A roguelite 3D tower defense: wizards, goblins, archers and nature spirits guarding the road against the horde.",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["games", "entertainment"],
   "start_url": ".",
   "scope": ".",
   "display": "fullscreen",
-  "orientation": "any",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "prefer_related_applications": false,
   "background_color": "#14121f",
   "theme_color": "#14121f",
+  "screenshots": [
+    {
+      "src": "screens/battle.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Hold the winding road of Emerald Vale against the horde"
+    },
+    {
+      "src": "screens/boss.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "The Pyre Titan marches — rally your wizards"
+    }
+  ],
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/portrait_fire.png",
-      "sizes": "128x128",
+      "src": "icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

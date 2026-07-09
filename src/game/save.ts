@@ -4,6 +4,7 @@ import { CARDS } from '../data/cards';
 import { RELICS } from '../data/relics';
 import { WIZARDS } from '../data/wizards';
 import { loadMap } from './mapio';
+import { NO_PERKS, type RunPerks } from './meta';
 import { applyCard, applyRelic, computeStats, createGame, makeWizard, type GameState } from './state';
 import type { RunStats, TargetMode } from './types';
 
@@ -34,6 +35,10 @@ export interface RunSave {
   killStackPct?: number;
   relicIds?: string[];
   seenEvents?: string[];
+  /** meta-perk run state (absent in pre-Grove saves — restored with defaults) */
+  rerollTokens?: number;
+  firstTowerBought?: boolean;
+  spellCds?: Record<string, number>;
 }
 
 export function saveRun(state: GameState): void {
@@ -59,6 +64,9 @@ export function saveRun(state: GameState): void {
     killStackPct: state.killStackPct,
     relicIds: state.relics.map((r) => r.id),
     seenEvents: [...state.seenEvents],
+    rerollTokens: state.rerollTokens,
+    firstTowerBought: state.firstTowerBought,
+    spellCds: state.spellCds,
   };
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(save));
@@ -87,10 +95,10 @@ export function clearRunSave(): void {
 }
 
 /** Rebuild a GameState from a snapshot (same map required). */
-export function restoreRun(save: RunSave): GameState | null {
+export function restoreRun(save: RunSave, perks: RunPerks = NO_PERKS): GameState | null {
   const map = loadMap(save.mapId);
   if (!map) return null;
-  const state = createGame(map, save.seed);
+  const state = createGame(map, save.seed, perks);
 
   // replay drafted cards (rebuilds reaction/bounty/discount state)
   for (const id of save.cardIds) {
@@ -125,6 +133,10 @@ export function restoreRun(save: RunSave): GameState | null {
   state.stats = save.stats;
   state.killStackPct = save.killStackPct ?? 0;
   state.act = save.act ?? 0;
+  // pre-Grove saves: grant the perk's tokens; a run with towers already bought its first
+  state.rerollTokens = save.rerollTokens ?? perks.rerollTokens;
+  state.firstTowerBought = save.firstTowerBought ?? save.wizards.length > 0;
+  state.spellCds = save.spellCds ?? {};
   // decorrelate future elite/draft rolls from the fresh-boot sequence
   state.rng = makeRng(save.seed + save.round * 101);
   return state;

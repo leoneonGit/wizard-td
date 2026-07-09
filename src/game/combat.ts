@@ -1,12 +1,13 @@
 import { ELEMENTS } from '../data/elements';
 import { ENEMIES as ENEMY_DEFS } from '../data/enemies';
 import { ACT_SCALING } from '../data/waves';
+import { specializationsFor } from '../data/wizards';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
 import { pickTarget, enemiesInRange, hasLOS } from './targeting';
 import { attackProcMult, conditionalDamageMult, frenzyRateMul } from './procs';
-import { cardAppliesTo, relicSpecial, type GameState } from './state';
-import type { ElementId, Enemy, Projectile, ProjectileVisual, Wizard, WizardDef } from './types';
+import { cardAppliesTo, computeStats, relicSpecial, type GameState } from './state';
+import type { ElementId, Enemy, Projectile, ProjectileVisual, TowerFamily, Wizard, WizardDef } from './types';
 
 /** ---- Elemental reactions (the signature mechanic) ----
  *  Conduct   : Lightning hit on WET      -> 1.6x dmg, +1 chain hop, consumes Wet
@@ -50,6 +51,22 @@ function cloudNear(state: GameState, w: Wizard): boolean {
 export function updateWizards(state: GameState, dt: number): void {
   state.clock += dt; // run clock — drives periodic frenzy proc cards
 
+  // frost shamans chill the TOWERS — recompute the aura like the enemy-side ones
+  let frostSources: Enemy[] | null = null;
+  for (const e of state.enemies) {
+    if (e.def.frostAura && e.hp > 0) (frostSources ??= []).push(e);
+  }
+  for (const w of state.wizards) {
+    w.frostMul = 1;
+    if (!frostSources) continue;
+    for (const e of frostSources) {
+      const fa = e.def.frostAura!;
+      if ((w.x - e.x) ** 2 + (w.y - e.y) ** 2 <= fa.radius * fa.radius) {
+        w.frostMul = Math.max(w.frostMul, fa.rateMul);
+      }
+    }
+  }
+
   for (const w of state.wizards) {
     if (w.pendingSpecialize) continue; // idle shell — does nothing until specialized
 
@@ -71,10 +88,15 @@ export function updateWizards(state: GameState, dt: number): void {
       }
     }
 
+    // a frost-chilled tower shows its sluggishness now and then (render juice only)
+    if ((w.frostMul ?? 1) > 1 && Math.random() < dt * 0.4) {
+      fx.floater(w.x, w.y - 30, '❄ chilled', '#a8dcf0', 10);
+    }
+
     // aura casters (water tide / wind gust / gong rattle) need no single target
     if (w.def.auraKind) {
       if (w.cooldown <= 0 && enemiesInRange(state, w.x, w.y, w.stats.range).length > 0) {
-        w.cooldown = w.stats.rate * frenzyRateMul(state, w);
+        w.cooldown = w.stats.rate * frenzyRateMul(state, w) * (w.frostMul ?? 1);
         w.recoil = 0.18;
         const mult = attackProcMult(state, w);
         if (w.def.auraKind === 'tide') tideAttack(state, w, mult);
@@ -88,7 +110,7 @@ export function updateWizards(state: GameState, dt: number): void {
     if (target) {
       w.aim = Math.atan2(target.y - w.y, target.x - w.x);
       if (w.cooldown <= 0) {
-        w.cooldown = w.stats.rate * frenzyRateMul(state, w);
+        w.cooldown = w.stats.rate * frenzyRateMul(state, w) * (w.frostMul ?? 1);
         w.recoil = 0.18;
         attack(state, w, target);
       }
@@ -229,6 +251,7 @@ function visualFor(def: WizardDef): ProjectileVisual {
   if (def.id === 'dynamite' || def.id === 'sapperking') return 'stick';
   if (def.id === 'slingshot' || def.id === 'boulder' || def.id === 'mountain') return 'rock';
   if (def.id === 'thornspitter' || def.id === 'bramblehydra') return 'needle';
+  if (def.id === 'voidgazer') return 'bolt'; // a searing red laser lance
   return 'orb';
 }
 
@@ -383,7 +406,7 @@ function impact(state: GameState, p: { x: number; y: number; tx: number; ty: num
 }
 
 /** Full hit: reaction check -> damage -> status application. */
-function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number, element: ElementId): void {
+export function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number, element: ElementId): void {
   // Shatter: fire on chilled/frozen
   if (element === 'fire' && (e.statuses.chill || e.statuses.frozen)) {
     delete e.statuses.chill;
@@ -395,7 +418,7 @@ function hitEnemy(state: GameState, w: Wizard | undefined, e: Enemy, dmg: number
     sfx.shatter();
   }
   dealDamage(state, e, dmg, element, w);
-  if (w && e.hp > 0) applyStatusesFromWizard(state, w, e);
+  if (w && e.hp > 0 && !e.shieldActive) applyStatusesFromWizard(state, w, e); // no statuses through the carapace
 }
 
 // ---------------------------------------------------------------- statuses
@@ -471,18 +494,36 @@ export function applyChillStack(state: GameState, e: Enemy, pct: number): void {
 
 // ---------------------------------------------------------------- damage & death
 
+/** Grove perk: towers of the player's attuned element hit harder (source-attributed only). */
+function attunementMult(state: GameState, src?: Wizard): number {
+  return src && state.perks.attuneElement === src.def.element ? 1 + state.perks.attunePct / 100 : 1;
+}
+
 export function dealDamage(state: GameState, e: Enemy, amount: number, element: ElementId, src?: Wizard): void {
   if (e.hp <= 0) return;
+
+  // Cinder Carapace: while the shield is up, EVERY hit is eaten whole — but each
+  // blocked hit chips at the shield's patience (hits counter shatters it early)
+  if (e.shieldActive) {
+    e.shieldHits = (e.shieldHits ?? 0) + 1;
+    e.hitFlash = 0.08;
+    fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 14, 'Blocked!', '#ffb163', 11);
+    sfx.armorClank();
+    if (e.shieldHits >= (e.def.periodicShield?.hits ?? Infinity)) shatterShield(state, e);
+    return;
+  }
 
   // boss armor: while the shell holds, only PHYSICAL damage chips it — everything
   // else patters off at 10%. Break it, then do whatever you want.
   if (e.armorHp !== undefined && e.armorHp > 0) {
     const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
     const condMult = conditionalDamageMult(state, src, e);
-    const chip = amount * rattleMult * condMult * (element === 'physical' ? 1 : 0.1);
+    const attuneMult = attunementMult(state, src);
+    const chip = amount * rattleMult * condMult * attuneMult * (element === 'physical' ? 1 : 0.1);
     e.armorHp -= chip;
     e.hitFlash = 0.12;
-    state.stats.dmgByElement[element] += chip;
+    // ?? 0: saves from before the void element lack its stats bucket
+    state.stats.dmgByElement[element] = (state.stats.dmgByElement[element] ?? 0) + chip;
     if (chip >= 1) {
       fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(chip)),
         element === 'physical' ? '#cdd7e0' : '#6b7684', element === 'physical' ? 11 : 9);
@@ -501,7 +542,7 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   const condMult = conditionalDamageMult(state, src, e); // hunter cards: vs status / vs healthy
   // archers were born for the sky
   const airMult = e.def.flying && src?.def.family === 'archer' ? 1.5 : 1;
-  let dealt = amount * mult * rattleMult * condMult * airMult;
+  let dealt = amount * mult * rattleMult * condMult * airMult * attunementMult(state, src);
   // shieldbearer's ward: no single hit can exceed the cap
   if (e.wardCap !== undefined && dealt > e.wardCap) {
     dealt = e.wardCap;
@@ -509,12 +550,12 @@ export function dealDamage(state: GameState, e: Enemy, amount: number, element: 
   }
   e.hp -= dealt;
   e.hitFlash = 0.12;
-  state.stats.dmgByElement[element] += dealt;
+  state.stats.dmgByElement[element] = (state.stats.dmgByElement[element] ?? 0) + dealt;
   if (dealt >= 1) {
     const col = mult > 1 ? '#ffe08a' : mult < 1 ? '#8899aa' : '#ffffff';
     fx.floater(e.x + (Math.random() - 0.5) * 12, e.y - 10, String(Math.round(dealt)), col, mult > 1 ? 12 : 10);
   }
-  if (e.hp <= 0) kill(state, e, src);
+  if (e.hp <= 0) kill(state, e, src, element);
 }
 
 /** Reinforcement spawn mid-track (armor-break heartlings, carrier payloads). */
@@ -537,6 +578,17 @@ function spawnAtDist(state: GameState, type: string, dist: number): Enemy | null
   return e;
 }
 
+/** The carapace gives way — timed out or battered down early. shieldHits is
+ *  deliberately NOT reset: it holds the "already shattered this window" mark
+ *  so the shield can't re-arm until a fresh cycle clears it. */
+function shatterShield(state: GameState, e: Enemy): void {
+  e.shieldActive = false;
+  fx.floater(e.x, e.y - 32, 'Shield shatters!', '#ffd75e', 14);
+  fx.burst(e.x, e.y, '#ff9b4a', 18, 170, 3.5, 0.5);
+  fx.ring(e.x, e.y, '#ff7b00', 48);
+  sfx.bossRoar();
+}
+
 /** The shell gives — full damage flows from here on, and the Colossus births its heartlings. */
 function breakArmor(state: GameState, e: Enemy): void {
   e.armorHp = 0;
@@ -549,9 +601,11 @@ function breakArmor(state: GameState, e: Enemy): void {
   }
 }
 
-function kill(state: GameState, e: Enemy, src?: Wizard): void {
+function kill(state: GameState, e: Enemy, src?: Wizard, element?: ElementId): void {
   const actBounty = ACT_SCALING[Math.min(state.act, ACT_SCALING.length - 1)].bounty;
-  const bounty = Math.round(e.def.bounty * (state.waveModifier?.bountyMult ?? 1) * actBounty) + state.bountyBonus;
+  const bounty = Math.round(
+    e.def.bounty * (state.waveModifier?.bountyMult ?? 1) * actBounty * (1 + state.perks.bountyPct / 100),
+  ) + state.bountyBonus;
   state.gold += bounty;
   state.stats.kills++;
   fx.floater(e.x, e.y - 22, `+${bounty}`, '#ffd75e', 12);
@@ -593,6 +647,16 @@ function kill(state: GameState, e: Enemy, src?: Wizard): void {
       fx.burst(e.x, e.y, '#7a5c38', 18, 150, 4, 0.6);
     }
     e.def.deathSpawns.forEach((id, i) => spawnAtDist(state, id, e.dist - 8 - i * 14));
+  }
+  // the Mirror Slime punishes magic: an elemental deathblow fissions it into
+  // reflections — only PHYSICAL kills put it down for good
+  if (e.def.splitOnElemental && element && element !== 'physical') {
+    sfx.squish();
+    fx.floater(e.x, e.y - 30, 'It splits!', '#b8e0e8', 13);
+    fx.burst(e.x, e.y, '#d4f0f6', 14, 120, 3.5, 0.5);
+    for (let i = 0; i < e.def.splitOnElemental.count; i++) {
+      spawnAtDist(state, e.def.splitOnElemental.type, e.dist - 6 - i * 12);
+    }
   }
   onKillProcs(state, e, src);
 }
@@ -759,14 +823,78 @@ export function updateEnemies(state: GameState, dt: number): void {
       }
     }
 
+    // Cinder Carapace: shields up for the LAST stretch of each cycle, so a fresh
+    // boss is hittable first. Blocked hits are counted in dealDamage; the timer
+    // here raises the shield and retires it when the window closes.
+    if (e.def.periodicShield) {
+      const ps = e.def.periodicShield;
+      e.shieldT = (e.shieldT ?? 0) + dt;
+      const inWindow = e.shieldT % ps.period > ps.period - ps.duration;
+      if (inWindow && !e.shieldActive && (e.shieldHits ?? 0) === 0) {
+        // shieldHits === 0 gates the re-arm: a shield battered down early leaves its
+        // hit count standing until the window closes, so it stays down this cycle
+        e.shieldActive = true;
+        fx.floater(e.x, e.y - 34, '🛡 CINDER CARAPACE!', '#ff9b4a', 15);
+        fx.ring(e.x, e.y, '#ff7b00', 60);
+        sfx.armorClank();
+      } else if (!inWindow && e.shieldActive) {
+        shatterShield(state, e); // window closed — the shield burns out on its own
+      }
+      if (!inWindow) e.shieldHits = 0; // new cycle, clean slate
+      if (e.shieldActive) {
+        // steady ember pulse telegraphs "this is a shield, not a bug"
+        const c = e.shieldT % 0.4;
+        if (c < dt) fx.ring(e.x, e.y, '#ff7b00', 34);
+      }
+    }
+
+    // The Aetherwyrm's roar: a quarter of the way down the road, half the
+    // player's towers twist into random other specializations (value preserved)
+    if (e.def.polymorph && !e.polyDone &&
+        e.dist >= state.track.total * e.def.polymorph.atDistPct) {
+      e.polyDone = true;
+      unleashPolymorph(state, e);
+    }
+
+    // Heartstones: at each hp threshold the Colossus plants a pair of heal-crystals
+    // beside itself. A single huge hit can cross two thresholds — plant both pairs.
+    if (e.def.hpPhases) {
+      const hpp = e.def.hpPhases;
+      let idx = e.phaseIdx ?? 0;
+      while (idx < hpp.thresholds.length && e.hp <= e.maxHp * hpp.thresholds[idx]) {
+        idx++;
+        fx.floater(e.x, e.y - 40, '💗 Heartstones erupt!', '#ff9db5', 15);
+        fx.ring(e.x, e.y, '#e05a7a', 90);
+        sfx.healChime();
+        for (let i = 0; i < hpp.count; i++) {
+          spawnAtDist(state, hpp.type, e.dist + (i % 2 === 0 ? -45 : 45) * (1 + Math.floor(i / 2)));
+        }
+      }
+      e.phaseIdx = idx;
+    }
+
     // wraiths slip out of reality on a cycle (phased at the END of each period,
-    // so a fresh spawn is targetable for a few seconds first)
+    // so a fresh spawn is targetable for a few seconds first); burrowers use the
+    // same clock but dive under the road instead
     if (e.def.phase) {
       e.phaseT = (e.phaseT ?? 0) + dt;
       const c = e.phaseT % e.def.phase.period;
       const wasPhased = e.phased;
       e.phased = c > e.def.phase.period - e.def.phase.duration;
-      if (e.phased !== wasPhased) sfx.phaseShimmer();
+      if (e.phased !== wasPhased) {
+        if (e.def.burrowSpeedMul) {
+          sfx.thud();
+          fx.burst(e.x, e.y + 4, '#8a6a42', 12, 90, 3.5, 0.5); // a spray of earth
+          fx.ring(e.x, e.y, '#8a6a42', 20);
+        } else {
+          sfx.phaseShimmer();
+        }
+      }
+    }
+
+    // the Frost Shaman's cold radiates over YOUR towers — pulse the telltale ring
+    if (e.def.frostAura && e.animT % 1.4 < dt) {
+      fx.ring(e.x, e.y, '#a8dcf0', e.def.frostAura.radius * 0.55);
     }
 
     // tick statuses
@@ -799,14 +927,19 @@ export function updateEnemies(state: GameState, dt: number): void {
       st.snared.t -= dt;
       if (st.snared.t <= 0) delete st.snared;
     }
+    if (st.stunned) {
+      st.stunned.t -= dt;
+      if (st.stunned.t <= 0) delete st.stunned;
+    }
     if (e.hp <= 0) continue;
 
     // movement
     let factor = 1;
-    if (st.frozen || st.entangled) factor = 0;
+    if (st.frozen || st.entangled || st.stunned) factor = 0;
     else if (st.chill) factor = Math.max(0.25, 1 - st.chill.pct * (0.6 + 0.2 * st.chill.stacks));
     if (factor > 0 && st.snared) factor *= Math.max(0.2, 1 - st.snared.pct); // stacks with chill
     factor *= e.hasteMul ?? 1; // the war drums
+    if (e.phased && e.def.burrowSpeedMul) factor *= e.def.burrowSpeedMul; // tunneling is FAST
 
     e.animT += factor * dt; // walk cycle slows/freezes with the enemy
     if (e.hitFlash > 0) e.hitFlash -= dt;
@@ -842,6 +975,47 @@ export function updateEnemies(state: GameState, dt: number): void {
   state.enemies = state.enemies.filter((e) => e.hp > 0);
 }
 
+/** The Aetherwyrm's signature: polymorph a fraction of the towers into random
+ *  OTHER specializations of the same value (invested gold — and thus sell value —
+ *  is untouched; tiers reset because it is a different tower now). Seeded rng:
+ *  the same run always twists the same towers the same way. */
+function unleashPolymorph(state: GameState, e: Enemy): void {
+  const poly = e.def.polymorph!;
+  // every family's roster, minus the placement traps: water-only defs never come
+  // up (targets stand on ground), and skyless maps offer no cloud mages
+  const families: TowerFamily[] = ['wizard', 'goblin', 'archer', 'tree', 'void'];
+  const pool = families.flatMap((f) => specializationsFor(f)).filter((d) =>
+    d.placement !== 'water' && !(state.cloudTracks.length === 0 && d.needsCloud));
+  // towers standing IN the water are left alone — only the tide fits there
+  const candidates = state.wizards.filter((w) => !w.pendingSpecialize && w.def.placement !== 'water');
+  const count = Math.floor(candidates.length * poly.fraction);
+  if (count <= 0 || pool.length < 2) return;
+
+  sfx.dragonRoar();
+  fx.ring(e.x, e.y, '#3fd8c8', 95);
+  fx.burst(e.x, e.y, '#4fd8ff', 24, 200, 4, 0.7);
+  fx.floater(480, 140, '🐉 THE AETHERWYRM ROARS — your towers twist!', '#3fd8c8', 17);
+
+  // seeded shuffle, take the first `count`
+  const bag = [...candidates];
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(state.rng() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+  for (const w of bag.slice(0, count)) {
+    const options = pool.filter((d) => d.id !== w.def.id);
+    const newDef = options[Math.floor(state.rng() * options.length)];
+    w.def = newDef;
+    w.family = newDef.family;
+    w.tiers = [0, 0];
+    w.stats = computeStats(newDef, w.tiers, state.draftMods);
+    w.cooldown = 0;
+    fx.burst(w.x, w.y, '#4fd8ff', 16, 150, 3.5, 0.6);
+    fx.ring(w.x, w.y, '#3fd8c8', 34);
+    fx.floater(w.x, w.y - 30, `→ ${newDef.name}!`, '#4fd8ff', 12);
+  }
+}
+
 /** An enemy reaches the gate. Thieves grab gold and turn around; everyone else costs lives. */
 function leak(state: GameState, e: Enemy): void {
   if (e.def.stealsGold && !e.returning) {
@@ -867,11 +1041,12 @@ function leak(state: GameState, e: Enemy): void {
 
 /** Burn ticks bypass reaction logic but still respect resistances (and Rattled); kills pay bounty. */
 function dealBurnTick(state: GameState, e: Enemy, amount: number): void {
+  if (e.shieldActive) return; // blocked, but 60 ticks/s must NOT count as shield hits
   if (e.armorHp !== undefined && e.armorHp > 0) return; // flames patter off the shell
   const mult = e.def.resist.fire ?? 1;
   const rattleMult = 1 + (e.statuses.rattled?.pct ?? 0);
   const dealt = amount * mult * rattleMult;
   e.hp -= dealt;
   state.stats.dmgByElement.fire += dealt;
-  if (e.hp <= 0) kill(state, e);
+  if (e.hp <= 0) kill(state, e, undefined, 'fire');
 }

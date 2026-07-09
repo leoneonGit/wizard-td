@@ -141,23 +141,72 @@ export const ENEMIES: Record<string, EnemyDef> = {
     aura: { kind: 'ward', radius: 110, power: 60 },
   },
 
+  // ---------------- act 2/3 specialists (Phase 16) ----------------
+  // his cold saps YOUR towers' attack speed — kill him before the line slows to a crawl
+  frostshaman: {
+    id: 'frostshaman', name: 'Frost Shaman', hp: 240, speed: 30, radius: 11, bounty: 22,
+    color: '#7fc8e8', resist: { ice: 0.5 }, innateImmune: ['chill'],
+    frostAura: { radius: 130, rateMul: 1.45 },
+  },
+  // dives under the road on a cycle — untargetable and FASTER while below
+  burrower: {
+    id: 'burrower', name: 'Burrower', hp: 300, speed: 30, radius: 10, bounty: 16,
+    color: '#8a6a42', resist: {},
+    phase: { period: 6, duration: 2.4 }, burrowSpeedMul: 1.8,
+  },
+  // a living mirror: magic deathblows fission it — put it down with PHYSICAL hits
+  mirrorslime: {
+    id: 'mirrorslime', name: 'Mirror Slime', hp: 380, speed: 26, radius: 13, bounty: 26,
+    color: '#b8e0e8', resist: {},
+    splitOnElemental: { type: 'mirrorling', count: 2 },
+  },
+  mirrorling: {
+    id: 'mirrorling', name: 'Mirrorling', hp: 120, speed: 36, radius: 8, bounty: 8,
+    color: '#d4f0f6', resist: {},
+  },
+
   // ---------------- act bosses ----------------
   // Act 1 finale: teaches that ARMOR only cracks under physical fire (goblins/archers/ents)
   warlord: {
     id: 'warlord', name: 'Ironhide Warlord', hp: 2100, speed: 26, radius: 24, bounty: 250,
     color: '#6e7b8a', resist: { ice: 0.8 }, boss: true, armor: 700, leakCost: 10,
+    // stun grenades: every 2s he lobs one at a random tower ANYWHERE — 3s of silence
+    hexes: { period: 2, duration: 3, radius: 9999 },
   },
-  // Act 2 finale: burns cannot touch it, cold slides off — lightning/physical/water day
+  // Act 2 finale: burns cannot touch it, cold slides off — lightning/physical/water day.
+  // Cinder Carapace: periodically hardens — hits are BLOCKED but counted; land 10 fast
+  // hits and it shatters early. Rewards rapid-fire builds over slow nukers.
   pyretitan: {
     id: 'pyretitan', name: 'Pyre Titan', hp: 4800, speed: 24, radius: 26, bounty: 350,
     color: '#c25a2e', resist: { fire: 0.0, lightning: 1.15 }, boss: true, leakCost: 10,
     innateImmune: ['burn', 'chill'],
+    periodicShield: { period: 9, duration: 4, hits: 10 },
   },
   // Act 3 finale, THE boss: armored AND fire-hardened AND cold-proof.
-  // Cracking the shell releases its heartlings.
+  // Cracking the shell releases its heartlings — and wounds erupt into Heartstones
+  // (75/50/25% hp) that heal it until sniped.
   colossus: {
     id: 'colossus', name: 'Dread Colossus', hp: 8600, speed: 20, radius: 30, bounty: 600,
     color: '#3d2f5e', resist: { fire: 0.5 }, boss: true, armor: 1600, leakCost: 25,
     innateImmune: ['chill'], armorBreakSpawns: ['golemling', 'golemling', 'golemling'],
+    hpPhases: { thresholds: [0.75, 0.5, 0.25], type: 'heartstone', count: 2 },
+  },
+  // Act 3 finale (campaign): THE AETHERWYRM — a vast jade dragon on bronze wings.
+  // No armor to crack; instead, a quarter of the way down the road it ROARS and
+  // polymorphs half your towers into random ones of equal value. Adapt or fall.
+  aetherwyrm: {
+    id: 'aetherwyrm', name: 'The Aetherwyrm', hp: 9400, speed: 23, radius: 27, bounty: 650,
+    color: '#3fd8c8', resist: { fire: 0.5, ice: 0.8 }, boss: true, leakCost: 25,
+    innateImmune: ['burn'],
+    polymorph: { atDistPct: 0.25, fraction: 0.5 },
+  },
+
+  // The Colossus' pulsing heal-crystal: rooted to the road, never leaks, holds the
+  // wave open until destroyed. Snipe it or the boss drinks deep.
+  heartstone: {
+    id: 'heartstone', name: 'Heartstone', hp: 130, speed: 0, radius: 12, bounty: 25,
+    color: '#e05a7a', resist: {},
+    aura: { kind: 'heal', radius: 150, power: 0.02, period: 1 },
+    leakCost: 0,
   },
 };

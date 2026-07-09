@@ -1,6 +1,6 @@
 import { SKIP_GOLD } from '../data/cards';
 import { ELEMENTS } from '../data/elements';
-import { applyCard, type GameState } from '../game/state';
+import { applyCard, draftCount, drawDraft, type GameState } from '../game/state';
 import { fx } from '../render/effects';
 import { sfx } from '../audio/sfx';
 import type { CardDef } from '../game/types';
@@ -40,7 +40,10 @@ function render(state: GameState): void {
     <div id="draft-inner">
       <h2>${state.eliteDraft ? '★ Elite Spoils — choose a RARE' : 'Choose a card'}</h2>
       <div id="draft-cards"></div>
-      <button id="draft-skip">Skip — take ${SKIP_GOLD} ◉</button>
+      <div id="draft-footer">
+        ${state.rerollTokens > 0 ? `<button id="draft-reroll">🎲 Reroll (${state.rerollTokens} left)</button>` : ''}
+        <button id="draft-skip">Skip — take ${SKIP_GOLD} ◉</button>
+      </div>
     </div>`;
 
   const wrap = modal.querySelector('#draft-cards')!;
@@ -58,6 +61,13 @@ function render(state: GameState): void {
     wrap.appendChild(el);
   }
   modal.querySelector('#draft-skip')!.addEventListener('click', () => resolve(state, null));
+  // Grove perk: burn a token, redraw the hand. NEW array -> the reference guard re-renders.
+  modal.querySelector('#draft-reroll')?.addEventListener('click', () => {
+    if (state.rerollTokens <= 0) return;
+    state.rerollTokens--;
+    state.pendingDraft = drawDraft(state, draftCount(state), state.eliteDraft);
+    sfx.click();
+  });
 }
 
 function resolve(state: GameState, card: CardDef | null): void {

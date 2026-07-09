@@ -1,5 +1,5 @@
-export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physical';
-export type TowerFamily = 'wizard' | 'goblin' | 'archer' | 'tree';
+export type ElementId = 'fire' | 'ice' | 'lightning' | 'water' | 'wind' | 'physical' | 'void';
+export type TowerFamily = 'wizard' | 'goblin' | 'archer' | 'tree' | 'void';
 export type StatusId = 'burn' | 'wet' | 'chill' | 'frozen' | 'shock';
 export type TargetMode = 'first' | 'last' | 'strong' | 'close';
 export type Phase = 'build' | 'wave' | 'draft' | 'relic' | 'actClear' | 'won' | 'lost';
@@ -153,6 +153,20 @@ export interface EnemyDef {
   hexes?: { period: number; duration: number; radius: number };
   /** Banshee: her death-wail silences towers near the corpse */
   deathSilence?: { radius: number; duration: number };
+  /** Pyre Titan: hardens for `duration`s out of every `period`s — every hit is
+   *  blocked outright, but each blocked hit counts; `hits` of them shatter it early */
+  periodicShield?: { period: number; duration: number; hits: number };
+  /** Frost Shaman: TOWERS in radius attack slower (attack interval x rateMul) */
+  frostAura?: { radius: number; rateMul: number };
+  /** Burrower: moves this much faster while phased underground (pairs with `phase`) */
+  burrowSpeedMul?: number;
+  /** Mirror Slime: killed by NON-physical damage it fissions; physical kills it clean */
+  splitOnElemental?: { type: string; count: number };
+  /** Colossus: at these hp fractions, plants `count` of `type` on the road beside itself */
+  hpPhases?: { thresholds: number[]; type: string; count: number };
+  /** Aetherwyrm: crossing `atDistPct` of the road, it ROARS and polymorphs
+   *  `fraction` of the player's towers into random specs of the same value */
+  polymorph?: { atDistPct: number; fraction: number };
 }
 
 export interface StatMods {
@@ -217,6 +231,8 @@ export interface WizardDef {
   entangles?: boolean;
   /** Rootgrasp Tree: instant eruption at the target's feet (no projectile), small area */
   groundAttack?: boolean;
+  /** Void Sylph: telekinesis reaches through the trees — targeting ignores line of sight */
+  ignoreLOS?: boolean;
   /** evolved super-form: excluded from specialize draws, reached via Evolve only */
   isEvolved?: boolean;
   /** built-in triggered ability (evolved forms) — scanned by the proc engine like a card */
@@ -290,6 +306,8 @@ export interface Statuses {
   entangled?: { t: number };
   /** Rootgrasp Tree: plain physical slow — deliberately separate from Chill (no Freeze/Shatter feed) */
   snared?: { t: number; pct: number };
+  /** Great Gong spell: dead stop — pure CC, isolated from elite immunities & Shatter */
+  stunned?: { t: number };
 }
 
 export interface Enemy {
@@ -332,6 +350,16 @@ export interface Enemy {
   gustImmune?: boolean;
   /** elite-wave speed multiplier */
   speedMult?: number;
+  /** periodicShield clock (sec, cycles def.periodicShield.period) */
+  shieldT?: number;
+  /** true while the carapace is up — every hit is blocked (but counted) */
+  shieldActive?: boolean;
+  /** blocked hits landed on the current shield */
+  shieldHits?: number;
+  /** hpPhases: how many thresholds have already fired */
+  phaseIdx?: number;
+  /** polymorph already unleashed (fires exactly once) */
+  polyDone?: boolean;
 }
 
 export interface WizardStats {
@@ -371,6 +399,8 @@ export interface Wizard {
   attackCount: number;
   /** hexed: cannot attack while > 0 (Hexer / Banshee silences) */
   silencedT?: number;
+  /** transient frost-shaman aura: attack interval multiplier (recomputed every tick) */
+  frostMul?: number;
   /** cloud mage with no cloud in range — cannot attack, shown grayed */
   becalmed?: boolean;
   /** true until the player chooses a specialization; def is a zero-stat generic shell */
@@ -379,6 +409,20 @@ export interface Wizard {
   family: TowerFamily;
   /** pre-rolled at placement time so the modal is deterministic/seeded */
   specializeOptions?: WizardDef[];
+}
+
+/** A transient Warden Spell ground zone, ticked by updateSpells. */
+export interface SpellEffect {
+  kind: 'roots' | 'blackhole' | 'arrowstorm';
+  x: number; // board px
+  y: number;
+  r: number;
+  /** seconds remaining */
+  t: number;
+  /** blackhole: track distance nearest to (x,y) — enemies are dragged back toward it */
+  pointDist?: number;
+  /** arrowstorm: time until the next volley; roots/blackhole: fx re-emit accumulator */
+  tickT?: number;
 }
 
 /** A drifting cloud (sim entity — cloud mages only work near one). */

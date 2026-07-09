@@ -5,9 +5,10 @@ export function canAfford(state: GameState, cost: number): boolean {
   return state.gold >= cost;
 }
 
-/** Tower placement cost after drafted discounts. */
+/** Tower placement cost after drafted discounts (+ the Founder's first-tower perk). */
 export function towerCost(state: GameState, baseCost: number): number {
-  return Math.round(baseCost * (1 - state.towerDiscountPct / 100));
+  const founder = state.perks.founderDiscount && !state.firstTowerBought ? 0.75 : 1;
+  return Math.round(baseCost * (1 - state.towerDiscountPct / 100) * founder);
 }
 
 export function spend(state: GameState, cost: number): boolean {

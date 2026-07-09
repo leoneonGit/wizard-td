@@ -39,7 +39,8 @@ export function pickTarget(state: GameState, w: Wizard): Enemy | undefined {
   const candidates = enemiesInRange(state, w.x, w.y, w.stats.range).filter(
     (e) => (air || !e.def.flying) &&
       // flyers soar over the trees — line of sight only gates ground targets
-      (e.def.flying || hasLOS(state, w.x, w.y, e.x, e.y)),
+      // (and Void Sylph telekinesis reaches through them entirely)
+      (e.def.flying || w.def.ignoreLOS || hasLOS(state, w.x, w.y, e.x, e.y)),
   );
   if (candidates.length === 0) return undefined;
 

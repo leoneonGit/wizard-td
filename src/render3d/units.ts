@@ -44,6 +44,14 @@ interface UnitView {
   flapWings?: THREE.Mesh[];
   /** slime: squash-and-stretch instead of a walk cycle */
   blob?: boolean;
+  /** heartstone: rooted crystal, pulses gently in place */
+  crystal?: boolean;
+  /** burrower: dips below the ground while phased */
+  burrow?: boolean;
+  /** current burrow depth (smoothed toward 0 or the buried depth) */
+  sink?: number;
+  /** dragon boss: rides the road but renders airborne with a bob */
+  hover?: boolean;
   height: number;
 }
 
@@ -55,6 +63,66 @@ interface Dying {
 
 const DEATH_TIME = 1.05;
 const SHRINK_TIME = 0.28;
+
+// ---------------------------------------------------------------- warpaint
+// Atlas-swatch recoloring for single-material textured rigs (the goblin):
+// exact palette pixels are swapped for the look's colors. Cached per remap so
+// every slingshot shares one texture.
+const warpaintCache = new Map<string, THREE.Texture>();
+
+function warpaintTexture(src: THREE.Texture, remap: Record<string, string>): THREE.Texture {
+  const key = JSON.stringify(remap);
+  const hit = warpaintCache.get(key);
+  if (hit) return hit;
+
+  const img = src.image as CanvasImageSource & { width: number; height: number };
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const g = canvas.getContext('2d')!;
+  g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, canvas.width, canvas.height);
+  const hexToRgb = (h: string) => [
+    parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16),
+  ];
+  const pairs = Object.entries(remap).map(([f, t]) => ({ f: hexToRgb(f), t: hexToRgb(t) }));
+  for (let i = 0; i < px.data.length; i += 4) {
+    for (const { f, t } of pairs) {
+      if (
+        Math.abs(px.data[i] - f[0]) <= 8 &&
+        Math.abs(px.data[i + 1] - f[1]) <= 8 &&
+        Math.abs(px.data[i + 2] - f[2]) <= 8
+      ) {
+        px.data[i] = t[0];
+        px.data[i + 1] = t[1];
+        px.data[i + 2] = t[2];
+        break;
+      }
+    }
+  }
+  g.putImageData(px, 0, 0);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.flipY = src.flipY; // glTF textures don't flip — must match the original
+  tex.colorSpace = src.colorSpace;
+  tex.magFilter = src.magFilter;
+  tex.minFilter = src.minFilter;
+  tex.generateMipmaps = src.generateMipmaps;
+  tex.wrapS = src.wrapS;
+  tex.wrapT = src.wrapT;
+  // gltfpack quantizes UVs and compensates via a texture transform — without
+  // copying it, sampling lands on the atlas's white filler and the rig renders
+  // blank. (KHR_texture_transform -> offset/repeat/rotation/center/channel.)
+  tex.offset.copy(src.offset);
+  tex.repeat.copy(src.repeat);
+  tex.rotation = src.rotation;
+  tex.center.copy(src.center);
+  tex.channel = src.channel;
+  tex.matrixAutoUpdate = src.matrixAutoUpdate;
+  if (!src.matrixAutoUpdate) tex.matrix.copy(src.matrix);
+  warpaintCache.set(key, tex);
+  return tex;
+}
 
 const enemyViews = new Map<number, UnitView>();
 const wizardViews = new Map<number, UnitView>();
@@ -106,6 +174,55 @@ function makeBlobView(look: UnitLook): UnitView {
   };
 }
 
+/** Heartstones are rooted heal-crystals: a glowing octahedron on a rock base. */
+function makeCrystalView(look: UnitLook): UnitView {
+  const root = new THREE.Group();
+  const inner = new THREE.Group();
+  root.add(inner);
+  const color = look.tint ?? new THREE.Color('#e05a7a');
+  const mat = new THREE.MeshStandardMaterial({
+    color,
+    emissive: color.clone().multiplyScalar(0.55),
+    roughness: 0.2,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(look.height * 0.42), mat);
+  gem.position.y = look.height * 0.62;
+  gem.castShadow = true;
+  inner.add(gem);
+  // smaller side shards give it a grown-from-the-road silhouette
+  for (const [dx, dz, s] of [[0.28, 0.1, 0.5], [-0.24, -0.14, 0.4]] as const) {
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(look.height * 0.42 * s), mat);
+    shard.position.set(dx * look.height, look.height * 0.3 * s + 0.05, dz * look.height);
+    shard.castShadow = true;
+    inner.add(shard);
+  }
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(look.height * 0.34, look.height * 0.44, look.height * 0.16, 7),
+    new THREE.MeshStandardMaterial({ color: '#4a4252', roughness: 1 }),
+  );
+  base.position.y = look.height * 0.08;
+  base.castShadow = true;
+  inner.add(base);
+  return {
+    root,
+    inner,
+    mats: [mat],
+    origColors: [mat.color.clone()],
+    baseEmissive: mat.emissive.clone(),
+    yaw: 0,
+    casting: false,
+    cheering: false,
+    becalmed: false,
+    watery: false,
+    prevRecoil: 0,
+    crystal: true,
+    height: look.height,
+  };
+}
+
 /** Vehicles are procedural wheel-and-plank rigs — no skeleton, they roll and rock. */
 function makeVehicleView(look: UnitLook): UnitView {
   const asset = getAttachment(look.vehicle!);
@@ -148,6 +265,7 @@ function makeVehicleView(look: UnitLook): UnitView {
 function makeView(look: UnitLook): UnitView {
   if (look.vehicle) return makeVehicleView(look);
   if (look.blob) return makeBlobView(look);
+  if (look.crystal) return makeCrystalView(look);
   const asset = getAsset(look.model);
   const inner = SkeletonUtils.clone(asset.scene) as THREE.Group;
   const s = asset.unitScale * look.height;
@@ -179,69 +297,8 @@ function makeView(look: UnitLook): UnitView {
     headMeshes = collectMeshes(inner.getObjectByName('Mage_Head'));
   }
 
-  // goblin styling: Barbarian rig — strip weapons (the tower goblins throw things;
-  // orc grunts keep theirs), the round shield doubles as the Gong's hand-carried gong.
-  if (look.goblin) {
-    if (!look.goblin.keepWeapons) {
-      for (const name of ['1H_Axe', '2H_Axe', '1H_Axe_Offhand', 'Mug']) {
-        const n = inner.getObjectByName(name);
-        if (n) n.visible = false;
-      }
-    }
-    const shield = inner.getObjectByName('Barbarian_Round_Shield');
-    if (shield) shield.visible = !!look.goblin.showShield;
-    const hat = inner.getObjectByName('Barbarian_Hat');
-    if (hat) hatMeshes = collectMeshes(hat);
-    const head = inner.getObjectByName('Barbarian_Head');
-    headMeshes = collectMeshes(head);
-
-    // goblin-ification: big head, pointy ears, glowing eyes — a proper greenskin
-    if (head) {
-      if (look.goblin.headScale) head.scale.multiplyScalar(look.goblin.headScale);
-      inner.updateMatrixWorld(true);
-      const ws = new THREE.Vector3();
-      head.getWorldScale(ws);
-      const localUnit = 1 / Math.max(1e-6, ws.y); // 1 world unit in head-local units
-
-      if (look.goblin.ears) {
-        const orc = look.goblin.ears === 'orc';
-        const earLen = (orc ? 0.14 : 0.2) * look.height;
-        const skin = new THREE.MeshStandardMaterial({
-          color: (look.goblin.greenFace ?? look.tint ?? new THREE.Color('#4f9e3f')).clone(),
-          roughness: 0.85,
-        });
-        for (const side of [-1, 1]) {
-          const ear = new THREE.Mesh(
-            new THREE.ConeGeometry(0.045 * look.height * localUnit, earLen * localUnit, 6),
-            skin,
-          );
-          ear.position.set(side * 0.095 * look.height * localUnit, -0.04 * look.height * localUnit, 0);
-          ear.rotation.z = -side * 1.25; // tips swept outward and up
-          ear.castShadow = true;
-          head.add(ear);
-        }
-      }
-
-      if (look.goblin.eyes) {
-        const eyeMat = new THREE.MeshStandardMaterial({
-          color: '#201a10',
-          emissive: new THREE.Color('#ffd75e'),
-          emissiveIntensity: 1.1,
-        });
-        for (const side of [-1, 1]) {
-          const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026 * look.height * localUnit, 8, 6), eyeMat);
-          eye.position.set(
-            side * 0.038 * look.height * localUnit,
-            -0.045 * look.height * localUnit,
-            0.085 * look.height * localUnit, // KayKit rigs face +Z
-          );
-          head.add(eye);
-        }
-      }
-    }
-  }
-
-  // generic gear stripping (archer rigs whose held weapons don't match the kit)
+  // generic gear stripping (archer rigs whose held weapons don't match the kit;
+  // also used to hide the sculpted orc rig's built-in axe for unarmed variants)
   if (look.hideRe) {
     inner.traverse((o) => {
       if (look.hideRe!.test(o.name)) o.visible = false;
@@ -251,8 +308,13 @@ function makeView(look: UnitLook): UnitView {
   // held weapon (procedural bow/crossbow) into a hand slot — same math as the ent rock
   if (look.held) {
     const asset = getAttachment(look.held.key);
+    // GLTFLoader sanitizes node names ("Arm.R_end_end" -> "ArmR_end_end");
+    // the goblin rig's arm chain ends at ArmX_end_end, the orc's at LowerArmX
+    const side = look.held.hand === 'l' ? 'L' : 'R';
     const slot = inner.getObjectByName(`handslot${look.held.hand}`)
-      ?? inner.getObjectByName(`hand${look.held.hand}`);
+      ?? inner.getObjectByName(`hand${look.held.hand}`)
+      ?? inner.getObjectByName(`Arm${side}_end_end`)
+      ?? inner.getObjectByName(`LowerArm${side}`);
     if (asset && slot) {
       inner.updateMatrixWorld(true);
       const weapon = asset.scene.clone(true);
@@ -263,49 +325,6 @@ function makeView(look: UnitLook): UnitView {
       weapon.scale.setScalar(targetH * localUnit / asset.rawHeight);
       weapon.rotation.set(look.held.rotX ?? 0, look.held.rotY ?? Math.PI / 2, look.held.rotZ ?? 0);
       slot.add(weapon);
-    }
-  }
-
-  // ent styling: rigged body turned LotR tree-creature — strip ALL gear, bark-tint
-  // everything, and graft a leafy canopy onto the head bone so it sways with the
-  // idle animation. The Boulder Ent additionally palms a rock, ready to hurl.
-  let canopyMeshes = new Set<THREE.Object3D>();
-  let rockMeshes = new Set<THREE.Object3D>();
-  if (look.ent) {
-    for (const name of ['1H_Axe', '2H_Axe', '1H_Axe_Offhand', 'Mug', 'Barbarian_Round_Shield', 'Barbarian_Hat']) {
-      const n = inner.getObjectByName(name);
-      if (n) n.visible = false;
-    }
-    inner.updateMatrixWorld(true);
-    const head = inner.getObjectByName('Barbarian_Head') ?? inner;
-    const canopyAsset = getAttachment(look.ent.canopy);
-    if (canopyAsset) {
-      const canopy = canopyAsset.scene.clone(true);
-      const ws = new THREE.Vector3();
-      head.getWorldScale(ws);
-      const localUnit = 1 / Math.max(1e-6, ws.y); // 1 world unit, in head-local units
-      const targetH = (look.ent.canopyScale ?? 0.9) * look.height;
-      canopy.scale.setScalar(targetH * localUnit / canopyAsset.rawHeight);
-      canopy.position.y = -0.35 * look.height * localUnit; // trunk base sunk into the shoulders
-      head.add(canopy);
-      canopyMeshes = collectMeshes(canopy);
-    }
-    if (look.ent.rock) {
-      const rockAsset = getAttachment('rock');
-      const slot = inner.getObjectByName('handslotr')
-        ?? inner.getObjectByName('handslot.r')
-        ?? inner.getObjectByName('handr')
-        ?? inner.getObjectByName('1H_Axe')?.parent;
-      if (rockAsset && slot) {
-        const rock = rockAsset.scene.clone(true);
-        const ws = new THREE.Vector3();
-        slot.getWorldScale(ws);
-        const localUnit = 1 / Math.max(1e-6, ws.y);
-        const targetH = 0.28 * look.height;
-        rock.scale.setScalar(targetH * localUnit / rockAsset.rawHeight);
-        slot.add(rock);
-        rockMeshes = collectMeshes(rock);
-      }
     }
   }
 
@@ -333,34 +352,68 @@ function makeView(look: UnitLook): UnitView {
     } else {
       m = src.clone();
     }
-    if (canopyMeshes.has(mesh)) {
-      // foliage keeps its leafy identity — tinted toward the subtype's green, never bark
-      if (look.ent?.canopyTint) m.color.lerp(look.ent.canopyTint, 0.5);
-    } else if (rockMeshes.has(mesh)) {
-      // the held rock stays natural stone
-    } else if (look.goblin?.greenFace && headMeshes.has(mesh)) {
-      // goblins are GREEN — the face takes the full skin tint, not a whisper of it
-      m.color.lerp(look.goblin.greenFace, 0.8);
-    } else if (look.tint) {
+    if (look.tint) {
       let strength = look.tintStrength ?? 0.4;
-      if (look.mage || look.goblin) {
+      if (look.mage) {
         if (headMeshes.has(mesh)) strength = 0.08;
         else if (hatMeshes.has(mesh)) strength = Math.min(1, strength + 0.25);
       }
       m.color.lerp(look.tint, strength);
     }
-    const accentEmissive = look.mage?.hatEmissive ?? look.goblin?.hatEmissive;
+    const accentEmissive = look.mage?.hatEmissive;
     if (accentEmissive && hatMeshes.has(mesh)) {
       m.emissive.copy(accentEmissive);
       m.emissiveIntensity = 0.18;
     } else if (look.emissive) {
       m.emissive.copy(look.emissive);
-      m.emissiveIntensity = 0.35;
+      m.emissiveIntensity = look.emissiveIntensity ?? 0.35;
     }
     if (look.ghostly) m.transparent = true; // wraiths fade with their phase
     mesh.material = m;
     mats.push(m);
   });
+
+  // warpaint: swap the atlas palette's swatches for this look's colors
+  if (look.atlasRemap) {
+    for (const m of mats) {
+      if (m.map) {
+        m.map = warpaintTexture(m.map, look.atlasRemap);
+        m.needsUpdate = true;
+      }
+    }
+  }
+
+  // multi-tone reskin: rank this rig's materials by brightness and map them to
+  // the palette's dark / mid / accent — the sculpt keeps its material variation
+  // instead of drowning in one flat tint. Only the accent materials glow.
+  if (look.palette) {
+    const lum = (c: THREE.Color) => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+    const sorted = [...mats].sort((a, b) => lum(a.color) - lum(b.color));
+    sorted.forEach((m, i) => {
+      const t = sorted.length <= 1 ? 1 : i / (sorted.length - 1);
+      const target = t < 0.4 ? look.palette!.dark : t < 0.8 ? look.palette!.mid : look.palette!.accent;
+      // copy, don't lerp: even a 12% residue of bone-white reads as gray after
+      // the linear->sRGB round trip. Texture maps keep the shading detail.
+      m.color.copy(target);
+      if (t >= 0.8 && look.palette!.accentEmissive) {
+        m.emissive.copy(look.palette!.accentEmissive);
+        m.emissiveIntensity = 0.5;
+      }
+    });
+  }
+
+  // exact per-part recolor by material name (dragon rig: Main/Wings/Belly/Claws/Eyes)
+  if (look.matColors) {
+    for (const m of mats) {
+      const spec = look.matColors[m.name];
+      if (!spec) continue;
+      m.color.set(spec.color);
+      if (spec.emissive) {
+        m.emissive.set(spec.emissive);
+        m.emissiveIntensity = spec.emissiveIntensity ?? 0.5;
+      }
+    }
+  }
 
   // flyer wings: two dark membranes on the back, flapped per frame
   let flapWings: THREE.Mesh[] | undefined;
@@ -391,7 +444,6 @@ function makeView(look: UnitLook): UnitView {
     return mixer.clipAction(c!);
   };
   const idle = clip(asset.idle);
-  if (look.ent) idle.timeScale = 0.55; // ancient, slow tree-folk sway
   const walk = clip(asset.walk);
   const attack = clip(asset.attack);
   attack.setLoop(THREE.LoopOnce, 1);
@@ -458,6 +510,8 @@ function syncEnemies(state: GameState, dt: number): void {
       const look = ENEMY_LOOKS[e.def.id] ?? ENEMY_LOOKS.grunt;
       v = makeView(look);
       v.ghostly = look.ghostly;
+      v.burrow = look.burrower;
+      v.hover = look.hover;
       makeHpBar(v);
       v.walk?.play();
       v.yaw = headingToYaw(e.angle);
@@ -466,9 +520,15 @@ function syncEnemies(state: GameState, dt: number): void {
       // spawn pop
       v.root.scale.setScalar(0.01);
     }
-    // position + facing (flyers soar with a gentle bob)
-    const flyY = e.def.flying ? 1.05 + Math.sin(performance.now() / 380 + e.id) * 0.12 : 0;
-    v.root.position.set(e.x * PX, flyY, e.y * PX);
+    // position + facing (flyers soar with a gentle bob; burrowers duck below the road;
+    // the dragon hovers low over the road on its wingbeats)
+    const flyY = e.def.flying ? 1.05 + Math.sin(performance.now() / 380 + e.id) * 0.12
+      : v.hover ? 0.55 + Math.sin(performance.now() / 320 + e.id) * 0.14 : 0;
+    if (v.burrow) {
+      const target = e.phased ? -0.72 : 0;
+      v.sink = (v.sink ?? 0) + (target - (v.sink ?? 0)) * Math.min(1, dt * 7);
+    }
+    v.root.position.set(e.x * PX, flyY + (v.sink ?? 0), e.y * PX);
     const targetYaw = headingToYaw(e.angle);
     v.yaw += shortestAngle(v.yaw, targetYaw) * Math.min(1, dt * 10);
     v.root.rotation.y = v.yaw;
@@ -483,6 +543,12 @@ function syncEnemies(state: GameState, dt: number): void {
       const b = Math.abs(Math.sin(e.animT * 6));
       v.inner.scale.set(1 + 0.14 * b, 1 - 0.18 * b, 1 + 0.14 * b);
     }
+    if (v.crystal) {
+      // a slow heartbeat — in time with the heal it pumps out
+      const b = 1 + Math.sin(performance.now() / 320 + e.id) * 0.06;
+      v.inner.scale.setScalar(b);
+      v.inner.rotation.y += dt * 0.6;
+    }
     // spawn scale-in
     const cur = v.root.scale.x;
     if (cur < 1) v.root.scale.setScalar(Math.min(1, cur + dt * 5));
@@ -491,7 +557,11 @@ function syncEnemies(state: GameState, dt: number): void {
     let factor = 1;
     if (e.statuses.frozen) factor = 0;
     else if (e.statuses.chill) factor = Math.max(0.25, 1 - e.statuses.chill.pct * (0.6 + 0.2 * e.statuses.chill.stacks));
-    if (v.walk) v.walk.timeScale = (e.def.speed / 60) * factor;
+    if (v.walk) {
+      const ts = (e.def.speed / 60) * factor;
+      // hovering wings keep a living wingbeat tempo — unless truly frozen/stunned
+      v.walk.timeScale = v.hover ? (factor === 0 ? 0 : Math.max(0.85, ts)) : ts;
+    }
     v.mixer?.update(dt);
 
     // vehicles roll: wheels spin with covered distance, the body rocks on the ruts
@@ -664,6 +734,13 @@ function syncWizards(state: GameState, dt: number): void {
     }
     v.prevRecoil = w.recoil;
     v.mixer?.update(dt);
+
+    // winged towers (Void Sylph) flutter in place
+    if (v.flapWings) {
+      const flap = Math.sin(performance.now() / 110 + w.id) * 0.5;
+      v.flapWings[0].rotation.y = -0.35 - flap;
+      v.flapWings[1].rotation.y = 0.35 + flap;
+    }
 
     // watery shimmer: opacity gently oscillates
     if (v.watery) {

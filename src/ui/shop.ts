@@ -23,6 +23,7 @@ export function initShop(onPick: (typeId: string) => void): void {
       </div>
       <div class="shop-cost">${def.cost}</div>
     `;
+    card.title = `${def.name} — ${def.desc}`; // rail cards are icon+price; the pitch lives here
     card.addEventListener('click', () => onPick(id));
     shop.appendChild(card);
     cards.set(id, card);

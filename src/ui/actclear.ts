@@ -1,5 +1,5 @@
 /** Act transition: the boss is down — pack up camp and travel to the next map. */
-import { ACT_MAPS, MAPS } from '../data/maps';
+import { mapForAct } from '../data/maps';
 import { SELL_REFUND, type GameState } from '../game/state';
 
 let modal: HTMLElement;
@@ -25,7 +25,7 @@ export function updateActClear(state: GameState): void {
 }
 
 function render(state: GameState): void {
-  const nextMap = MAPS[ACT_MAPS[state.act + 1]];
+  const nextMap = mapForAct(state.act + 1, state.seed);
   const refund = state.wizards.reduce((sum, w) => sum + Math.round(w.invested * SELL_REFUND), 0);
   modal.classList.remove('hidden');
   modal.innerHTML = `

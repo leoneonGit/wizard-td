@@ -15,7 +15,12 @@ import { initRenderer3d, draw3d, pickBoardPoint, rebuildMap, zoomView, panView, 
 import { fx } from './render/effects';
 import { sfx } from './audio/sfx';
 import { music } from './audio/music';
-import { WAVES_PER_ACT } from './data/waves';
+import { wavesInAct } from './data/waves';
+import { ENEMIES } from './data/enemies';
+import { SPELLS, castSpell, spellById, spellReady, updateSpells } from './game/spells';
+import { loadMeta, perksFromMeta } from './game/meta';
+import { initGrove } from './ui/grove';
+import { initSpellbar, updateSpellbar } from './ui/spellbar';
 import { initHud, updateHud } from './ui/hud';
 import { initShop, updateShop } from './ui/shop';
 import { initTowerPanel, updateTowerPanel } from './ui/towerPanel';
@@ -27,12 +32,14 @@ import { loadRunSave, restoreRun, clearRunSave, saveRun } from './game/save';
 const requestedMap = new URLSearchParams(location.search).get('map');
 const activeMap = (requestedMap && loadMap(requestedMap)) || undefined;
 
-// resume a saved run when it matches the requested map (or no map was requested)
+// resume a saved run when it matches the requested map (or no map was requested).
+// Grove perks are read fresh here and injected — the sim itself never touches storage.
+const bootPerks = perksFromMeta(loadMeta());
 const runSave = loadRunSave();
 const resumed =
-  runSave && (!requestedMap || requestedMap === runSave.mapId) ? restoreRun(runSave) : null;
+  runSave && (!requestedMap || requestedMap === runSave.mapId) ? restoreRun(runSave, bootPerks) : null;
 
-let state: GameState = resumed ?? createGame(activeMap);
+let state: GameState = resumed ?? createGame(activeMap, undefined, bootPerks);
 
 const canvas = document.getElementById('board') as HTMLCanvasElement;
 
@@ -65,6 +72,7 @@ function tryPlaceAt(cx: number, cy: number, keepPlacing = false): boolean {
   const cost = towerCost(state, def.cost);
   if (!isBuildable(state, cx, cy, def) || !canAfford(state, cost)) return false;
   spend(state, cost);
+  state.firstTowerBought = true; // Founder's Discount is spent
   const w = makeWizard(state, def, cx, cy);
   w.invested = cost;
   state.wizards.push(w);
@@ -83,7 +91,20 @@ canvas.addEventListener('click', (e) => {
     return; // that was a pan/pinch, not a tap
   }
   const p = pickBoardPoint(e.offsetX, e.offsetY);
-  if (!p) return;
+  if (!p) {
+    // tapped the scenery around the board: dismiss the tower panel / spell targeting
+    if (!state.placingType) state.selectedWizardId = null;
+    state.castingSpell = null;
+    return;
+  }
+
+  // spell targeting mode: this click IS the cast
+  if (state.castingSpell) {
+    castSpell(state, state.castingSpell, p.x, p.y);
+    state.castingSpell = null;
+    return;
+  }
+
   const { cx, cy } = pixelToCell(p.x, p.y);
   if (!inBounds(cx, cy)) return;
 
@@ -207,19 +228,25 @@ canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   state.placingType = null;
   state.selectedWizardId = null;
+  state.castingSpell = null;
   pendingPlace = null;
 });
 
+const SPELL_KEYS = ['q', 'w', 'e', 'r', 't'];
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     state.placingType = null;
     state.selectedWizardId = null;
+    state.castingSpell = null;
     pendingPlace = null;
   } else if (e.key === ' ') {
     e.preventDefault();
     startWave(state);
   } else if (e.key >= '1' && e.key <= String(SHOP_ORDER.length)) {
     pickShopItem(SHOP_ORDER[Number(e.key) - 1]);
+  } else {
+    const idx = SPELL_KEYS.indexOf(e.key.toLowerCase());
+    if (idx >= 0 && SPELLS[idx]) pickSpell(SPELLS[idx].id);
   }
 });
 
@@ -231,10 +258,27 @@ function pickShopItem(typeId: string): void {
   if (!canAfford(state, def.cost)) return;
   state.placingType = state.placingType === typeId ? null : typeId;
   state.selectedWizardId = null;
+  state.castingSpell = null; // placement and spell targeting are mutually exclusive
   pendingPlace = null; // fresh pick, fresh two-tap cycle
 }
 
+/** Spell bar / hotkey entry: global spells fire at once, targeted ones arm the cursor. */
+function pickSpell(id: string): void {
+  const def = spellById(id);
+  if (!def || !spellReady(state, def)) return;
+  if (def.needsTarget) {
+    state.castingSpell = state.castingSpell === id ? null : id;
+    state.placingType = null;
+    pendingPlace = null;
+    sfx.click();
+  } else {
+    castSpell(state, id);
+  }
+}
+
 initShop(pickShopItem);
+initSpellbar(pickSpell);
+initGrove();
 initHud(() => startWave(state));
 initDraft(() => {
   saveRun(state); // checkpoint after every draft decision
@@ -259,10 +303,15 @@ initActClear((s) => {
   saveRun(s);
 });
 
-// "New Run" clears the save and starts fresh on the current map
+// "New Run" clears the save and starts fresh — campaign runs re-roll their
+// act maps from the pools (only an explicit ?map= request pins the map).
+// The re-roll can land on a DIFFERENT map, so the 3D scene must be rebuilt —
+// otherwise enemies walk the new map's road across the old map's scenery.
 document.getElementById('btn-newrun')?.addEventListener('click', () => {
   clearRunSave();
-  state = createGame(activeMap ?? (resumed ? state.map : undefined));
+  // perks re-read fresh: Grove purchases made since boot apply to THIS new run
+  state = createGame(activeMap, undefined, perksFromMeta(loadMeta()));
+  rebuildMap(state);
   fx.clear();
   sfx.click();
 });
@@ -271,7 +320,8 @@ if (resumed) {
 }
 initScreens(() => {
   clearRunSave();
-  state = createGame(activeMap);
+  state = createGame(activeMap, undefined, perksFromMeta(loadMeta()));
+  rebuildMap(state);
   fx.clear();
 });
 
@@ -322,21 +372,9 @@ function setSpeed(speed: number): void {
   document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((b) =>
     b.classList.toggle('active', Number(b.dataset.speed) === speed),
   );
-  qbSpeed.textContent = `${speed}×`;
 }
 document.querySelectorAll<HTMLButtonElement>('.btn-speed').forEach((btn) => {
   btn.addEventListener('click', () => setSpeed(Number(btn.dataset.speed)));
-});
-
-// quickbar: speed cycles 1→2→3, auto toggles
-const qbSpeed = document.getElementById('qb-speed') as HTMLButtonElement;
-const qbAuto = document.getElementById('qb-auto') as HTMLButtonElement;
-qbSpeed.addEventListener('click', () => setSpeed(state.speed >= 3 ? 1 : state.speed + 1));
-qbAuto.addEventListener('click', () => {
-  state.autoplay = !state.autoplay;
-  qbAuto.classList.toggle('active', state.autoplay);
-  (document.getElementById('chk-auto') as HTMLInputElement).checked = state.autoplay;
-  if (state.autoplay && state.phase === 'build') state.autoplayTimer = 0.8;
 });
 
 // ---- audio wiring (context unlocks on first user gesture per autoplay policy) ----
@@ -347,20 +385,64 @@ const unlockAudio = () => {
 window.addEventListener('pointerdown', unlockAudio, { once: true });
 window.addEventListener('keydown', unlockAudio, { once: true });
 
-const btnMusic = document.getElementById('btn-music') as HTMLButtonElement;
-btnMusic.addEventListener('click', () => {
-  music.setEnabled(!music.isEnabled());
-  btnMusic.textContent = music.isEnabled() ? '🎵' : '🎵̸';
-  btnMusic.style.opacity = music.isEnabled() ? '1' : '0.4';
-});
+// ---- audio settings: separate SFX/music volumes, persisted across sessions ----
+const AUDIO_KEY = 'wizardtd.audio';
+interface AudioPrefs { sfx: number; music: number; muted: boolean; musicOn: boolean }
+const audioPrefs: AudioPrefs = (() => {
+  try {
+    return { sfx: 0.5, music: 0.5, muted: false, musicOn: true, ...JSON.parse(localStorage.getItem(AUDIO_KEY) ?? '{}') };
+  } catch {
+    return { sfx: 0.5, music: 0.5, muted: false, musicOn: true };
+  }
+})();
+function saveAudioPrefs(): void {
+  try {
+    localStorage.setItem(AUDIO_KEY, JSON.stringify(audioPrefs));
+  } catch { /* non-fatal */ }
+}
 
+const btnMusic = document.getElementById('btn-music') as HTMLButtonElement;
 const btnMute = document.getElementById('btn-mute') as HTMLButtonElement;
-btnMute.addEventListener('click', () => {
-  sfx.setMuted(!sfx.isMuted());
-  btnMute.textContent = sfx.isMuted() ? '🔇' : '🔊';
+const volSlider = document.getElementById('vol-slider') as HTMLInputElement;
+const musicSlider = document.getElementById('music-slider') as HTMLInputElement;
+
+function syncAudioUi(): void {
+  btnMute.textContent = audioPrefs.muted ? '🔇' : '🔊';
+  btnMusic.style.opacity = audioPrefs.musicOn ? '1' : '0.4';
+  volSlider.value = String(Math.round(audioPrefs.sfx * 100));
+  musicSlider.value = String(Math.round(audioPrefs.music * 100));
+}
+
+// apply saved prefs before the first sound plays (all safe pre-init)
+sfx.setVolume(audioPrefs.sfx);
+sfx.setMuted(audioPrefs.muted);
+music.setVolume(audioPrefs.music);
+music.setEnabled(audioPrefs.musicOn);
+music.setMuted(audioPrefs.muted);
+syncAudioUi();
+
+btnMusic.addEventListener('click', () => {
+  audioPrefs.musicOn = !audioPrefs.musicOn;
+  music.setEnabled(audioPrefs.musicOn);
+  syncAudioUi();
+  saveAudioPrefs();
 });
-(document.getElementById('vol-slider') as HTMLInputElement).addEventListener('input', (e) => {
-  sfx.setVolume(Number((e.target as HTMLInputElement).value) / 100);
+btnMute.addEventListener('click', () => {
+  audioPrefs.muted = !audioPrefs.muted;
+  sfx.setMuted(audioPrefs.muted); // music rides its own bus now — mute both
+  music.setMuted(audioPrefs.muted);
+  syncAudioUi();
+  saveAudioPrefs();
+});
+volSlider.addEventListener('input', () => {
+  audioPrefs.sfx = Number(volSlider.value) / 100;
+  sfx.setVolume(audioPrefs.sfx);
+  saveAudioPrefs();
+});
+musicSlider.addEventListener('input', () => {
+  audioPrefs.music = Number(musicSlider.value) / 100;
+  music.setVolume(audioPrefs.music);
+  saveAudioPrefs();
 });
 
 (document.getElementById('chk-auto') as HTMLInputElement).addEventListener('change', (e) => {
@@ -390,17 +472,23 @@ function update(dt: number): void {
   updateClouds(state, dt);
   updateWizards(state, dt);
   updateProjectiles(state, dt);
+  updateSpells(state, dt); // spell CC lands before enemies take their step
   updateEnemies(state, dt);
   fx.update(dt);
 }
 
 function render(): void {
+  // each act has its own score; the heat climbs every couple of waves (boss = 4)
+  music.setAct(state.act);
   music.setIntensity(
-    state.phase !== 'wave' ? 0 : state.round === WAVES_PER_ACT - 1 ? 2 : 1,
+    state.phase !== 'wave' ? 0
+      : state.round === wavesInAct(state.act) - 1 ? 4
+        : 1 + Math.min(2, Math.floor(state.round / 2)),
   );
   draw3d(state);
   updatePlaceConfirm();
   updateHud(state);
+  updateSpellbar(state);
   updateShop(state);
   updateTowerPanel(state);
   updateDraft(state);
@@ -412,20 +500,48 @@ function render(): void {
   updateScreens(state);
 }
 
-// boot: load 3D assets, then start the loop
-initRenderer3d(canvas, state)
+// boot: load 3D assets (with a visible progress bar), then start the loop
+const loadingEl = document.getElementById('loading')!;
+const loadingFill = document.getElementById('loading-fill')!;
+const loadingText = document.getElementById('loading-text')!;
+initRenderer3d(canvas, state, (done, total) => {
+  loadingFill.style.width = `${Math.round((done / total) * 100)}%`;
+  loadingText.textContent = `Summoning defenders… ${done}/${total}`;
+})
   .then(() => {
+    loadingEl.remove();
+    showGestureHintOnce();
     startLoop(update, render, () => state.speed);
   })
   .catch((err) => {
     console.error('renderer failed to initialize', err);
-    const wrap = canvas.parentElement!;
-    const msg = document.createElement('div');
-    msg.style.cssText =
-      'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ff9db5;font-size:15px;text-align:center;padding:20px;';
-    msg.textContent = `Failed to load game assets: ${err?.message ?? err}. Try refreshing.`;
-    wrap.appendChild(msg);
+    loadingText.textContent = `Failed to load game assets: ${err?.message ?? err}. Check your connection and refresh.`;
+    (loadingText as HTMLElement).style.color = '#ff9db5';
   });
+
+// one-time touch onboarding: players kept missing that the board zooms/pans.
+// The zoom buttons also pulse (body[data-hint]) until the hint is dismissed.
+function showGestureHintOnce(): void {
+  const HINT_KEY = 'wizardtd.hintSeen';
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  if (!touch || localStorage.getItem(HINT_KEY)) return;
+  const hint = document.getElementById('gesture-hint')!;
+  hint.classList.remove('hidden');
+  document.body.dataset.hint = '1';
+  document.getElementById('gh-ok')!.addEventListener('click', () => {
+    hint.classList.add('hidden');
+    delete document.body.dataset.hint;
+    localStorage.setItem(HINT_KEY, '1');
+    sfx.click();
+  }, { once: true });
+}
+
+// offline + repeat-visit caching (production only — a SW would fight Vite's dev HMR)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
+    /* not fatal — the game just won't work offline */
+  });
+}
 
 // debug/test handles (read-only inspection + scripted placement for live verification)
 Object.defineProperty(window, '__game', { get: () => state });
@@ -438,6 +554,19 @@ Object.defineProperty(window, '__game', { get: () => state });
   const w = makeWizard(state, def, cx, cy);
   state.wizards.push(w);
   return w.id;
+};
+(window as any).__cast = (id: string, x = 0, y = 0) => castSpell(state, id, x, y);
+(window as any).__spawn = (type: string, dist = 200) => {
+  const def = ENEMIES[type];
+  if (!def) return null;
+  const p = state.track.posAt(Math.min(dist, state.track.total - 1));
+  const e = {
+    id: state.nextId++, def, hp: def.hp, maxHp: def.hp, dist,
+    x: p.x, y: p.y, statuses: {}, wobble: 0, animT: 0, angle: p.angle, hitFlash: 0,
+    armorHp: def.armor,
+  };
+  state.enemies.push(e as any);
+  return e.id;
 };
 (window as any).__specialize = (wizardId: number, defId: string) => {
   const w = findWizard(state, wizardId);

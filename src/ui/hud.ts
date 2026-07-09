@@ -1,5 +1,5 @@
 import { ENEMIES } from '../data/enemies';
-import { wavesForAct, WAVES_PER_ACT } from '../data/waves';
+import { wavesForAct, wavesInAct } from '../data/waves';
 import { isCampaign, type GameState } from '../game/state';
 
 let elGold: HTMLElement;
@@ -7,11 +7,6 @@ let elLives: HTMLElement;
 let elRound: HTMLElement;
 let btnStart: HTMLButtonElement;
 let elWavePreview: HTMLElement;
-// quickbar mirrors (mobile sticky strip)
-let qbGold: HTMLElement;
-let qbLives: HTMLElement;
-let qbRound: HTMLElement;
-let qbStart: HTMLButtonElement;
 
 let lastKey = '';
 
@@ -22,11 +17,6 @@ export function initHud(onStart: () => void): void {
   btnStart = document.getElementById('btn-start') as HTMLButtonElement;
   elWavePreview = document.getElementById('wave-preview')!;
   btnStart.addEventListener('click', onStart);
-  qbGold = document.getElementById('qb-gold')!;
-  qbLives = document.getElementById('qb-lives')!;
-  qbRound = document.getElementById('qb-round')!;
-  qbStart = document.getElementById('qb-start') as HTMLButtonElement;
-  qbStart.addEventListener('click', onStart);
 }
 
 export function updateHud(state: GameState): void {
@@ -34,16 +24,17 @@ export function updateHud(state: GameState): void {
   if (key === lastKey) return;
   lastKey = key;
 
+  // drives the per-act mood vignette on #board-wrap (styles.css)
+  document.body.dataset.act = String(state.act);
+
+  const waveCount = wavesInAct(state.act);
   const actTag = isCampaign(state) ? `Act ${['I', 'II', 'III'][state.act] ?? state.act + 1} · ` : '';
   elGold.textContent = String(state.gold);
   elLives.textContent = String(state.lives);
-  elRound.textContent = `${actTag}${Math.min(state.round + 1, WAVES_PER_ACT)}/${WAVES_PER_ACT}`;
-  qbGold.textContent = String(state.gold);
-  qbLives.textContent = String(state.lives);
-  qbRound.textContent = elRound.textContent;
+  elRound.textContent = `${actTag}${Math.min(state.round + 1, waveCount)}/${waveCount}`;
 
-  const isBossRound = state.round === WAVES_PER_ACT - 1;
-  if (state.phase === 'build' && state.round < WAVES_PER_ACT) {
+  const isBossRound = state.round === waveCount - 1;
+  if (state.phase === 'build' && state.round < waveCount) {
     const choiceDue = !state.nodePicked && state.nextNodes.length > 1;
     btnStart.disabled = choiceDue;
     const tag = isBossRound ? ' 👹 BOSS' : state.nodeChoice === 'elite' ? ' ★' : state.nodeChoice === 'treasure' ? ' 💎' : '';
@@ -69,24 +60,6 @@ export function updateHud(state: GameState): void {
     btnStart.disabled = true;
     btnStart.textContent = state.phase === 'won' ? 'Victory!' : 'Defeat';
   }
-
-  // quickbar start mirrors the main button, abbreviated for the strip
-  qbStart.disabled = btnStart.disabled;
-  if (state.phase === 'build') {
-    const choiceDue = !state.nodePicked && state.nextNodes.length > 1;
-    const tag = isBossRound ? ' 👹' : state.nodeChoice === 'elite' ? ' ★' : state.nodeChoice === 'treasure' ? ' 💎' : '';
-    qbStart.textContent = choiceDue ? '🗺️ path…' : `▶ Wave ${state.round + 1}${tag}`;
-  } else if (state.phase === 'wave') {
-    qbStart.textContent = isBossRound ? '👹 BOSS!' : `⚔ Wave ${state.round + 1}`;
-  } else if (state.phase === 'draft') {
-    qbStart.textContent = '🃏 pick a card';
-  } else if (state.phase === 'relic') {
-    qbStart.textContent = '💎 pick a relic';
-  } else if (state.phase === 'actClear') {
-    qbStart.textContent = '🏰 act complete';
-  } else {
-    qbStart.textContent = state.phase === 'won' ? '🏆' : '💀';
-  }
 }
 
 function previewWave(state: GameState): string {
@@ -109,9 +82,14 @@ function hintFor(type: string): string {
     case 'runner': return ' <i>(fast — chill them!)</i>';
     case 'golem': return ' <i>(BOSS)</i>';
     case 'golemling': return ' <i>(mini-boss)</i>';
-    case 'warlord': return ' <i>(BOSS — armor breaks to PHYSICAL only!)</i>';
-    case 'pyretitan': return ' <i>(BOSS — fire-immune, cannot be chilled!)</i>';
-    case 'colossus': return ' <i>(THE BOSS — armored, fire-hardened, cold-proof)</i>';
+    case 'warlord': return ' <i>(BOSS — armor breaks to PHYSICAL only, lobs tower-stunning grenades!)</i>';
+    case 'pyretitan': return ' <i>(BOSS — fire-immune, periodically SHIELDS: pelt it with fast attacks!)</i>';
+    case 'colossus': return ' <i>(THE BOSS — armored, fire-hardened, plants healing Heartstones: snipe them!)</i>';
+    case 'aetherwyrm': return ' <i>(THE BOSS — its ROAR polymorphs half your towers at the first bend. Kill it fast or adapt!)</i>';
+    case 'heartstone': return ' <i>(heal-crystal — destroy it fast!)</i>';
+    case 'frostshaman': return ' <i>(his cold SLOWS your towers — kill him first!)</i>';
+    case 'burrower': return ' <i>(tunnels underground — untargetable and fast below!)</i>';
+    case 'mirrorslime': return ' <i>(magic kills SPLIT it — finish with physical!)</i>';
     case 'orcbrute': return ' <i>(armored — physical!)</i>';
     case 'troll': return ' <i>(armored + REGENERATES — crack, then burst!)</i>';
     case 'warwagon': return ' <i>(carrier — kill it EARLY, leaks -8!)</i>';

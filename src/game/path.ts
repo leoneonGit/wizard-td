@@ -28,6 +28,29 @@ export class Track {
     this.total = this.cum[this.cum.length - 1];
   }
 
+  /** Track distance of the point on the polyline nearest to (x, y).
+   *  Projects onto every segment and keeps the closest hit (Black Hole anchoring). */
+  nearestDist(x: number, y: number): number {
+    let bestD2 = Infinity;
+    let bestDist = 0;
+    for (let i = 1; i < this.points.length; i++) {
+      const a = this.points[i - 1];
+      const b = this.points[i];
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const len2 = abx * abx + aby * aby || 1;
+      const t = Math.max(0, Math.min(1, ((x - a.x) * abx + (y - a.y) * aby) / len2));
+      const px = a.x + abx * t;
+      const py = a.y + aby * t;
+      const d2 = (x - px) ** 2 + (y - py) ** 2;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        bestDist = this.cum[i - 1] + Math.sqrt(len2) * t;
+      }
+    }
+    return bestDist;
+  }
+
   /** Position + heading at distance d along the track (clamped). */
   posAt(d: number): TrackPoint {
     if (d <= 0) {

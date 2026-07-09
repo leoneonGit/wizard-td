@@ -4,3 +4,10 @@ art/raw/
 .env
 .env.local
 .github/
+.cards-dump.json
+# Play Store signing package — NEVER commit (contains keystore + passwords)
+.play-package/
+Wildguard - Google Play package.zip
+
+# tester emails are personal data — never commit
+store/testers.csv

@@ -7,16 +7,35 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Wizard TD</title>
+    <title>Wildguard TD</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="icons/portrait_fire.png" />
+    <link rel="icon" href="icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
+    <div id="loading">
+      <div id="loading-inner">
+        <div id="loading-title">🌿 Wildguard TD</div>
+        <div id="loading-bar"><div id="loading-fill"></div></div>
+        <div id="loading-text">Waking the wilds…</div>
+      </div>
+    </div>
+    <div id="rotate-overlay">
+      <div id="ro-card">
+        <div id="ro-phone">📱</div>
+        <h2>Rotate your device</h2>
+        <p>Wildguard TD plays in landscape</p>
+      </div>
+    </div>
     <div id="app">
       <div id="board-wrap">
         <canvas id="board" width="960" height="640"></canvas>
+        <div id="hud">
+          <span class="stat"><span class="stat-icon lives">❤</span><span id="hud-lives">0</span></span>
+          <span class="stat"><span class="stat-icon gold">◉</span><span id="hud-gold">0</span></span>
+          <span class="stat"><span class="stat-icon round">◈</span><span id="hud-round">0</span></span>
+        </div>
         <div id="tower-panel" class="hidden"></div>
         <div id="draft-modal" class="hidden"></div>
         <div id="specialize-modal" class="hidden"></div>
@@ -24,10 +43,21 @@
         <div id="event-modal" class="hidden"></div>
         <div id="path-modal" class="hidden"></div>
         <div id="actclear-modal" class="hidden"></div>
+        <div id="grove-modal" class="hidden"></div>
+        <div id="spell-bar" class="hidden"></div>
         <div id="zoom-controls">
           <button id="zoom-in" title="Zoom in">＋</button>
           <button id="zoom-out" title="Zoom out">－</button>
           <button id="zoom-reset" title="Reset view">⛶</button>
+        </div>
+        <div id="gesture-hint" class="hidden">
+          <div id="gh-card">
+            <h2>🌿 Welcome, Warden!</h2>
+            <div class="gh-row"><span class="gh-icon">🤏</span> Pinch (or use ＋/－) to zoom the battlefield</div>
+            <div class="gh-row"><span class="gh-icon">✋</span> Drag with one finger to look around while zoomed</div>
+            <div class="gh-row"><span class="gh-icon">👆</span> Double-tap to zoom in and out quickly</div>
+            <button id="gh-ok">Got it — to battle! ⚔️</button>
+          </div>
         </div>
         <div id="place-confirm" class="hidden">
           <button id="pc-build">✓ Build</button>
@@ -38,47 +68,35 @@
             <h2 id="overlay-title"></h2>
             <p id="overlay-text"></p>
             <button id="btn-restart">Play Again</button>
+            <button id="btn-grove-over">🌳 Warden's Grove</button>
           </div>
         </div>
-      </div>
-      <div id="quickbar">
-        <span class="qb-stat"><span class="stat-icon gold">◉</span><b id="qb-gold">0</b></span>
-        <span class="qb-stat"><span class="stat-icon lives">❤</span><b id="qb-lives">0</b></span>
-        <span class="qb-stat" id="qb-round">1/10</span>
-        <button id="qb-start">▶</button>
-        <button id="qb-speed">1×</button>
-        <button id="qb-auto" title="Autoplay">⟳</button>
       </div>
       <aside id="sidebar">
-        <h1>⚡ Wizard TD</h1>
-        <div id="hud">
-          <div class="stat"><span class="stat-icon gold">◉</span><span id="hud-gold">0</span></div>
-          <div class="stat"><span class="stat-icon lives">❤</span><span id="hud-lives">0</span></div>
-          <div class="stat"><span class="stat-icon round">◈</span><span id="hud-round">0</span></div>
-        </div>
         <div id="relic-bar"></div>
-        <div id="controls">
-          <div id="node-picker" class="hidden"></div>
-          <button id="btn-start">Start Wave 1</button>
-          <div id="speed-row">
-            <button class="btn-speed active" data-speed="1">1×</button>
-            <button class="btn-speed" data-speed="2">2×</button>
-            <button class="btn-speed" data-speed="3">3×</button>
-            <label id="autoplay-label"><input type="checkbox" id="chk-auto" /> Auto</label>
-          </div>
-          <div id="audio-row">
-            <button id="btn-mute" title="Mute">🔊</button>
-            <button id="btn-music" title="Toggle music">🎵</button>
-            <input type="range" id="vol-slider" min="0" max="100" value="50" />
-          </div>
-        </div>
         <div id="shop"></div>
         <div id="wave-preview"></div>
+        <div id="node-picker" class="hidden"></div>
+        <div id="audio-row">
+          <button id="btn-mute" title="Mute everything">🔊</button>
+          <input type="range" id="vol-slider" min="0" max="100" value="50" title="Sound effects volume" />
+        </div>
+        <div id="music-row">
+          <button id="btn-music" title="Toggle music">🎵</button>
+          <input type="range" id="music-slider" min="0" max="100" value="50" title="Music volume" />
+        </div>
         <div id="map-row">
           <select id="map-select"></select>
+          <button id="btn-grove" title="Warden's Grove — spend essence on permanent perks">🌳</button>
           <button id="btn-newrun" title="Abandon the saved run and start over">🔄</button>
-          <a href="./editor.html" id="editor-link">🗺️ Editor</a>
         </div>
+        <div id="speed-row">
+          <button class="btn-speed active" data-speed="1">1×</button>
+          <button class="btn-speed" data-speed="2">2×</button>
+          <button class="btn-speed" data-speed="3">3×</button>
+          <label id="autoplay-label"><input type="checkbox" id="chk-auto" /> Auto</label>
+        </div>
+        <button id="btn-start">Start Wave 1</button>
       </aside>
     </div>
     <script type="module" src="/src/main.ts"></script>

@@ -122,7 +122,8 @@ export function syncFx(state: GameState): void {
     mesh.position.set(p.x * PX, FX_Y + yOff, p.y * PX);
 
     const mat = mesh.material as THREE.MeshBasicMaterial;
-    mat.color.set(KIND_COLOR[kind] ?? ELEMENTS[p.element].color);
+    // void shots always glow their element color — a steel-gray "laser" reads wrong
+    mat.color.set(p.element === 'void' ? ELEMENTS.void.color : (KIND_COLOR[kind] ?? ELEMENTS[p.element].color));
 
     const dir = Math.atan2(p.ty - p.y, p.tx - p.x);
     mesh.rotation.set(0, -dir, 0);

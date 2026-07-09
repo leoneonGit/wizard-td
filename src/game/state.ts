@@ -1,13 +1,14 @@
 import { computeBlockedCells, cellKey, cellCenter, pixelToCell } from '../engine/grid';
 import { makeRng } from '../engine/rng';
-import { MAPS, DEFAULT_MAP, ACT_MAPS } from '../data/maps';
-import { WAVES_PER_ACT, TOTAL_ACTS } from '../data/waves';
+import { ACT_MAPS, mapForAct } from '../data/maps';
+import { wavesInAct, TOTAL_ACTS } from '../data/waves';
 import { PROP_MODELS } from './mapio';
 import { Track } from './path';
+import { NO_PERKS, type RunPerks } from './meta';
 import type {
   CardDef, Cloud, Enemy, EventDef, MapDef, NodeKind, Phase, Projectile, ReactionMods,
-  RelicDef, RelicSpecial, RunStats, TargetMode, TowerFamily, WaveModifier, Wizard,
-  WizardDef, WizardStats,
+  RelicDef, RelicSpecial, RunStats, SpellEffect, TargetMode, TowerFamily, WaveModifier,
+  Wizard, WizardDef, WizardStats,
 } from './types';
 
 export interface PendingSpawn {
@@ -34,6 +35,20 @@ export interface GameState {
   cloudTracks: Track[];
   /** props that block line of sight (board px + radius) */
   blockers: { x: number; y: number; r: number }[];
+
+  // meta-progression: frozen at run start — Grove purchases mid-run apply NEXT run
+  perks: RunPerks;
+  /** draft reroll tokens remaining this run */
+  rerollTokens: number;
+  /** Founder's Discount consumed? (first tower each run costs less) */
+  firstTowerBought: boolean;
+
+  // Warden Spells (unlocked by board composition, cast on cooldown)
+  spellCds: Record<string, number>;
+  /** spell id awaiting a board click, mirrors placingType */
+  castingSpell: string | null;
+  /** transient ground zones (roots / black hole / arrow storm) — never persisted */
+  spellEffects: SpellEffect[];
 
   // roguelite run state
   seed: number;
@@ -102,7 +117,7 @@ export function freshStats(): RunStats {
     kills: 0,
     leaks: 0,
     wavesCleared: 0,
-    dmgByElement: { fire: 0, ice: 0, lightning: 0, water: 0, wind: 0, physical: 0 },
+    dmgByElement: { fire: 0, ice: 0, lightning: 0, water: 0, wind: 0, physical: 0, void: 0 },
     reactions: { conduct: 0, shatter: 0, evaporate: 0, frozen: 0 },
     cardIds: [],
   };
@@ -142,18 +157,25 @@ function mapDerived(map: MapDef) {
   };
 }
 
-export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): GameState {
-  const derived = mapDerived(map);
+export function createGame(map?: MapDef, seed = Date.now(), perks: RunPerks = NO_PERKS): GameState {
+  // no explicit map (normal campaign start) -> roll act 1's map from its pool
+  const derived = mapDerived(map ?? mapForAct(0, seed));
   return {
     ...derived,
     phase: 'build',
-    gold: START_GOLD,
-    lives: START_LIVES,
+    gold: START_GOLD + perks.startGold,
+    lives: START_LIVES + perks.startLives,
     round: 0,
     act: 0,
     speed: 1,
     autoplay: false,
     autoplayTimer: 0,
+    perks,
+    rerollTokens: perks.rerollTokens,
+    firstTowerBought: false,
+    spellCds: {},
+    castingSpell: null,
+    spellEffects: [],
     seed,
     rng: makeRng(seed),
     draftMods: [],
@@ -191,10 +213,6 @@ export function createGame(map: MapDef = MAPS[DEFAULT_MAP], seed = Date.now()): 
   };
 }
 
-export function totalWaves(): number {
-  return WAVES_PER_ACT;
-}
-
 /** Is this run the built-in campaign (acts advance) or a custom-map free play? */
 export function isCampaign(state: GameState): boolean {
   return ACT_MAPS.includes(state.map.id);
@@ -215,8 +233,11 @@ export function advanceAct(state: GameState): boolean {
   state.projectiles = [];
   state.selectedWizardId = null;
   state.placingType = null;
+  // spells re-lock naturally (no towers); cooldowns are kept, zones don't cross acts
+  state.spellEffects = [];
+  state.castingSpell = null;
   state.act++;
-  Object.assign(state, mapDerived(MAPS[ACT_MAPS[state.act]]));
+  Object.assign(state, mapDerived(mapForAct(state.act, state.seed)));
   state.round = 0;
   state.lastEliteRound = -5;
   state.nodesForRound = -1;
@@ -381,6 +402,8 @@ export function drawSpecialize(state: GameState, family: TowerFamily, onWater: b
     } else {
       pool = pool.filter((d) => d.placement !== 'water');
     }
+    // a skyless map (no cloud paths) would leave a Cloud Mage becalmed forever
+    if (state.cloudTracks.length === 0) pool = pool.filter((d) => !d.needsCloud);
   }
   const picks: WizardDef[] = guaranteed ? [guaranteed] : [];
   const remaining = Math.max(0, count - picks.length);
@@ -450,6 +473,11 @@ export function relicSpecial(state: GameState, special: RelicSpecial): boolean {
   return state.relics.some((r) => r.special?.includes(special));
 }
 
+/** How many cards a draft shows: 4 with the Cursed Hourglass relic OR the Wider Draft perk. */
+export function draftCount(state: GameState): number {
+  return relicSpecial(state, 'draft4') || state.perks.widerDraft ? 4 : 3;
+}
+
 /** Draw `count` distinct unowned relics, rarity-weighted (seeded). */
 export function drawRelics(state: GameState, count = 2): RelicDef[] {
   const owned = new Set(state.relics.map((r) => r.id));
@@ -487,7 +515,7 @@ export function ensureNodes(state: GameState): void {
   state.nodesForRound = state.round;
   state.nodeChoice = 'normal';
   // the act's final wave is the BOSS — no detours, no choice
-  if (state.round >= WAVES_PER_ACT - 1) {
+  if (state.round >= wavesInAct(state.act) - 1) {
     state.nextNodes = ['normal'];
     state.nodePicked = true;
     return;

@@ -1,5 +1,11 @@
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   background: #14121f;
   color: #e8e2d5;
@@ -11,88 +17,149 @@ body {
 
 button { touch-action: manipulation; }
 
+/* ================================================================
+   BTD6-style shell: the board IS the screen, a slim tower rail on
+   the right, stats float over the battlefield.
+   ================================================================ */
+
 #app {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  min-height: 100vh;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; /* mobile URL bar: dvh tracks the real visible viewport */
 }
 
 #board-wrap {
   position: relative;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  background: #101018;
 }
 
 #board {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: block;
-  border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   cursor: crosshair;
   touch-action: none;
-  max-width: 100%;
-  height: auto;
 }
 
-/* ---- quickbar: the always-visible mobile control strip ---- */
-#quickbar {
-  display: none;
-  position: sticky;
-  top: 4px;
-  z-index: 50;
-  background: #1e1b2ef2;
-  border: 1px solid #35304d;
-  border-radius: 10px;
-  padding: 6px 8px;
-  gap: 8px;
+/* boot loading screen — visible from first paint until the models arrive */
+#loading {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
   align-items: center;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-}
-.qb-stat { display: flex; align-items: center; gap: 4px; font-size: 15px; font-weight: 700; white-space: nowrap; }
-#qb-round { color: #c9b8ff; font-size: 13px; }
-#qb-start {
-  flex: 1;
-  min-height: 44px;
-  background: #55409e;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 0 8px;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-#qb-start:disabled { background: #2c2745; color: #7a7290; }
-#qb-speed, #qb-auto {
-  min-width: 44px;
-  min-height: 44px;
+  justify-content: center;
   background: #14121f;
+}
+#loading-inner { text-align: center; width: min(320px, 80vw); }
+#loading-title { font-size: 28px; font-weight: 700; color: #e8e2d5; margin-bottom: 18px; }
+#loading-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: #262238;
   border: 1px solid #3d3660;
-  border-radius: 8px;
-  color: #b5aed0;
+  overflow: hidden;
+}
+#loading-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #6d5ce0, #8bd97a);
+  transition: width 0.25s ease;
+}
+#loading-text { margin-top: 10px; font-size: 13px; color: #9a92b8; }
+
+/* portrait phones: the game is a landscape experience — ask for a turn */
+#rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  align-items: center;
+  justify-content: center;
+  background: #14121f;
+  text-align: center;
+}
+#ro-phone { font-size: 64px; animation: ro-turn 1.8s ease-in-out infinite; }
+#ro-card h2 { margin: 14px 0 6px; color: #c9b8ff; font-size: 22px; }
+#ro-card p { color: #9a92b8; font-size: 14px; }
+@keyframes ro-turn {
+  0%, 20% { transform: rotate(0deg); }
+  55%, 80% { transform: rotate(90deg); }
+  100% { transform: rotate(90deg); }
+}
+
+/* per-act mood vignette: the edges of the world close in as the campaign
+   darkens — barely-there in act 1, dusk in act 2, embers-and-ink in act 3 */
+#board-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(10, 8, 22, 0.5) 100%);
+  opacity: 0.12;
+  transition: opacity 1.5s ease, background 1.5s ease;
+}
+body[data-act='1'] #board-wrap::after {
+  opacity: 0.4;
+  background: radial-gradient(ellipse at 50% 42%, transparent 48%, rgba(12, 14, 24, 0.6) 100%);
+}
+body[data-act='2'] #board-wrap::after {
+  opacity: 0.55;
+  background: radial-gradient(ellipse at 50% 42%, transparent 44%, rgba(28, 8, 12, 0.65) 100%);
+}
+
+/* ---- floating stats: cash / lives / round chips over the battlefield ---- */
+#hud {
+  position: absolute;
+  top: 10px;
+  left: max(10px, env(safe-area-inset-left));
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+  pointer-events: none;
+}
+#hud .stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(20, 18, 31, 0.82);
+  border: 1px solid #35304d;
+  border-radius: 999px;
+  padding: 5px 12px;
   font-size: 15px;
   font-weight: 700;
-  cursor: pointer;
+  backdrop-filter: blur(5px);
+  white-space: nowrap;
 }
-#qb-auto.active { border-color: #8a7aff; color: #fff; background: #1e1b2e; }
+.stat-icon.gold { color: #ffd75e; }
+.stat-icon.lives { color: #ff6b81; }
+.stat-icon.round { color: #7ec8ff; }
+#hud-round { color: #c9b8ff; font-size: 13px; font-weight: 700; }
 
-/* (mobile media queries live at the END of this file so they win the cascade) */
-
+/* ---- the tower rail ---- */
 #sidebar {
-  width: 290px;
+  flex: 0 0 158px;
+  height: 100%;
   background: #1e1b2e;
-  border: 1px solid #35304d;
-  border-radius: 8px;
-  padding: 12px;
+  border-left: 1px solid #35304d;
+  padding: 8px calc(8px + env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  height: fit-content;
+  gap: 8px;
+  /* short phones: the rail must SCROLL — a clipped Start button once locked a
+     tester out of the game entirely (path choice pushed it off-screen) */
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 #sidebar h1 {
@@ -102,45 +169,41 @@ button { touch-action: manipulation; }
   letter-spacing: 1px;
 }
 
-#hud {
-  display: flex;
-  justify-content: space-around;
-  background: #14121f;
-  border-radius: 6px;
-  padding: 8px;
-  font-size: 16px;
-  font-weight: 600;
+/* ---- shop: BTD6-style portrait cards, two per row, scrolls if tall ---- */
+#shop {
+  flex: 1 1 auto;
+  min-height: 80px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  align-content: start;
+  scrollbar-width: thin;
 }
-
-.stat { display: flex; align-items: center; gap: 5px; }
-.stat-icon.gold { color: #ffd75e; }
-.stat-icon.lives { color: #ff6b81; }
-.stat-icon.round { color: #7ec8ff; }
-
-/* ---- shop ---- */
-#shop { display: flex; flex-direction: column; gap: 8px; }
 
 .shop-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 3px;
   background: #262138;
   border: 1px solid #3d3660;
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 7px 2px 5px;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.1s;
+  text-align: center;
 }
 .shop-card:hover { border-color: #8a7aff; }
 .shop-card.selected { border-color: #c9b8ff; background: #322a52; }
 .shop-card.unaffordable { opacity: 0.45; cursor: not-allowed; }
 
 .shop-icon {
-  width: 36px; height: 36px;
+  width: 38px; height: 38px;
   border-radius: 50%;
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
-  font-size: 19px;
+  font-size: 20px;
   overflow: hidden;
   position: relative;
 }
@@ -162,17 +225,20 @@ button { touch-action: manipulation; }
   margin-right: 2px;
 }
 
-.shop-info { flex: 1; min-width: 0; }
-.shop-name { font-size: 13px; font-weight: 600; }
-.shop-desc { font-size: 10.5px; color: #9a92b5; line-height: 1.25; }
-.shop-cost { font-size: 13px; font-weight: 700; color: #ffd75e; }
+.shop-info { min-width: 0; width: 100%; }
+.shop-name { font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shop-desc { display: none; } /* full pitch lives in the hover tooltip + specialize modal */
+.shop-cost { font-size: 12px; font-weight: 700; color: #ffd75e; }
 
 /* ---- tower panel (floats over the board, bottom-left) ---- */
 #tower-panel {
   position: absolute;
-  left: 12px;
+  left: max(12px, env(safe-area-inset-left));
   bottom: 12px;
   width: 290px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
   background: rgba(30, 27, 46, 0.94);
   border: 1px solid #55409e;
   border-radius: 8px;
@@ -193,6 +259,7 @@ button { touch-action: manipulation; }
   flex: 1;
   font-size: 10px;
   padding: 4px 0;
+  min-height: 32px;
   background: #14121f;
   border: 1px solid #3d3660;
   border-radius: 4px;
@@ -231,38 +298,47 @@ button { touch-action: manipulation; }
 }
 .tp-sell:hover { border-color: #ff9db5; }
 
-/* ---- controls ---- */
-#controls { display: flex; flex-direction: column; gap: 8px; }
-
+/* ---- rail controls ---- */
 #btn-start {
   background: linear-gradient(180deg, #6d5bd0, #55409e);
   border: 1px solid #8a7aff;
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  padding: 10px;
-  border-radius: 6px;
+  padding: 10px 4px;
+  min-height: 56px;
+  border-radius: 10px;
   cursor: pointer;
+  flex: 0 0 auto;
+  /* pinned to the rail's bottom edge while the rest scrolls beneath it */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  box-shadow: 0 -8px 14px rgba(30, 27, 46, 0.95);
 }
 #btn-start:hover:not(:disabled) { filter: brightness(1.15); }
 #btn-start:disabled { opacity: 0.4; cursor: default; }
 
-#speed-row { display: flex; gap: 6px; align-items: center; }
+#speed-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  flex: 0 0 auto;
+}
 .btn-speed {
-  flex: 1 1 0;
   background: #14121f;
   border: 1px solid #3d3660;
   color: #b5aed0;
-  padding: 9px 0;
+  padding: 8px 0;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  min-height: 36px;
 }
 .btn-speed.active { border-color: #c9b8ff; color: #fff; background: #322a52; }
 #autoplay-label {
-  flex: 1 1 0;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #b5aed0;
   cursor: pointer;
@@ -271,33 +347,47 @@ button { touch-action: manipulation; }
   border: 1px solid #3d3660;
   border-radius: 6px;
   padding: 8px 0;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
 }
 #autoplay-label:has(input:checked) { border-color: #c9b8ff; color: #fff; background: #322a52; }
 
-#audio-row { display: flex; gap: 8px; align-items: center; }
+#audio-row, #music-row { display: flex; gap: 5px; align-items: center; flex: 0 0 auto; }
 #btn-mute, #btn-music {
   background: #14121f;
   border: 1px solid #3d3660;
   border-radius: 6px;
-  font-size: 14px;
-  padding: 5px 9px;
+  font-size: 13px;
+  padding: 5px 7px;
   cursor: pointer;
 }
-#vol-slider { flex: 1; accent-color: #8a7aff; }
+#vol-slider, #music-slider { flex: 1; min-width: 0; accent-color: #8a7aff; }
 
-#wave-preview { font-size: 11px; color: #9a92b5; line-height: 1.4; }
+#wave-preview {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: #9a92b5;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
-#map-row { display: flex; gap: 8px; align-items: center; }
+#map-row { display: flex; gap: 5px; align-items: center; flex: 0 0 auto; }
 #map-select {
   flex: 1;
+  min-width: 0;
   background: #14121f;
   border: 1px solid #3d3660;
   border-radius: 6px;
   color: #e8e2d5;
-  padding: 6px;
-  font-size: 12px;
+  padding: 5px 3px;
+  font-size: 11px;
 }
-#editor-link { color: #8a7aff; font-size: 12px; text-decoration: none; white-space: nowrap; }
 #btn-newrun {
   background: #14121f;
   border: 1px solid #3d3660;
@@ -315,7 +405,6 @@ button { touch-action: manipulation; }
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
   z-index: 20;
 }
 #draft-modal.hidden, #specialize-modal.hidden, #relic-modal.hidden, #event-modal.hidden, #path-modal.hidden, #actclear-modal.hidden { display: none; }
@@ -327,7 +416,7 @@ button { touch-action: manipulation; }
 .path-card .dc-icon { font-size: 32px; background: #14121f; }
 
 /* ---- event vignette ---- */
-#event-inner { text-align: center; max-width: 520px; }
+#event-inner { text-align: center; max-width: min(520px, 92vw); }
 #event-inner .ev-icon { font-size: 44px; }
 #event-inner h2 { color: #ffd75e; font-size: 22px; margin: 8px 0 12px; letter-spacing: 1px; }
 #event-inner .ev-desc { color: #b5aed0; font-size: 13.5px; line-height: 1.5; margin-bottom: 18px; font-style: italic; }
@@ -347,35 +436,47 @@ button { touch-action: manipulation; }
 .ev-choice .evc-desc { font-size: 11.5px; color: #b5aed0; margin-top: 3px; }
 
 /* ---- relic bar ---- */
-#relic-bar { display: flex; flex-wrap: wrap; gap: 5px; min-height: 0; }
-#relic-bar:not(:empty) { margin-bottom: 8px; }
+#relic-bar { display: flex; flex-wrap: wrap; gap: 5px; min-height: 0; flex: 0 0 auto; }
+#relic-bar:empty { display: none; }
 .relic-chip {
   width: 30px; height: 30px;
   display: flex; align-items: center; justify-content: center;
-  background: #1e1b2e;
+  background: #14121f;
   border: 1px solid #6a5acd;
   border-radius: 8px;
   font-size: 16px;
   cursor: help;
 }
 .relic-chip.rare { border-color: #ffd75e; box-shadow: 0 0 6px rgba(255, 215, 94, 0.25); }
+.relic-chip { cursor: pointer; }
+#relic-info {
+  background: #14121f;
+  border: 1px solid #6a5acd;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #b5aed0;
+  flex: 0 0 auto;
+}
+#relic-info b { color: #e8e2d5; }
 
 /* ---- node picker (branching wave map) ---- */
-#node-picker { display: flex; gap: 6px; margin-bottom: 8px; }
+#node-picker { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
 #node-picker.hidden { display: none; }
 .node-btn {
-  flex: 1;
   background: #14121f;
   border: 2px solid #3d3660;
   border-radius: 8px;
   color: #b5aed0;
-  padding: 7px 4px;
+  padding: 6px 4px;
   cursor: pointer;
   font-size: 11px;
   line-height: 1.3;
   text-align: center;
+  min-height: 44px;
 }
-.node-btn .nb-icon { font-size: 16px; display: block; }
+.node-btn .nb-icon { font-size: 15px; display: block; }
 .node-btn.active { border-color: #8a7aff; color: #fff; background: #1e1b2e; }
 .node-btn.elite.active { border-color: #ffd75e; }
 .node-btn.treasure.active { border-color: #7fd8ff; }
@@ -403,7 +504,7 @@ button { touch-action: manipulation; }
 #draft-inner { text-align: center; }
 #draft-inner h2 { color: #c9b8ff; font-size: 22px; margin-bottom: 18px; letter-spacing: 1px; }
 
-#draft-cards { display: flex; gap: 16px; justify-content: center; }
+#draft-cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; max-height: 76vh; overflow-y: auto; padding: 0 10px; }
 
 .draft-card {
   width: 168px;
@@ -453,7 +554,7 @@ button { touch-action: manipulation; }
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  z-index: 25;
 }
 #overlay.hidden { display: none; }
 
@@ -462,12 +563,14 @@ button { touch-action: manipulation; }
   border: 1px solid #55409e;
   border-radius: 10px;
   padding: 32px 48px;
+  max-height: 92%;
+  overflow-y: auto;
   text-align: center;
 }
 #overlay-card h2 { font-size: 28px; margin-bottom: 8px; color: #c9b8ff; }
 #overlay-card p { color: #b5aed0; margin-bottom: 20px; }
 
-#run-summary { margin-top: 14px; text-align: left; min-width: 320px; }
+#run-summary { margin-top: 14px; text-align: left; min-width: min(320px, 74vw); }
 .sum-line { font-size: 13px; color: #d5cfe8; margin: 4px 0; text-align: center; }
 .sum-section { font-size: 11px; color: #9a92b5; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 5px; }
 .sum-bar-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; font-size: 12px; }
@@ -487,92 +590,7 @@ button { touch-action: manipulation; }
   cursor: pointer;
 }
 
-/* ================================================================
-   MOBILE — these live last so they beat every base rule above.
-   ================================================================ */
-
-/* phones/tablets portrait: board scales to width, sidebar stacks below */
-@media (max-width: 1000px) {
-  #app { flex-direction: column; align-items: stretch; padding: 8px; gap: 8px; }
-  #board-wrap { width: 100%; }
-  #sidebar { width: 100%; max-height: none; }
-  .btn-speed, #autoplay-label { padding: 12px 0; font-size: 15px; }
-  #btn-start { padding: 14px; }
-  .node-btn { min-height: 48px; }
-  .tp-mode { min-height: 40px; }
-
-  /* the quickbar takes over the in-game controls… */
-  #quickbar { display: flex; }
-  /* …so the duplicated sidebar pieces slim down */
-  #hud { display: none; }
-  #sidebar h1 { display: none; }
-
-  /* shop becomes a compact icon strip — descriptions live in the specialize modal */
-  #shop { display: flex; flex-direction: row; gap: 6px; }
-  .shop-card { flex: 1; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; min-height: 88px; }
-  .shop-desc { display: none; }
-  .shop-info { text-align: center; }
-  .shop-name { font-size: 12px; }
-  .shop-cost { font-size: 13px; }
-
-  /* the roguelite's big moments deserve the whole screen, not the board box */
-  #draft-modal, #specialize-modal, #relic-modal, #event-modal, #path-modal, #actclear-modal {
-    position: fixed;
-    inset: 0;
-    border-radius: 0;
-    z-index: 100;
-  }
-  #draft-cards { flex-wrap: wrap; max-height: 72vh; overflow-y: auto; padding: 0 10px; }
-  .draft-card { width: min(44vw, 168px); padding: 12px 8px; }
-  .dc-desc { min-height: 0; }
-  #draft-inner h2 { font-size: 18px; padding: 0 12px; }
-  #event-inner { max-width: 92vw; padding: 0 12px; }
-
-  /* tower panel: floating box -> thumb-friendly bottom sheet */
-  #tower-panel {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: auto;
-    width: auto;
-    max-width: none;
-    max-height: 60vh;
-    overflow-y: auto;
-    border-radius: 16px 16px 0 0;
-    z-index: 60;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
-}
-
-/* phone landscape: THE way to play — board fills the height, slim rail on the right */
-@media (max-width: 1000px) and (orientation: landscape) {
-  #app { flex-direction: row; align-items: flex-start; padding: 4px; gap: 6px; }
-  #quickbar { display: none; }
-  #hud { display: flex; font-size: 13px; padding: 6px; }
-  #board-wrap { width: auto; flex: 0 0 auto; }
-  #board {
-    height: calc(100vh - 8px);
-    width: auto;
-    max-width: calc(100vw - 178px);
-  }
-  #sidebar {
-    width: 168px;
-    max-height: calc(100vh - 8px);
-    overflow-y: auto;
-    padding: 8px;
-    gap: 8px;
-    font-size: 12px;
-  }
-  #btn-start { padding: 10px 6px; font-size: 12px; }
-  .btn-speed, #autoplay-label { padding: 8px 0; font-size: 13px; }
-  #shop { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-  .shop-card { min-height: 74px; padding: 6px 2px; }
-  #wave-preview { font-size: 10.5px; }
-  #map-row { display: none; } /* map/editor management is a desktop activity */
-}
-
-/* ---- board zoom controls + placement confirm (all viewports, board overlay) ---- */
+/* ---- board zoom controls + placement confirm (board overlay) ---- */
 #zoom-controls {
   position: absolute;
   top: 10px;
@@ -596,9 +614,65 @@ button { touch-action: manipulation; }
 }
 #zoom-controls button:active { background: #322a52; }
 
+/* first-session attention pulse on the zoom controls (until the hint is dismissed) */
+body[data-hint='1'] #zoom-controls button {
+  animation: zoom-pulse 1.6s ease-in-out infinite;
+}
+@keyframes zoom-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(138, 122, 255, 0.55); }
+  50% { box-shadow: 0 0 0 7px rgba(138, 122, 255, 0); }
+}
+
+/* one-time touch onboarding: how to zoom/pan the battlefield */
+#gesture-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 8, 20, 0.72);
+  backdrop-filter: blur(3px);
+}
+#gesture-hint.hidden { display: none; }
+#gh-card {
+  background: #1e1b2e;
+  border: 1px solid #55409e;
+  border-radius: 14px;
+  padding: 20px 22px;
+  max-width: min(340px, 86%);
+  max-height: 92%;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+#gh-card h2 { margin: 0 0 12px; font-size: 19px; color: #e8e2d5; }
+.gh-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #c9c2e0;
+  font-size: 14px;
+  margin: 9px 0;
+  line-height: 1.35;
+}
+.gh-icon { font-size: 22px; flex: 0 0 auto; }
+#gh-ok {
+  margin-top: 14px;
+  width: 100%;
+  min-height: 46px;
+  background: #6d5ce0;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#gh-ok:active { background: #5a4bc4; }
+
 #place-confirm {
   position: absolute;
-  bottom: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -630,4 +704,217 @@ button { touch-action: manipulation; }
   font-size: 17px;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* ---- Warden's Grove (meta-progression shop) ---- */
+#grove-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 8, 20, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30; /* above the game-over overlay (25) — the Grove opens over it */
+}
+#grove-modal.hidden { display: none; }
+#grove-inner {
+  background: #1e1b2e;
+  border: 1px solid #55409e;
+  border-radius: 14px;
+  padding: 18px 20px;
+  width: min(560px, 94%);
+  max-height: 92%;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+#grove-inner h2 { color: #8bd97a; font-size: 20px; margin-bottom: 6px; text-align: center; }
+#gv-balance { text-align: center; font-size: 15px; color: #ffd75e; margin-bottom: 12px; }
+#gv-lifetime { color: #9a92b5; font-size: 12px; }
+#gv-perks { display: flex; flex-direction: column; gap: 8px; }
+.gv-perk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #14121f;
+  border: 1px solid #3d3660;
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.gv-icon { font-size: 22px; flex: 0 0 auto; }
+.gv-info { flex: 1; min-width: 0; }
+.gv-name { font-size: 13.5px; font-weight: 700; }
+.gv-pips { color: #8bd97a; letter-spacing: 2px; font-size: 11px; margin-left: 4px; }
+.gv-desc { font-size: 11.5px; color: #9a92b5; line-height: 1.35; }
+.gv-buy {
+  flex: 0 0 auto;
+  min-width: 64px;
+  min-height: 38px;
+  background: linear-gradient(180deg, #3f7a4a, #2c5e38);
+  border: 1px solid #7dff9b;
+  border-radius: 8px;
+  color: #d9ffe3;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.gv-buy:disabled { background: #262138; border-color: #3d3660; color: #7a7290; cursor: default; }
+.gv-maxed { flex: 0 0 auto; color: #ffd75e; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.gv-attune { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.gv-el {
+  background: #1e1b2e;
+  border: 1px solid;
+  border-radius: 6px;
+  color: #e8e2d5;
+  font-size: 10.5px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.gv-el.active { font-weight: 700; }
+#gv-note { font-size: 11px; color: #7a7290; text-align: center; margin: 12px 0 10px; }
+#gv-close {
+  width: 100%;
+  min-height: 42px;
+  background: #14121f;
+  border: 1px solid #3d3660;
+  border-radius: 8px;
+  color: #b5aed0;
+  font-size: 14px;
+  cursor: pointer;
+}
+#gv-close:hover { border-color: #8a7aff; color: #fff; }
+
+#btn-grove-over {
+  margin-left: 10px;
+  background: #1e2e1e;
+  border: 1px solid #4a7a4a;
+  color: #a8dfa8;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#btn-grove-over:hover { border-color: #7dff9b; }
+#btn-grove {
+  background: #14121f;
+  border: 1px solid #3d3660;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 8px;
+}
+.sum-essence { color: #8bd97a; font-size: 14px; }
+
+/* ---- draft footer (skip + reroll) ---- */
+#draft-footer { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+#draft-footer #draft-skip { margin-top: 0; }
+#draft-reroll {
+  background: #14121f;
+  border: 1px solid #8a7aff;
+  color: #c9b8ff;
+  padding: 8px 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#draft-reroll:hover { background: #262138; color: #fff; }
+
+/* ---- Warden Spell bar (board overlay, above the placement confirm band) ---- */
+#spell-bar {
+  position: absolute;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 6;
+}
+#spell-bar.hidden { display: none; }
+.spell-btn {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  border: 2px solid #55409e;
+  background: rgba(30, 27, 46, 0.9);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.spell-btn .sp-key {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #9a92b5;
+}
+.spell-btn .sp-cd {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 8, 20, 0.72);
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8e2d5;
+}
+.spell-btn.ready { border-color: #8bd97a; box-shadow: 0 0 12px rgba(139, 217, 122, 0.35); }
+.spell-btn.casting { border-color: #ffd75e; box-shadow: 0 0 14px rgba(255, 215, 94, 0.55); }
+.spell-btn:disabled { cursor: default; }
+.spell-btn.pop { animation: spell-pop 0.6s ease; }
+@keyframes spell-pop {
+  0% { transform: scale(0.2); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* ================================================================
+   RESPONSIVE — these live last so they beat every base rule above.
+   ================================================================ */
+
+/* portrait + touch = a phone held wrong: ask for landscape */
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 1080px) {
+  #rotate-overlay { display: flex; }
+}
+
+/* touch screens: fatter tap targets */
+@media (pointer: coarse) {
+  #zoom-controls { gap: 8px; }
+  #zoom-controls button { width: 48px; height: 48px; font-size: 22px; }
+}
+
+/* tight landscape phones: slimmer rail, denser cards, board keeps the rest */
+@media (max-width: 940px), (max-height: 500px) {
+  #sidebar { flex-basis: 132px; padding: 6px calc(6px + env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) 6px; gap: 5px; }
+  #shop { min-height: 64px; }
+  /* path choice sits side-by-side and the speed row collapses to one line, so the
+     whole rail fits a short landscape phone without burying the Start button */
+  #node-picker { flex-direction: row; }
+  .node-btn { flex: 1 1 0; min-height: 40px; font-size: 9.5px; padding: 4px 2px; }
+  .node-btn .nb-icon { font-size: 13px; }
+  #speed-row { grid-template-columns: repeat(4, 1fr); gap: 3px; }
+  .btn-speed, #autoplay-label { min-height: 30px; padding: 4px 0; font-size: 11px; }
+  #audio-row, #music-row { gap: 4px; }
+  #btn-mute, #btn-music { font-size: 11px; padding: 3px 6px; }
+  #relic-bar { gap: 4px; }
+  .relic-chip { width: 26px; height: 26px; font-size: 14px; }
+  #hud .stat { font-size: 13px; padding: 4px 9px; }
+  .shop-card { padding: 5px 2px 4px; gap: 2px; }
+  .shop-icon { width: 32px; height: 32px; font-size: 17px; }
+  .shop-name { font-size: 10px; }
+  .shop-cost { font-size: 11px; }
+  #btn-start { min-height: 48px; font-size: 12.5px; }
+  #wave-preview { -webkit-line-clamp: 2; font-size: 9.5px; }
+  #map-select { display: none; } /* map picking is a desktop pastime — Grove/New Run stay */
+  .draft-card { width: min(38vw, 168px); padding: 12px 8px; }
+  .dc-desc { min-height: 0; }
+  #draft-inner h2 { font-size: 18px; padding: 0 12px; }
+  #draft-cards { gap: 10px; }
+  #overlay-card { padding: 18px 22px; }
+  #tower-panel { width: 260px; }
 }

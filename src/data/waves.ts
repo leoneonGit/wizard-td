@@ -1,13 +1,14 @@
 import type { WaveDef, WaveModifier } from '../game/types';
 
 /**
- * Campaign: 3 acts x 10 waves, each act on its own map, each act ending in a BOSS.
+ * Campaign: 3 acts (act 1 is a brisk EIGHT waves; acts 2-3 run the full ten),
+ * each act on its own map, each act ending in a BOSS.
  * Act scaling multiplies enemy hp/speed/bounty; within an act, hp also ramps per wave.
  * Teaching arc (act 1): basics -> runners (ice!) -> knights (fire!) -> shades (fire immune!)
- * -> armored boss (physical!). Acts 2-3 assume a developed build and press harder.
+ * -> a taste of the sky -> armored boss (physical!). Acts 2-3 press much harder.
  */
 export const ACT_WAVES: WaveDef[][] = [
-  // ---------------- ACT 1 — Emerald Vale ----------------
+  // ---------------- ACT 1 — Emerald Vale (8 waves) ----------------
   [
     [{ type: 'grunt', count: 8, gap: 0.9, delay: 0 }],
     [{ type: 'grunt', count: 13, gap: 0.7, delay: 0 }],
@@ -22,31 +23,20 @@ export const ACT_WAVES: WaveDef[][] = [
       { type: 'knight', count: 6, gap: 1.3, delay: 0 },
       { type: 'grunt', count: 9, gap: 0.55, delay: 4 },
     ],
-    // mini-boss
+    // mini-boss + ember shades: fire does NOTHING to either
     [
       { type: 'golemling', count: 1, gap: 0, delay: 0 },
-      { type: 'grunt', count: 10, gap: 0.7, delay: 2 },
+      { type: 'shade', count: 9, gap: 0.85, delay: 2 },
     ],
-    // ember shades: fire does NOTHING
+    // a TASTE of the sky (just a pair of gargoyles) + the first orcs
     [
-      { type: 'shade', count: 9, gap: 0.85, delay: 0 },
-      { type: 'runner', count: 6, gap: 0.65, delay: 5 },
+      { type: 'gargoyle', count: 2, gap: 2.0, delay: 0 },
+      { type: 'runner', count: 12, gap: 0.45, delay: 2 },
+      { type: 'orcraider', count: 6, gap: 0.7, delay: 4 },
+      { type: 'knight', count: 4, gap: 1.1, delay: 7 },
     ],
-    // mixed pressure + first ORCS (foreshadowing the horde)
-    [
-      { type: 'grunt', count: 10, gap: 0.5, delay: 0 },
-      { type: 'orcraider', count: 6, gap: 0.7, delay: 2 },
-      { type: 'knight', count: 5, gap: 1.1, delay: 5 },
-      { type: 'shade', count: 5, gap: 0.9, delay: 8 },
-    ],
-    // everything, fast — and one BRUTE ("your magic bounces off... bring muscle")
-    [
-      { type: 'runner', count: 14, gap: 0.42, delay: 0 },
-      { type: 'orcbrute', count: 1, gap: 0, delay: 3 },
-      { type: 'knight', count: 6, gap: 1.1, delay: 4 },
-      { type: 'shade', count: 5, gap: 0.9, delay: 9 },
-    ],
-    // BOSS: the Ironhide Warlord — armor only physical damage can crack
+    // BOSS: the Ironhide Warlord — crack the armor with PHYSICAL damage while
+    // his stun grenades silence a random tower every couple of seconds
     [
       { type: 'warlord', count: 1, gap: 0, delay: 0 },
       { type: 'knight', count: 4, gap: 1.6, delay: 5 },
@@ -74,6 +64,7 @@ export const ACT_WAVES: WaveDef[][] = [
     ],
     [
       { type: 'runner', count: 24, gap: 0.32, delay: 0 },
+      { type: 'burrower', count: 3, gap: 1.5, delay: 3 }, // they tunnel PAST your kill zone
       { type: 'thief', count: 1, gap: 0, delay: 5 }, // he's after your GOLD
     ],
     // first WAR WAGON — kill it early or fight its orcs deep in your lines
@@ -85,6 +76,7 @@ export const ACT_WAVES: WaveDef[][] = [
     [
       { type: 'knight', count: 8, gap: 0.8, delay: 0 },
       { type: 'orcshaman', count: 2, gap: 6, delay: 2 },
+      { type: 'frostshaman', count: 1, gap: 0, delay: 3 }, // his cold slows YOUR towers
       { type: 'gargoyle', count: 5, gap: 1.0, delay: 3 },
       { type: 'orcraider', count: 12, gap: 0.45, delay: 4 },
     ],
@@ -103,9 +95,10 @@ export const ACT_WAVES: WaveDef[][] = [
     [
       { type: 'orcraider', count: 16, gap: 0.35, delay: 0 },
       { type: 'orcshaman', count: 2, gap: 5, delay: 2 },
+      { type: 'frostshaman', count: 2, gap: 8, delay: 2 },
       { type: 'gargoyle', count: 6, gap: 0.9, delay: 3 },
       { type: 'shieldbearer', count: 1, gap: 0, delay: 4 },
-      { type: 'orcbrute', count: 3, gap: 2.2, delay: 5 },
+      { type: 'burrower', count: 4, gap: 1.4, delay: 5 },
       { type: 'knight', count: 6, gap: 0.9, delay: 9 },
     ],
     // BOSS: the Pyre Titan — burns cannot touch it, cold slides off
@@ -128,6 +121,7 @@ export const ACT_WAVES: WaveDef[][] = [
     [
       { type: 'wraith', count: 6, gap: 1.0, delay: 0 }, // they slip between your shots
       { type: 'banshee', count: 2, gap: 4, delay: 2 }, // kill her AWAY from your towers
+      { type: 'mirrorslime', count: 1, gap: 0, delay: 3 }, // magic splits it — hit it with STONE
       { type: 'runner', count: 12, gap: 0.4, delay: 4 },
     ],
     [
@@ -150,6 +144,7 @@ export const ACT_WAVES: WaveDef[][] = [
     ],
     [
       { type: 'troll', count: 2, gap: 8, delay: 0 },
+      { type: 'frostshaman', count: 2, gap: 7, delay: 1 },
       { type: 'drake', count: 4, gap: 1.2, delay: 2 },
       { type: 'banshee', count: 2, gap: 4, delay: 3 },
       { type: 'wraith', count: 6, gap: 0.9, delay: 3 },
@@ -166,22 +161,26 @@ export const ACT_WAVES: WaveDef[][] = [
       { type: 'drake', count: 4, gap: 1.1, delay: 1 },
       { type: 'orcshaman', count: 2, gap: 5, delay: 2 },
       { type: 'shieldbearer', count: 1, gap: 0, delay: 3 },
+      { type: 'burrower', count: 5, gap: 1.2, delay: 4 },
+      { type: 'mirrorslime', count: 2, gap: 7, delay: 5 },
       { type: 'troll', count: 1, gap: 0, delay: 6 },
       { type: 'runner', count: 12, gap: 0.4, delay: 8 },
     ],
     [
       { type: 'siegetower', count: 2, gap: 12, delay: 0 },
       { type: 'wardrummer', count: 2, gap: 8, delay: 2 },
+      { type: 'frostshaman', count: 2, gap: 9, delay: 2 },
       { type: 'necromancer', count: 2, gap: 9, delay: 3 },
       { type: 'banshee', count: 3, gap: 3, delay: 3 },
       { type: 'orcraider', count: 16, gap: 0.35, delay: 4 },
       { type: 'drake', count: 5, gap: 1.0, delay: 6 },
+      { type: 'mirrorslime', count: 2, gap: 8, delay: 7 },
       { type: 'orcbrute', count: 4, gap: 2.2, delay: 8 },
     ],
-    // THE BOSS: the Dread Colossus rides with the whole war machine — and the sky burns.
+    // THE BOSS: the Aetherwyrm descends — its roar remakes your defenses mid-fight.
     [
-      { type: 'colossus', count: 1, gap: 0, delay: 0 },
-      { type: 'orcshaman', count: 2, gap: 6, delay: 4 }, // healers on the Colossus!
+      { type: 'aetherwyrm', count: 1, gap: 0, delay: 0 },
+      { type: 'orcshaman', count: 2, gap: 6, delay: 4 }, // healers on the dragon!
       { type: 'shieldbearer', count: 2, gap: 8, delay: 5 }, // and wards capping your hits
       { type: 'troll', count: 1, gap: 0, delay: 8 },
       { type: 'drake', count: 4, gap: 1.2, delay: 10 },
@@ -190,8 +189,12 @@ export const ACT_WAVES: WaveDef[][] = [
   ],
 ];
 
-export const WAVES_PER_ACT = 10;
 export const TOTAL_ACTS = ACT_WAVES.length;
+
+/** Acts vary in length now (act 1 is 8 waves, acts 2-3 are 10). */
+export function wavesInAct(act: number): number {
+  return wavesForAct(act).length;
+}
 
 /** Per-act enemy multipliers — the campaign's difficulty spine. */
 export const ACT_SCALING = [

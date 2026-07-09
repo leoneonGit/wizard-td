@@ -106,7 +106,7 @@ describe('branching wave map', () => {
   it('from wave 3 to the pre-boss wave there is ALWAYS a real choice, blocking the start', () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7]) {
       const state = createGame(MAPS.vale, seed);
-      for (let round = 2; round < 9; round++) {
+      for (let round = 2; round < 7; round++) { // act 1 is 8 waves; round 7 is the boss
         state.round = round;
         ensureNodes(state);
         expect(state.nextNodes.length, `seed ${seed} round ${round}`).toBeGreaterThanOrEqual(2);
@@ -117,9 +117,9 @@ describe('branching wave map', () => {
     }
   });
 
-  it('the boss wave (round 10) offers no detours — mandatory fight', () => {
+  it('the boss wave offers no detours — mandatory fight', () => {
     const state = createGame(MAPS.vale, 8);
-    state.round = 9;
+    state.round = 7; // act 1's boss wave
     ensureNodes(state);
     expect(state.nextNodes).toEqual(['normal']);
     expect(state.nodePicked).toBe(true);

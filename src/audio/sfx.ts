@@ -6,6 +6,7 @@
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let chainInput: BiquadFilterNode | null = null; // post-master room input (music plugs in here)
 let noiseBuf: AudioBuffer | null = null;
 let muted = false;
 let volume = 0.5;
@@ -122,6 +123,7 @@ export const sfx = {
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
       lp.frequency.value = 11000;
+      chainInput = lp; // music joins the room here, past the SFX volume gain
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -16;
       comp.ratio.value = 4;
@@ -144,6 +146,12 @@ export const sfx = {
   /** The shared bus other audio modules (music) plug into. */
   bus(): { ctx: AudioContext; target: GainNode } | null {
     return ctx && master ? { ctx, target: master } : null;
+  },
+
+  /** The room input PAST the SFX volume gain — music connects here so the
+   *  music and sound sliders are truly independent (both share the reverb). */
+  musicBus(): { ctx: AudioContext; target: AudioNode } | null {
+    return ctx && chainInput ? { ctx, target: chainInput } : null;
   },
 
   setVolume(v: number): void {
@@ -265,6 +273,20 @@ export const sfx = {
       const dt = 0.06 + i * 0.07;
       osc(c, 'triangle', vary(2200 - i * 320, 0.1), t + dt, 0.12, env(c, t + dt, 0.14, 0.12));
     }
+  },
+
+  /** The Aetherwyrm's polymorph roar — longer, deeper and angrier than bossRoar. */
+  dragonRoar(): void {
+    const c = ensure();
+    if (!c) return;
+    const t = c.currentTime;
+    // chest: two detuned saws diving nearly an octave
+    sweep(c, 'sawtooth', 132, 46, t, 1.3, env(c, t, 0.55, 1.3));
+    sweep(c, 'sawtooth', 99, 40, t + 0.06, 1.2, env(c, t + 0.06, 0.42, 1.2));
+    // throat: a growl of noise through a falling bandpass
+    noise(c, t, 1.1, env(c, t, 0.5, 1.1), { type: 'bandpass', f0: 950, f1: 160, q: 1.6 });
+    // sub weight: the ground shakes
+    sweep(c, 'sine', 88, 28, t, 0.9, env(c, t, 0.55, 0.9));
   },
 
   bossRoar(): void {
