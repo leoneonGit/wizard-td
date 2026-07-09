@@ -156,7 +156,10 @@ body[data-act='2'] #board-wrap::after {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: hidden;
+  /* short phones: the rail must SCROLL — a clipped Start button once locked a
+     tester out of the game entirely (path choice pushed it off-screen) */
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 #sidebar h1 {
@@ -307,6 +310,11 @@ body[data-act='2'] #board-wrap::after {
   border-radius: 10px;
   cursor: pointer;
   flex: 0 0 auto;
+  /* pinned to the rail's bottom edge while the rest scrolls beneath it */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  box-shadow: 0 -8px 14px rgba(30, 27, 46, 0.95);
 }
 #btn-start:hover:not(:disabled) { filter: brightness(1.15); }
 #btn-start:disabled { opacity: 0.4; cursor: default; }
@@ -882,14 +890,25 @@ body[data-hint='1'] #zoom-controls button {
 
 /* tight landscape phones: slimmer rail, denser cards, board keeps the rest */
 @media (max-width: 940px), (max-height: 500px) {
-  #sidebar { flex-basis: 132px; padding: 6px calc(6px + env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) 6px; gap: 6px; }
+  #sidebar { flex-basis: 132px; padding: 6px calc(6px + env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) 6px; gap: 5px; }
+  #shop { min-height: 64px; }
+  /* path choice sits side-by-side and the speed row collapses to one line, so the
+     whole rail fits a short landscape phone without burying the Start button */
+  #node-picker { flex-direction: row; }
+  .node-btn { flex: 1 1 0; min-height: 40px; font-size: 9.5px; padding: 4px 2px; }
+  .node-btn .nb-icon { font-size: 13px; }
+  #speed-row { grid-template-columns: repeat(4, 1fr); gap: 3px; }
+  .btn-speed, #autoplay-label { min-height: 30px; padding: 4px 0; font-size: 11px; }
+  #audio-row, #music-row { gap: 4px; }
+  #btn-mute, #btn-music { font-size: 11px; padding: 3px 6px; }
+  #relic-bar { gap: 4px; }
+  .relic-chip { width: 26px; height: 26px; font-size: 14px; }
   #hud .stat { font-size: 13px; padding: 4px 9px; }
   .shop-card { padding: 5px 2px 4px; gap: 2px; }
   .shop-icon { width: 32px; height: 32px; font-size: 17px; }
   .shop-name { font-size: 10px; }
   .shop-cost { font-size: 11px; }
   #btn-start { min-height: 48px; font-size: 12.5px; }
-  .btn-speed, #autoplay-label { min-height: 32px; padding: 5px 0; font-size: 12px; }
   #wave-preview { -webkit-line-clamp: 2; font-size: 9.5px; }
   #map-select { display: none; } /* map picking is a desktop pastime — Grove/New Run stay */
   .draft-card { width: min(38vw, 168px); padding: 12px 8px; }
