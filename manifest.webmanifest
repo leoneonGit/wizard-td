@@ -13,8 +13,8 @@
   "orientation": "landscape",
   "launch_handler": { "client_mode": "navigate-existing" },
   "prefer_related_applications": false,
-  "background_color": "#14121f",
-  "theme_color": "#14121f",
+  "background_color": "#120f0a",
+  "theme_color": "#120f0a",
   "screenshots": [
     {
       "src": "screens/battle.jpg",
