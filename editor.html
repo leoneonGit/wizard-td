@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Wildguard TD — Map Editor</title>
-    <script type="module" crossorigin src="./assets/editor-E_LUlflH.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/mapio-BxUdppum.js">
+    <script type="module" crossorigin src="./assets/editor-DV2tCqTN.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/mapio-Cr5h2veW.js">
     <link rel="stylesheet" crossorigin href="./assets/mapio-BibXqvDB.css">
-    <link rel="stylesheet" crossorigin href="./assets/editor-v3Rcepbc.css">
+    <link rel="stylesheet" crossorigin href="./assets/editor-DLWh8PnB.css">
   </head>
   <body>
     <div id="app">
@@ -23,8 +23,53 @@
           <button class="btn-tool" data-tool="cloud">☁️ Clouds</button>
           <button class="btn-tool" data-tool="prop">🌲 Props</button>
         </div>
+        <div id="road-row"></div>
         <div id="tool-help">Click to add road waypoints. Drag handles to move, right-click to delete. Start &amp; end off the board edge.</div>
         <div id="prop-palette" class="hidden"></div>
+        <div id="prop-actions" class="hidden">
+          <button id="pa-rotate" title="Rotate (R)">↻</button>
+          <button id="pa-grow" title="Bigger (+)">＋</button>
+          <button id="pa-shrink" title="Smaller (-)">－</button>
+          <button id="pa-delete" title="Delete (Del)">🗑</button>
+        </div>
+        <div id="theme-section">
+          <div class="theme-head">🎨 Theme</div>
+          <select id="theme-preset"></select>
+          <details id="theme-advanced">
+            <summary>Fine-tune colors &amp; light</summary>
+            <div class="theme-grid">
+              <label>Ground A <input type="color" id="theme-grassA" /></label>
+              <label>Ground B <input type="color" id="theme-grassB" /></label>
+              <label>Road <input type="color" id="theme-road" /></label>
+              <label>Road edge <input type="color" id="theme-roadEdge" /></label>
+              <label>Water <input type="color" id="theme-water" /></label>
+              <label>Shore <input type="color" id="theme-shore" /></label>
+              <label>Fog <input type="color" id="theme-fog" /></label>
+              <label>Sun <input type="color" id="theme-sun" /></label>
+            </div>
+            <div class="theme-grid">
+              <label>Scatter
+                <select id="theme-scatter">
+                  <option value="flowers">Flowers</option>
+                  <option value="reeds">Reeds</option>
+                  <option value="ash">Ash</option>
+                  <option value="snow">Snow</option>
+                  <option value="sand">Sand</option>
+                  <option value="embers">Embers</option>
+                  <option value="cobbles">Cobbles</option>
+                </select>
+              </label>
+              <label>Pools
+                <select id="theme-waterstyle">
+                  <option value="water">Water</option>
+                  <option value="lava">Lava 🌋</option>
+                </select>
+              </label>
+              <label>Sun power <input type="range" id="theme-sunintensity" /></label>
+              <label>Exposure <input type="range" id="theme-exposure" /></label>
+            </div>
+          </details>
+        </div>
         <div id="issues"></div>
         <div id="editor-actions">
           <button id="btn-save">💾 Save</button>
